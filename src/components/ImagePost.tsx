@@ -21,7 +21,7 @@ import toast from 'react-hot-toast';
 
 const IMAGE_POST_KIND = 20; // The kind used for these image posts (Explicitly 20)
 const BOOKMARK_LIST_KIND = 30001; // NIP-33 Parameterized Replaceable Event for Bookmarks
-const COMMENT_KIND = 11111; // Custom kind for comments on image posts
+const COMMENT_KIND = 1111; // Custom kind for comments on image posts
 
 interface ImagePostProps {
     event: NDKEvent; // Expecting Kind 20 with imeta tags
@@ -47,6 +47,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     const [newCommentContent, setNewCommentContent] = useState(''); // State for new comment input
     const [zapTotalAmountMsats, setZapTotalAmountMsats] = useState(0); // New state for zap total
     const [userHasZappedThisPost, setUserHasZappedThisPost] = useState(false); // Track if user zapped this post in this session
+    const [commentAuthorProfiles, setCommentAuthorProfiles] = useState<Record<string, NDKUserProfile | null>>({}); // State for comment author profiles
 
     // --- Validate Event and Extract Data --- 
     useEffect(() => {
@@ -188,30 +189,52 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     useEffect(() => {
         if (!ndk || !event?.id || !isEventValid || !showComments) return; // Only fetch if valid and section is shown
 
-        const fetchComments = async () => {
+        const fetchCommentsAndProfiles = async () => {
             setIsLoadingComments(true);
+            setFetchedComments([]); // Clear old comments
+            setCommentAuthorProfiles({}); // Clear old profiles
             try {
                 const commentFilter: NDKFilter = {
-                    kinds: [COMMENT_KIND as NDKKind], // Fetch custom comment kind
-                    '#e': [event.id], // Tagging the original post
-                    // Optional: Order by created_at ascending for thread view
-                    // limit: 100 // Optional: Limit the number of comments fetched initially
+                    kinds: [COMMENT_KIND as NDKKind], // Fetch custom comment kind (1111)
+                    '#e': [event.id],
                 };
                  console.log(`ImagePost (${event.id}): Fetching Kind ${COMMENT_KIND} comments with filter:`, commentFilter);
                 const fetched = await ndk.fetchEvents(commentFilter, { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST });
-                // Sort comments by timestamp ascending for thread view
                 const sortedComments = Array.from(fetched).sort((a, b) => a.created_at! - b.created_at!);
                 setFetchedComments(sortedComments);
                  console.log(`ImagePost (${event.id}): Fetched ${sortedComments.length} Kind ${COMMENT_KIND} comments.`);
+
+                // Now fetch profiles for the authors of these comments
+                if (sortedComments.length > 0) {
+                     const authorPubkeys = Array.from(new Set(sortedComments.map(c => c.pubkey).filter(Boolean))); // Unique pubkeys
+                     if (authorPubkeys.length > 0) {
+                         console.log(`ImagePost (${event.id}): Fetching profiles for ${authorPubkeys.length} comment authors...`);
+                        // NDK doesn't have a direct fetchProfiles, so fetch one by one (or implement batching if needed)
+                         const profiles: Record<string, NDKUserProfile | null> = {};
+                        // Use Promise.all for concurrent fetching
+                        await Promise.all(authorPubkeys.map(async (pubkey) => {
+                            try {
+                                const user = ndk.getUser({ pubkey });
+                                profiles[pubkey] = await user.fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST });
+                            } catch (profileError) {
+                                console.warn(`Failed to fetch profile for comment author ${pubkey}:`, profileError);
+                                profiles[pubkey] = null; // Store null if fetch fails
+                            }
+                        }));
+                         setCommentAuthorProfiles(profiles);
+                         console.log(`ImagePost (${event.id}): Finished fetching profiles for comments.`);
+                    }
+                }
+
             } catch (error) {
-                console.error("Error fetching comments:", error);
-                toast.error("Failed to fetch comments.");
+                console.error("Error fetching comments or profiles:", error);
+                toast.error("Failed to fetch comments/profiles.");
             } finally {
                 setIsLoadingComments(false);
             }
         };
 
-        fetchComments();
+        fetchCommentsAndProfiles();
 
         // TODO: Implement real-time subscription for new comments if needed
         // const sub = ndk.subscribe(commentFilter);
@@ -658,15 +681,44 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                      {!isLoadingComments && fetchedComments.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>No comments yet.</Typography>}
                      
                      {!isLoadingComments && fetchedComments.length > 0 && (
-                         <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                             {fetchedComments.map(commentEvent => (
-                                 // TODO: Implement a proper Comment component here
-                                 <Box key={commentEvent.id} sx={{ borderBottom: '1px solid rgba(0,0,0,0.1)', pb: 1 }}>
-                                     <Typography variant="body2" fontWeight="bold" sx={{ wordBreak: 'break-all' }}>{commentEvent.author?.npub?.substring(0, 10) || 'Unknown'}:</Typography>
-                                     <MarkdownContent content={commentEvent.content || ''} />
-                                     {/* TODO: Add reply button for replies to replies */}
-                                 </Box>
-                             ))}
+                         <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                             {fetchedComments.map(commentEvent => {
+                                 const authorPubkey = commentEvent.pubkey;
+                                 const authorNpub = authorPubkey ? nip19.npubEncode(authorPubkey) : null;
+                                 // Look up profile from state
+                                 const profile = authorPubkey ? commentAuthorProfiles[authorPubkey] : null; 
+                                 const displayName = profile?.displayName || profile?.name || authorPubkey?.substring(0, 10) || 'Unknown';
+                                 const avatarUrl = profile?.image?.startsWith('http') ? profile.image : undefined;
+                                 
+                                 return (
+                                     // TODO: Consider extracting into a separate CommentItem component
+                                     <Box key={commentEvent.id} sx={{ borderBottom: '1px solid rgba(0,0,0,0.1)', pb: 1.5 }}>
+                                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                                             <Avatar 
+                                                 src={avatarUrl} 
+                                                 alt={displayName} 
+                                                 sx={{ width: 24, height: 24, mr: 1, bgcolor: 'action.disabledBackground' }} // Added bgcolor fallback
+                                                 onClick={(e) => { e.stopPropagation(); if (authorNpub) navigate(`/profile/${authorNpub}`); }}
+                                                 style={{ cursor: authorNpub ? 'pointer' : 'default' }}
+                                             >
+                                                 {!avatarUrl ? displayName.charAt(0)?.toUpperCase() : null}
+                                             </Avatar>
+                                             <Typography 
+                                                variant="body2" 
+                                                fontWeight="bold" 
+                                                sx={{ wordBreak: 'break-all', cursor: authorNpub ? 'pointer' : 'default' }}
+                                                onClick={(e) => { e.stopPropagation(); if (authorNpub) navigate(`/profile/${authorNpub}`); }}
+                                            >
+                                                {displayName}
+                                             </Typography>
+                                         </Box>
+                                         <Box sx={{ pl: '32px' }}> {/* Indent content */} 
+                                             <MarkdownContent content={commentEvent.content || ''} />
+                                             {/* TODO: Add reply button for replies to replies */}
+                                         </Box>
+                                     </Box>
+                                 );
+                             })}
                          </Box>
                      )}
 
