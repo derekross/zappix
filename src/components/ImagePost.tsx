@@ -11,8 +11,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BoltIcon from '@mui/icons-material/Bolt'; // Zap Icon
-import ShareIcon from '@mui/icons-material/Share'; // Share Icon
-import MoreVertIcon from '@mui/icons-material/MoreVert'; // More options icon
+import MoreVertIcon from '@mui/icons-material/MoreVert'; // Replaces ShareIcon
 import SendIcon from '@mui/icons-material/Send'; // Send icon for comment button
 import { nip19 } from 'nostr-tools';
 import { MarkdownContent } from './MarkdownContent';
@@ -40,7 +39,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     const [userHasBookmarked, setUserHasBookmarked] = useState(false); // New state for bookmark status
     const [isEventValid, setIsEventValid] = useState(false);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null); // For share menu
+    const [anchorElMoreActions, setAnchorElMoreActions] = useState<null | HTMLElement>(null); // For more actions menu
     const [showComments, setShowComments] = useState(false); // New state to toggle comment section
     const [fetchedComments, setFetchedComments] = useState<NDKEvent[]>([]); // State to store fetched comments
     const [isLoadingComments, setIsLoadingComments] = useState(false); // Loading state for comments
@@ -116,7 +115,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                  kinds: [NDKKind.Repost],
                  '#e': [event.id],
                 },
-                 { // Replies (Kind 1 or custom Kind 11111 tagging this event)
+                 { // Replies (Kind 1 or custom Kind 1111 tagging this event)
                      kinds: [NDKKind.Text, COMMENT_KIND as NDKKind],
                      '#e': [event.id],
                  },
@@ -146,7 +145,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                     if (interactEvent.kind === NDKKind.Reaction && (interactEvent.content === '+' || interactEvent.content === '👍')) { likes++; if (user && interactEvent.pubkey === user.pubkey) userLiked = true; }
                     // Count Kind 6 reposts that tag this event (standard boosts)
                     else if (interactEvent.kind === NDKKind.Repost && interactEvent.tags.some(t => t[0] === 'e' && t[1] === event.id)) { reposts++; if (user && interactEvent.pubkey === user.pubkey) userReposted = true; } 
-                    // Count Kind 1 and custom Kind 11111 replies that tag this event
+                    // Count Kind 1 and custom Kind 1111 replies that tag this event
                     else if ((interactEvent.kind === NDKKind.Text || interactEvent.kind === COMMENT_KIND) && interactEvent.tags.some(t => t[0] === 'e' && t[1] === event.id)) { replies++; }
                     // Sum Zap amounts from Kind 9735 receipts tagging this event
                     else if (interactEvent.kind === 9735 && interactEvent.tags.some(t => t[0] === 'e' && t[1] === event.id)) {
@@ -185,7 +184,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         fetchInteractionStatus();
     }, [ndk, user, event?.id, isEventValid]); // Depend on user for personalized status
 
-    // --- Fetch Comments (Kind 11111) when section is shown ---
+    // --- Fetch Comments (Kind 1111) when section is shown ---
     useEffect(() => {
         if (!ndk || !event?.id || !isEventValid || !showComments) return; // Only fetch if valid and section is shown
 
@@ -444,7 +443,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
          }
          try {
              const commentEvent = new NDKEvent(ndk);
-             commentEvent.kind = COMMENT_KIND as NDKKind; // Use custom comment kind 11111
+             commentEvent.kind = COMMENT_KIND as NDKKind; // Use custom comment kind 1111
              commentEvent.content = newCommentContent.trim();
              // Tags for replying to the original Kind 20 post (NIP-10 format)
              commentEvent.tags = [
@@ -453,13 +452,13 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                  ['p', event.pubkey], // Original post author
              ];
 
-             await commentEvent.publish(); // Publish the Kind 11111 event
+             await commentEvent.publish(); // Publish the Kind 1111 event
              toast.success('Comment Published!');
              setNewCommentContent(''); // Clear input field
              // TODO: Optimistically add the new comment to fetchedComments state, or refetch comments.
              // Refetching is simpler for now, but less responsive.
              // Consider fetching comments again after successful publish to update the list.
-             // fetchComments(); // You'd need to make fetchComments accessible or call it here
+             // fetchCommentsAndProfiles(); // Call this to refetch comments and profiles
 
          } catch (error: any) {
              console.error("Error publishing comment:", error);
@@ -507,37 +506,24 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
     const handleAvatarClick = () => { if(event?.author?.npub) navigate(`/profile/${event.author.npub}`); };
 
-    const handleShareMenuClick = (e: React.MouseEvent<HTMLElement>) => {
+    const handleMoreActionsClick = (e: React.MouseEvent<HTMLElement>) => {
         e.stopPropagation(); // Prevent card click
-        setAnchorEl(e.currentTarget);
+        setAnchorElMoreActions(e.currentTarget);
      };
 
-     const handleShareMenuClose = () => {
-        setAnchorEl(null);
+     const handleMoreActionsClose = () => {
+        setAnchorElMoreActions(null);
      };
 
-     const handleCopyNpub = () => {
-         if (event?.author?.npub) {
-             navigator.clipboard.writeText(event.author.npub);
-             toast.success('Author NPub copied!');
-             handleShareMenuClose();
-         }
-     };
-
-     const handleCopyNoteId = () => {
-         const noteId = event?.id ? nip19.noteEncode(event.id) : null;
-         if (noteId) {
-             navigator.clipboard.writeText(noteId);
-             toast.success('Note ID copied!');
-             handleShareMenuClose();
-         }
-     };
+     // handleCopyNpub removed
+     // handleCopyNoteId removed
 
      const handleCopyNevent = () => {
          if (event?.id && event.author?.pubkey) {
              try {
+                 // Generate neventId within the handler
                  const relays = Array.from(ndk?.pool.connectedRelays() || []).map(r => r.url);
-                  const neventId = nip19.neventEncode({
+                 const neventId = nip19.neventEncode({
                       id: event.id,
                       author: event.author.pubkey,
                       relays: relays.length > 0 ? [relays[0]] : undefined // Include a relay if available
@@ -548,13 +534,103 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                  console.error("Error encoding nevent for copy:", e);
                  toast.error('Failed to copy nevent.');
              }
-             handleShareMenuClose();
+             handleMoreActionsClose(); // Close menu after action
          }
      };
+
+     const handleCopyShareUrl = () => {
+         if (event?.id && event.author?.pubkey) {
+            try {
+                 // Generate neventId to construct the URL
+                 const relays = Array.from(ndk?.pool.connectedRelays() || []).map(r => r.url);
+                 const neventId = nip19.neventEncode({
+                      id: event.id,
+                      author: event.author.pubkey,
+                      relays: relays.length > 0 ? [relays[0]] : undefined // Include a relay if available
+                  });
+                 const shareUrl = `https://njump.me/${neventId}`;
+                 navigator.clipboard.writeText(shareUrl);
+                 toast.success('Share URL copied!');
+            } catch (e) { 
+                 console.error("Error generating share URL:", e);
+                 toast.error('Failed to copy Share URL.');
+             }
+            handleMoreActionsClose(); // Close menu after action
+         }
+     };
+
+    // --- Mute/Follow Handlers ---
+    const handleMuteAuthor = async () => {
+        if (!ndk || !user || !signer || !event?.author?.pubkey || event.author.pubkey === user.pubkey) {
+            toast.error("Cannot mute: Login required or trying to mute self.");
+            handleMoreActionsClose();
+            return;
+        }
+        const authorPubkeyToMute = event.author.pubkey;
+        console.log(`Attempting to mute pubkey: ${authorPubkeyToMute}`);
+        const toastId = toast.loading("Updating mute list...");
+        try {
+            // Fetch current mute list (Kind 10000)
+            const muteListEvent = await ndk.fetchEvent({
+                kinds: [NDKKind.MuteList],
+                authors: [user.pubkey],
+            }, { cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST });
+
+            const newMuteListEvent = new NDKEvent(ndk);
+            newMuteListEvent.kind = NDKKind.MuteList;
+            newMuteListEvent.content = muteListEvent?.content || ''; // Preserve content if any
+            newMuteListEvent.tags = muteListEvent?.tags.filter(t => t[0] === 'p') || []; // Copy existing 'p' tags
+
+            // Check if already muted
+            const isAlreadyMuted = newMuteListEvent.tags.some(t => t[0] === 'p' && t[1] === authorPubkeyToMute);
+
+            if (isAlreadyMuted) {
+                 toast.error("User already muted.", { id: toastId });
+            } else {
+                // Add the new 'p' tag
+                newMuteListEvent.tags.push(['p', authorPubkeyToMute]);
+                // NDK's publish method should handle signing
+                const publishedRelays = await newMuteListEvent.publish();
+                if (publishedRelays.size > 0) {
+                     toast.success("User muted successfully!", { id: toastId });
+                     // TODO: Optionally update local state/UI to reflect muted status immediately
+                } else {
+                     throw new Error("Failed to publish updated mute list.");
+                }
+            }
+        } catch (error: any) {
+            console.error("Error muting user:", error);
+            toast.error(`Failed to mute user: ${error.message || 'Unknown error'}`, { id: toastId });
+        } finally {
+            handleMoreActionsClose();
+        }
+    };
+
+    const handleFollowAuthor = async () => {
+        if (!ndk || !user || !signer || !event?.author?.pubkey || event.author.pubkey === user.pubkey) {
+             toast.error("Cannot follow: Login required or trying to follow self.");
+             handleMoreActionsClose();
+             return;
+         }
+        const authorToFollow = event.author;
+        console.log(`Attempting to follow user: ${authorToFollow.npub}`);
+        const toastId = toast.loading("Updating follow list...");
+        try {
+            // NDK user.follow() should handle fetching the current list, adding, and publishing Kind 3
+            await user.follow(authorToFollow);
+            toast.success(`Now following ${authorToFollow.profile?.displayName || authorToFollow.npub?.substring(0, 10)}!`, { id: toastId });
+             // TODO: Optionally update local state/UI to reflect followed status immediately
+        } catch (error: any) {
+            console.error("Error following user:", error);
+            toast.error(`Failed to follow user: ${error.message || 'Unknown error'}`, { id: toastId });
+        } finally {
+            handleMoreActionsClose();
+        }
+    };
     
     const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
          // Prevent navigating if a clickable element inside the card or the share menu was clicked
-         if ((e.target as Element).closest('a, button, [role="button"], [aria-label], .share-menu-button')) return;
+         if ((e.target as Element).closest('a, button, [role="button"], [aria-label], .more-actions-button')) return; // Updated class name check
          // Navigation to a separate thread page is no longer the primary action here.
          // The Comment icon now toggles the inline comment section.
          // if(event?.id && event.author?.pubkey) {
@@ -564,7 +640,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
     // --- Data Preparation --- 
     // Only prepare data if the event is valid
-    const noteId = isEventValid && event?.id ? nip19.noteEncode(event.id) : null;
+    // Removed noteId calculation as it's no longer directly used
     let neventId = null;
      if (isEventValid && event?.id && event.author?.pubkey) {
          try {
@@ -574,8 +650,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                  author: event.author.pubkey,
                  relays: relays.length > 0 ? [relays[0]] : undefined
              });
-         } catch (e) { console.warn("Could not encode nevent string for Kind 20:", e); neventId = noteId; } // Fallback to noteId
-     } else { neventId = noteId; }
+         } catch (e) { console.warn("Could not encode nevent string for Kind 20:", e); }
+     }
 
     const timestamp = isEventValid && event?.created_at ? formatTimestamp(event.created_at) : '';
     const profileImageUrl = authorProfile?.image?.startsWith('http') ? authorProfile.image : undefined;
@@ -618,8 +694,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                 }
                 subheader={timestamp}
                 action={
-                    <IconButton aria-label="share" onClick={handleShareMenuClick} className="share-menu-button">
-                        <ShareIcon />
+                    <IconButton aria-label="more options" onClick={handleMoreActionsClick} className="more-actions-button">
+                        <MoreVertIcon />
                     </IconButton>
                 }
             />
@@ -656,20 +732,24 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                 <Tooltip title={userHasBookmarked ? "Remove Bookmark" : "Bookmark"}><span ><IconButton aria-label="bookmark" onClick={(e) => { e.stopPropagation(); handleBookmark(); }} disabled={!user || !signer}>{userHasBookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}</IconButton></span></Tooltip>
             </CardActions>
 
-             {/* Share Menu */} 
+             {/* More Actions Menu (Corrected Structure) */} 
              <Menu
-                 anchorEl={anchorEl}
-                 open={Boolean(anchorEl)}
-                 onClose={handleShareMenuClose}
+                 anchorEl={anchorElMoreActions}
+                 open={Boolean(anchorElMoreActions)}
+                 onClose={handleMoreActionsClose}
              >
-                 <MenuItem onClick={handleCopyNoteId}>Copy Note ID</MenuItem>
                  <MenuItem onClick={handleCopyNevent}>Copy Nevent</MenuItem>
-                 <MenuItem onClick={handleCopyNpub}>Copy Author NPub</MenuItem>
-                 {/* Add more share options here if needed, e.g., direct link if available */}
-                 {neventId && <MenuItem component="a" href={`https://njump.me/${neventId}`} target="_blank" rel="noopener noreferrer" onClick={handleShareMenuClose}>View on njump.me</MenuItem>}
+                 <MenuItem onClick={handleCopyShareUrl}>Share URL</MenuItem>
+                 {/* Add Follow/Mute options conditionally */} 
+                 {user && signer && event?.author?.pubkey !== user?.pubkey && (
+                     <MenuItem onClick={handleFollowAuthor}>Follow Author</MenuItem>
+                 )}
+                 {user && signer && event?.author?.pubkey !== user?.pubkey && (
+                     <MenuItem onClick={handleMuteAuthor}>Mute Author</MenuItem>
+                 )}
              </Menu>
 
-             {/* Comment Section - Implemented with Kind 11111 */}
+             {/* Comment Section - Implemented with Kind 1111 */}
              {showComments && (
                  <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.02)', mt: 1 }}>
                      <Typography variant="subtitle2" gutterBottom>{`Comments (${replyCount})`}</Typography>
