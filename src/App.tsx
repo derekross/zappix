@@ -19,6 +19,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import Fab from '@mui/material/Fab'; // Added FAB
 import { Toaster } from 'react-hot-toast';
 import { useNdk } from './contexts/NdkContext';
 import { GlobalFeedPage } from './pages/GlobalFeedPage';
@@ -27,11 +28,13 @@ import { SettingsPage } from './pages/SettingsPage';
 import { HashtagFeedPage } from './pages/HashtagFeedPage'; 
 import { ThreadPage } from './pages/ThreadPage';
 import { FollowingFeedPage } from './pages/FollowingFeedPage';
+import { CreatePostPage } from './pages/CreatePostPage'; // Added CreatePostPage import
 import { LoginModal } from './components/LoginModal';
 import { SignUpModal } from './components/SignUpModal';
 import { createAppTheme } from './theme';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
+import AddIcon from '@mui/icons-material/Add'; // Added Add icon for FAB
 
 function AppContent() {
     const { ndk, user, signer, logout, themeMode, toggleThemeMode } = useNdk();
@@ -60,7 +63,7 @@ function AppContent() {
 
     const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorElUser(event.currentTarget);
     const handleCloseUserMenu = () => setAnchorElUser(null);
-    const handleLogout = () => { logout(); handleCloseUserMenu(); };
+    const handleLogout = () => { logout(); handleCloseUserMenu(); navigate('/'); }; // Navigate home on logout
     
     const handleScroll = useCallback(() => {
         const currentScrollY = window.scrollY;
@@ -139,8 +142,21 @@ function AppContent() {
                       <Route path="/settings" element={<SettingsPage />} />
                       <Route path="/t/:hashtag" element={<HashtagFeedPage />} /> 
                       <Route path="/n/:nevent" element={<ThreadPage />} />
+                      <Route path="/create" element={<CreatePostPage />} /> {/* Added route for CreatePostPage */} 
                  </Routes>
              </Container>
+            {/* Add FAB for creating new post */} 
+            {user && (
+                 <Fab 
+                    color="primary" 
+                    aria-label="add" 
+                    sx={{ position: 'fixed', bottom: 16, right: 16 }} 
+                    component={RouterLink} 
+                    to="/create"
+                >
+                    <AddIcon />
+                 </Fab>
+            )}
             <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} onSignUpClick={() => { setLoginOpen(false); setSignupOpen(true); }} />
             <SignUpModal open={signupOpen} onClose={() => setSignupOpen(false)} />
             <Toaster position="bottom-center" />

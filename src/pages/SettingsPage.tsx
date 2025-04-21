@@ -19,13 +19,26 @@ import Alert from '@mui/material/Alert';
 import Grid from '@mui/material/Grid';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider'; // For separating lists
+import Select, { SelectChangeEvent } from '@mui/material/Select'; // Added Select
+import MenuItem from '@mui/material/MenuItem'; // Added MenuItem
+import FormControl from '@mui/material/FormControl'; // Added FormControl
+import InputLabel from '@mui/material/InputLabel'; // Added InputLabel
 
 const LS_DEFAULT_ZAP_AMOUNT_KEY = 'nostrImageAppDefaultZapAmount';
+const LS_BLOSSOM_SERVER_URL_KEY = 'nostrImageAppBlossomServerUrl';
+
+// Predefined Blossom Servers
+const PREDEFINED_BLOSSOM_SERVERS: { [key: string]: string } = {
+    'https://blossom.band': 'blossom.band (Default)',
+    'https://blossom.primal.net': 'blossom.primal.net',
+    'https://nostr.download': 'nostr.download',
+    'custom': 'Custom URL'
+};
 
 export const SettingsPage: React.FC = () => {
     const {
         user,
-        readRelays, // Get separate lists from context
+        readRelays,
         writeRelays,
         defaultRelays,
         relaySource,
@@ -35,7 +48,7 @@ export const SettingsPage: React.FC = () => {
         fetchNip65Relays,
     } = useNdk();
 
-    // Local state for editable lists
+    // Local state for editable relay lists
     const [editableReadRelays, setEditableReadRelays] = useState<string[]>(readRelays || []);
     const [editableWriteRelays, setEditableWriteRelays] = useState<string[]>(writeRelays || []);
     const [newReadRelay, setNewReadRelay] = useState('');
@@ -43,7 +56,12 @@ export const SettingsPage: React.FC = () => {
 
     const [defaultZapAmount, setDefaultZapAmount] = useState<string>('');
 
-    // Sync editable lists with context when context changes
+    // Blossom Server State
+    const [savedBlossomUrl, setSavedBlossomUrl] = useState<string>('https://blossom.band');
+    const [selectedBlossomOption, setSelectedBlossomOption] = useState<string>('https://blossom.band');
+    const [customBlossomUrl, setCustomBlossomUrl] = useState<string>('');
+
+    // Sync editable relay lists with context when context changes
     useEffect(() => {
         console.log("Context read relays changed, updating editableReadRelays:", readRelays);
         setEditableReadRelays(readRelays || []);
@@ -59,6 +77,21 @@ export const SettingsPage: React.FC = () => {
         const storedAmount = localStorage.getItem(LS_DEFAULT_ZAP_AMOUNT_KEY) || '21';
         setDefaultZapAmount(storedAmount);
     }, []);
+
+    // Load Blossom server setting
+    useEffect(() => {
+        const storedUrl = localStorage.getItem(LS_BLOSSOM_SERVER_URL_KEY) || 'https://blossom.band';
+        setSavedBlossomUrl(storedUrl);
+        // Set the initial dropdown selection
+        if (PREDEFINED_BLOSSOM_SERVERS[storedUrl]) {
+            setSelectedBlossomOption(storedUrl);
+        } else {
+            setSelectedBlossomOption('custom');
+            setCustomBlossomUrl(storedUrl);
+        }
+        console.log(`Loaded Blossom URL setting: ${storedUrl}`);
+    }, []);
+
 
     // --- Editable Relay List Handlers (for Read Relays) ---
     const handleAddEditableReadRelay = useCallback(() => {
@@ -120,7 +153,6 @@ export const SettingsPage: React.FC = () => {
 
      // --- Manual NIP-65 Refresh Handler ---
      const handleRefreshRelays = useCallback(async () => {
-        // ... (same as before) ...
          if (!user) {
              toast.error("Please log in to refresh your relay list.");
              return;
@@ -136,7 +168,6 @@ export const SettingsPage: React.FC = () => {
 
     // --- Default Zap Amount Handler ---
     const handleSaveDefaultZapAmount = useCallback(() => {
-        // ... (same as before) ...
          const amount = parseInt(defaultZapAmount, 10);
          if (isNaN(amount) || amount <= 0) {
              toast.error("Default Zap Amount must be a positive number.");
@@ -146,7 +177,42 @@ export const SettingsPage: React.FC = () => {
          toast.success("Default Zap Amount saved!");
     }, [defaultZapAmount]);
 
-    // Determine if editable lists differ from the context lists
+    // --- Blossom Server Handlers ---
+    const handleBlossomSelectChange = (event: SelectChangeEvent<string>) => {
+        const value = event.target.value;
+        setSelectedBlossomOption(value);
+        // Clear custom URL if a predefined option is selected
+        if (value !== 'custom') {
+            setCustomBlossomUrl('');
+        }
+    };
+
+    const handleSaveBlossomServer = useCallback(() => {
+        let urlToSave: string | null = null;
+
+        if (selectedBlossomOption === 'custom') {
+            urlToSave = customBlossomUrl.trim();
+        } else {
+            urlToSave = selectedBlossomOption; // Already a valid URL
+        }
+
+        // Basic validation
+        if (!urlToSave || !(urlToSave.startsWith('http://') || urlToSave.startsWith('https://'))) {
+            toast.error("Invalid Blossom Server URL. Must start with http:// or https://");
+            return;
+        }
+        // Optional: Remove trailing slash for consistency
+        if (urlToSave.endsWith('/')) {
+             urlToSave = urlToSave.slice(0, -1);
+        }
+
+        localStorage.setItem(LS_BLOSSOM_SERVER_URL_KEY, urlToSave);
+        setSavedBlossomUrl(urlToSave); // Update the saved state display
+        toast.success("Blossom Server URL saved!");
+
+    }, [selectedBlossomOption, customBlossomUrl]);
+
+    // Determine if editable relay lists differ from the context lists
     const hasUnpublishedChanges = (
         JSON.stringify((editableReadRelays || []).sort()) !== JSON.stringify((readRelays || []).sort()) ||
         JSON.stringify((editableWriteRelays || []).sort()) !== JSON.stringify((writeRelays || []).sort())
@@ -198,10 +264,9 @@ export const SettingsPage: React.FC = () => {
 
              {/* Default Zap Amount Section */} 
              <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-                {/* ... (zap amount section unchanged) ... */}
                 <Typography variant="h6" gutterBottom>Default Zap Amount</Typography>
                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                     Set the default amount (in Sats) used when you click the Zap button (long-press for custom amount). Requires login.
+                     Set the default amount (in Sats) used when you click the Zap button.
                  </Typography>
                  <TextField
                     fullWidth
@@ -213,12 +278,51 @@ export const SettingsPage: React.FC = () => {
                     InputProps={{ inputProps: { min: 1 } }} 
                     sx={{ mb: 1 }}
                     size="small"
-                    disabled={!user}
+                    disabled={!user} // Disable if not logged in, as zapping requires login
                  />
-                <Button variant="contained" onClick={handleSaveDefaultZapAmount} disabled={!user}>
+                <Button variant="contained" onClick={handleSaveDefaultZapAmount} >
                      Save Default Zap Amount
                 </Button>
              </Paper>
+
+             {/* Blossom Media Server Section */} 
+             <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>Media Upload Server (Blossom)</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Choose the Blossom server (NIP-96/NIP-98 compliant) to upload images to.
+                </Typography>
+                <FormControl fullWidth sx={{ mb: selectedBlossomOption === 'custom' ? 1 : 2 }}>
+                    <InputLabel id="blossom-server-select-label">Blossom Server</InputLabel>
+                    <Select
+                        labelId="blossom-server-select-label"
+                        id="blossom-server-select"
+                        value={selectedBlossomOption}
+                        label="Blossom Server"
+                        onChange={handleBlossomSelectChange}
+                        size="small"
+                    >
+                        {Object.entries(PREDEFINED_BLOSSOM_SERVERS).map(([value, label]) => (
+                            <MenuItem key={value} value={value}>{label}</MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+
+                {selectedBlossomOption === 'custom' && (
+                    <TextField
+                        fullWidth
+                        label="Custom Blossom Server URL"
+                        variant="outlined"
+                        value={customBlossomUrl}
+                        onChange={(e) => setCustomBlossomUrl(e.target.value)}
+                        placeholder="https://your-blossom-server.com"
+                        size="small"
+                        sx={{ mb: 2 }}
+                    />
+                )}
+                <Button variant="contained" onClick={handleSaveBlossomServer}>
+                    Save Blossom Server Setting
+                </Button>
+            </Paper>
 
             {/* Relay Settings Section */} 
             <Paper elevation={2} sx={{ p: 2 }}>
