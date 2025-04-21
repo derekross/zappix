@@ -45,6 +45,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     const [fetchedComments, setFetchedComments] = useState<NDKEvent[]>([]); // State to store fetched comments
     const [isLoadingComments, setIsLoadingComments] = useState(false); // Loading state for comments
     const [newCommentContent, setNewCommentContent] = useState(''); // State for new comment input
+    const [zapTotalAmountMsats, setZapTotalAmountMsats] = useState(0); // New state for zap total
+    const [userHasZappedThisPost, setUserHasZappedThisPost] = useState(false); // Track if user zapped this post in this session
 
     // --- Validate Event and Extract Data --- 
     useEffect(() => {
@@ -116,6 +118,10 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                  { // Replies (Kind 1 or custom Kind 11111 tagging this event)
                      kinds: [NDKKind.Text, COMMENT_KIND as NDKKind],
                      '#e': [event.id],
+                 },
+                 { // Zap Receipts (Kind 9735 tagging this event)
+                     kinds: [9735 as NDKKind],
+                     '#e': [event.id],
                  }
             ];
              // Filter to check if *this* user has liked/reposted
@@ -128,7 +134,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                 });
             }
 
-            let likes = 0, reposts = 0, replies = 0;
+            let likes = 0, reposts = 0, replies = 0, totalZappedMsats = 0;
             let userLiked = false, userReposted = false;
             
             try {
@@ -141,8 +147,22 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                     else if (interactEvent.kind === NDKKind.Repost && interactEvent.tags.some(t => t[0] === 'e' && t[1] === event.id)) { reposts++; if (user && interactEvent.pubkey === user.pubkey) userReposted = true; } 
                     // Count Kind 1 and custom Kind 11111 replies that tag this event
                     else if ((interactEvent.kind === NDKKind.Text || interactEvent.kind === COMMENT_KIND) && interactEvent.tags.some(t => t[0] === 'e' && t[1] === event.id)) { replies++; }
+                    // Sum Zap amounts from Kind 9735 receipts tagging this event
+                    else if (interactEvent.kind === 9735 && interactEvent.tags.some(t => t[0] === 'e' && t[1] === event.id)) {
+                        const descriptionTag = interactEvent.tags.find(t => t[0] === 'description');
+                        if (descriptionTag && descriptionTag[1]) {
+                            try {
+                                const zapRequestData = JSON.parse(descriptionTag[1]);
+                                const amountTag = zapRequestData.tags?.find((t: string[]) => t[0] === 'amount');
+                                if (amountTag && amountTag[1]) {
+                                    totalZappedMsats += parseInt(amountTag[1], 10) || 0;
+                                }
+                            } catch (e) { console.warn("Failed to parse description tag in zap receipt:", descriptionTag[1], e); }
+                        }
+                    }
                 });
                 setLikeCount(likes); setRepostCount(reposts); setReplyCount(replies);
+                setZapTotalAmountMsats(totalZappedMsats);
                 setUserHasLiked(userLiked); setUserHasReposted(userReposted);
 
                  // Check bookmark status (Kind 30001)
@@ -244,7 +264,31 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                  throw new Error("LNURL details missing callback URL.");
              }
              const callbackUrl = lnurlDetails.callback;
-             const zapAmountMsats = 1000; // Example: 1 sat. User could input this.
+             
+             // ---> Get Zap Amount: Use localStorage default or prompt user <--- 
+             let zapAmountSats: number | null = null;
+             const storedAmountSatsStr = localStorage.getItem('nostrImageAppDefaultZapAmount');
+             const storedAmountSats = storedAmountSatsStr ? parseInt(storedAmountSatsStr, 10) : null;
+
+             if (storedAmountSats && storedAmountSats > 0) {
+                 zapAmountSats = storedAmountSats;
+                 console.log(`NIP-57 Zap: Using default amount from localStorage: ${zapAmountSats} sats`);
+             } else {
+                 const promptedAmountStr = prompt("Enter Zap amount in sats (no default set):", "21"); // Default prompt to 21 sats
+                 if (promptedAmountStr === null) { // User cancelled prompt
+                     toast("Zap cancelled.");
+                     return;
+                 }
+                 const promptedAmount = parseInt(promptedAmountStr, 10);
+                 if (isNaN(promptedAmount) || promptedAmount <= 0) {
+                     toast.error("Invalid Zap amount entered.");
+                     return;
+                 }
+                 zapAmountSats = promptedAmount;
+                 console.log(`NIP-57 Zap: Using prompted amount: ${zapAmountSats} sats`);
+             }
+
+             const zapAmountMsats = zapAmountSats * 1000;
              const zapComment = 'Zap!'; // Optional comment for the recipient
 
              // 3. Construct the Kind 9734 Zap Request Event object
@@ -306,6 +350,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
              
              // Standard way to trigger the default lightning handler
              window.open(`lightning:${bolt11Invoice}`);
+             setUserHasZappedThisPost(true); // Set state to indicate zap initiated
              
              // Kind 9734 event is NOT published to relays by the sender.
 
@@ -580,7 +625,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
             </CardContent>
             {/* Card Actions */} 
             <CardActions disableSpacing>
-                <Tooltip title="Zap"><span ><IconButton aria-label="zap" onClick={(e) => { e.stopPropagation(); handleZap(); }} disabled={!user || !(authorProfile?.lud16 || authorProfile?.lud06)}><BoltIcon /></IconButton></span></Tooltip>
+                <Tooltip title="Zap"><span ><IconButton aria-label="zap" onClick={(e) => { e.stopPropagation(); handleZap(); }} disabled={!user || !(authorProfile?.lud16 || authorProfile?.lud06)}><BoltIcon color={userHasZappedThisPost ? "warning" : "inherit"} /><Typography variant="body2" sx={{ ml: 0.5 }}>{Math.floor(zapTotalAmountMsats / 1000)}</Typography></IconButton></span></Tooltip>
                 <Tooltip title={userHasLiked ? "Unlike" : "Like"}><span ><IconButton aria-label="like" onClick={(e) => { e.stopPropagation(); handleLike(); }} disabled={!user || !signer}>{userHasLiked ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}<Typography variant="body2" sx={{ ml: 0.5 }}>{likeCount}</Typography></IconButton></span></Tooltip>
                 <Tooltip title={userHasReposted ? "Undo Boost" : "Boost"}><span ><IconButton aria-label="repost" onClick={(e) => { e.stopPropagation(); handleRepost(); }} disabled={!user || !signer}>{userHasReposted ? <RepeatIcon color="success" /> : <RepeatIcon />}<Typography variant="body2" sx={{ ml: 0.5 }}>{repostCount}</Typography></IconButton></span></Tooltip>
                 <Tooltip title="Comment"><IconButton aria-label="reply" onClick={(e) => { e.stopPropagation(); handleReply(); }}><ChatBubbleOutlineIcon /><Typography variant="body2" sx={{ ml: 0.5 }}>{replyCount}</Typography></IconButton></Tooltip>
