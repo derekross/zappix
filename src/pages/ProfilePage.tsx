@@ -1,9 +1,8 @@
 // src/pages/ProfilePage.tsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { nip19 } from "nostr-tools";
 import { useNdk } from "../contexts/NdkContext";
-// Ensure NDKSubscriptionCacheUsage is imported
 import {
   NDKEvent,
   NDKFilter,
@@ -26,6 +25,8 @@ import { ProfileEditForm } from "../components/ProfileEditForm";
 const POSTS_PER_PAGE = 10;
 const IMAGE_POST_KIND: NDKKind = 20;
 const CONTACT_LIST_KIND: NDKKind = 3;
+// FIX 1: Remove unused MUTE_LIST_KIND
+// const MUTE_LIST_KIND: NDKKind = 10000;
 
 export const ProfilePage: React.FC = () => {
   const { ndk, user: loggedInUser, signer, loggedInUserProfile } = useNdk();
@@ -51,6 +52,7 @@ export const ProfilePage: React.FC = () => {
   const [lastPostTime, setLastPostTime] = useState<number | undefined>(
     undefined
   );
+  const initialFetchDoneRef = useRef<Record<string, boolean>>({});
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -66,10 +68,14 @@ export const ProfilePage: React.FC = () => {
     setIsPostsReachingEnd(false);
     setIsOwnProfile(false);
     setIsEditModalOpen(false);
+    setIsLoadingPosts(false);
 
-    if (ndk && npub) {
+    const currentNpub = npub || "";
+    initialFetchDoneRef.current[currentNpub] = false;
+
+    if (ndk && currentNpub) {
       try {
-        const { type, data: pubkey } = nip19.decode(npub);
+        const { type, data: pubkey } = nip19.decode(currentNpub);
         if (type === "npub" && typeof pubkey === "string") {
           const userInstance = ndk.getUser({ pubkey });
           setProfileUser(userInstance);
@@ -88,6 +94,7 @@ export const ProfilePage: React.FC = () => {
         setIsLoadingProfile(false);
       }
     } else {
+      setProfileUser(null);
       setIsLoadingProfile(false);
     }
   }, [ndk, npub, loggedInUser, loggedInUserProfile]);
@@ -96,7 +103,6 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (profileUser && (!isOwnProfile || (isOwnProfile && !profileDetails))) {
       setIsLoadingProfile(true);
-      // WORKAROUND: Use CACHE_FIRST as RELAY options failed type check
       profileUser
         .fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
         .then((profile) => setProfileDetails(profile))
@@ -105,110 +111,118 @@ export const ProfilePage: React.FC = () => {
     } else if (!profileUser) {
       setProfileDetails(null);
       setIsLoadingProfile(false);
-    } else if (profileUser && isOwnProfile && profileDetails) {
+    } else {
       setIsLoadingProfile(false);
     }
   }, [profileUser, isOwnProfile, profileDetails]);
 
-  // Effect to fetch logged-in user's follow list (Kind 3) to determine follow status
+  // Effect to fetch logged-in user's follow status
   useEffect(() => {
-    if (ndk && loggedInUser && profileUser && !isOwnProfile) {
-      setIsLoadingFollowStatus(true);
-      const filter: NDKFilter = {
-        kinds: [CONTACT_LIST_KIND],
-        authors: [loggedInUser.pubkey],
-        limit: 1,
-      };
-      ndk
-        .fetchEvent(filter, {
-          cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
-        })
-        .then((contactListEvent) => {
-          let currentFollows = new Set<string>();
-          if (contactListEvent) {
-            currentFollows = new Set(
-              contactListEvent.tags
-                .filter((t) => t[0] === "p" && t[1])
-                .map((t) => t[1])
-            );
-          }
-          setIsFollowing(currentFollows.has(profileUser.pubkey));
-          console.log(
-            `ProfilePage: Viewer follows ${
-              currentFollows.size
-            } users. Following current profile: ${currentFollows.has(
-              profileUser.pubkey
-            )}`
-          );
-        })
-        .catch((err) => {
-          console.error("Failed to fetch viewer contact list:", err);
-          setIsFollowing(false);
-        })
-        .finally(() => setIsLoadingFollowStatus(false));
-    } else {
+    if (!ndk || !loggedInUser || !profileUser || isOwnProfile) {
       setIsFollowing(false);
       setIsLoadingFollowStatus(false);
+      return;
     }
+    setIsLoadingFollowStatus(true);
+    const authorPubkey = profileUser.pubkey;
+    const filter: NDKFilter = {
+      kinds: [CONTACT_LIST_KIND],
+      authors: [loggedInUser.pubkey],
+      limit: 1,
+    };
+    ndk
+      .fetchEvent(filter, { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
+      .then((contactListEvent) => {
+        const foundFollow = !!contactListEvent?.tags.some(
+          (t) => t[0] === "p" && t[1] === authorPubkey
+        );
+        setIsFollowing(foundFollow);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch viewer contact list:", err);
+        setIsFollowing(false);
+      })
+      .finally(() => setIsLoadingFollowStatus(false));
   }, [ndk, loggedInUser, profileUser, isOwnProfile]);
 
   // Function to fetch profile posts
   const fetchPosts = useCallback(
     async (until?: number) => {
-      if (!ndk || !profileUser || isLoadingPosts || isPostsReachingEnd) return;
+      if (!ndk || !profileUser) return;
+      console.log(`Fetching posts for ${profileUser.pubkey}, until: ${until}`);
       setIsLoadingPosts(true);
+
       const filter: NDKFilter = {
         kinds: [IMAGE_POST_KIND],
         authors: [profileUser.pubkey],
         limit: POSTS_PER_PAGE,
       };
-      if (until !== undefined) filter.until = until;
+      if (typeof until === "number") {
+        filter.until = until;
+      }
+
       try {
-        const fetchedEvents = await ndk.fetchEvents(filter, {
+        const fetchedEventsSet = await ndk.fetchEvents(filter, {
           cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
         });
-        const sortedEvents = Array.from(fetchedEvents).sort(
+        const fetchedEvents = Array.from(fetchedEventsSet);
+        const sortedEvents = fetchedEvents.sort(
           (a, b) => b.created_at! - a.created_at!
         );
+
         if (sortedEvents.length === 0 || sortedEvents.length < POSTS_PER_PAGE) {
           setIsPostsReachingEnd(true);
-        }
-        if (sortedEvents.length > 0) {
-          const lastTime = sortedEvents[sortedEvents.length - 1].created_at!;
-          setLastPostTime(lastTime > 0 ? lastTime - 1 : 0);
         } else {
-          if (until !== undefined) setIsPostsReachingEnd(true);
+          setIsPostsReachingEnd(false);
         }
+
+        if (sortedEvents.length > 0) {
+          const oldestInBatch =
+            sortedEvents[sortedEvents.length - 1].created_at!;
+          setLastPostTime(oldestInBatch > 0 ? oldestInBatch - 1 : 0);
+        }
+
         setUserPosts((prevPosts) => {
           const existingIds = new Set(prevPosts.map((p) => p.id));
           const newUniquePosts = sortedEvents.filter(
             (p) => !existingIds.has(p.id)
           );
-          return [...prevPosts, ...newUniquePosts].sort(
-            (a, b) => b.created_at! - a.created_at!
-          );
+          const updatedPosts =
+            until !== undefined
+              ? [...prevPosts, ...newUniquePosts]
+              : newUniquePosts;
+          return updatedPosts.sort((a, b) => b.created_at! - a.created_at!);
         });
       } catch (error) {
         toast.error("Failed to load user posts.");
         console.error("Post fetch error:", error);
+        setIsPostsReachingEnd(true);
       } finally {
         setIsLoadingPosts(false);
       }
     },
-    [ndk, profileUser, isLoadingPosts, isPostsReachingEnd]
+    [ndk, profileUser]
   );
 
-  // Initial post fetch effect
+  // Effect to trigger initial post fetch
   useEffect(() => {
-    if (profileUser) {
-      setUserPosts([]);
-      setLastPostTime(undefined);
-      setIsPostsReachingEnd(false);
+    const currentNpub = npub || "";
+    if (
+      profileUser &&
+      !isLoadingPosts &&
+      !initialFetchDoneRef.current[currentNpub]
+    ) {
+      initialFetchDoneRef.current[currentNpub] = true;
       fetchPosts();
     }
-  }, [profileUser, fetchPosts]);
+  }, [profileUser, isLoadingPosts, fetchPosts, npub]);
 
+  // Load More Handler
   const loadMorePosts = () => {
+    if (isLoadingPosts || isPostsReachingEnd || lastPostTime === undefined) {
+      // Check explicitly for undefined
+      return;
+    }
     fetchPosts(lastPostTime);
   };
 
@@ -223,65 +237,56 @@ export const ProfilePage: React.FC = () => {
       !ndk
     )
       return;
-
     const targetPubkey = profileUser.pubkey;
     const currentlyFollowing = isFollowing;
-
     setIsLoadingFollowStatus(true);
-
     try {
       const filter: NDKFilter = {
         kinds: [CONTACT_LIST_KIND],
         authors: [loggedInUser.pubkey],
         limit: 1,
       };
-      // WORKAROUND: Use CACHE_FIRST as RELAY options failed type check
       const currentContactListEvent = await ndk.fetchEvent(filter, {
         cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
       });
-
       let currentTags: string[][] = currentContactListEvent?.tags || [];
       let newTags: string[][];
-
       if (currentlyFollowing) {
         newTags = currentTags.filter(
           (tag) => !(tag[0] === "p" && tag[1] === targetPubkey)
         );
       } else {
-        // Check if already present before adding to avoid duplicates if logic gets complex
         if (
           !currentTags.some((tag) => tag[0] === "p" && tag[1] === targetPubkey)
         ) {
           newTags = [...currentTags, ["p", targetPubkey]];
         } else {
-          newTags = currentTags; // Already there, no change needed
+          newTags = currentTags;
         }
       }
-
-      // Avoid publishing identical list
       if (
         JSON.stringify(currentTags.sort()) === JSON.stringify(newTags.sort())
       ) {
-        console.log("Contact list unchanged, skipping publish.");
+        // FIX 2: Use base toast() instead of toast.info()
+        toast(
+          currentlyFollowing ? "Already not following." : "Already following."
+        );
+        setIsFollowing(currentlyFollowing);
         setIsLoadingFollowStatus(false);
         return;
       }
-
       const newEvent = new NDKEvent(ndk);
       newEvent.kind = CONTACT_LIST_KIND;
       newEvent.created_at = Math.floor(Date.now() / 1000);
       newEvent.tags = newTags;
       newEvent.content = currentContactListEvent?.content || "";
-
       await newEvent.sign(signer);
       const publishedRelays = await newEvent.publish();
-
       if (publishedRelays.size > 0) {
         toast.success(currentlyFollowing ? "Unfollowed!" : "Followed!");
         setIsFollowing(!currentlyFollowing);
       } else {
-        toast.error("Failed to publish contact list update to relays.");
-        throw new Error("Publish failed");
+        toast.error("Failed to publish follow list update.");
       }
     } catch (error) {
       toast.error(`Failed to ${currentlyFollowing ? "unfollow" : "follow"}.`);
@@ -292,24 +297,16 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleEditProfile = () => {
-    if (isOwnProfile) {
-      setIsEditModalOpen(true);
-    }
+    if (isOwnProfile) setIsEditModalOpen(true);
   };
-
-  const handleCloseEditModal = () => {
-    setIsEditModalOpen(false);
-  };
-
+  const handleCloseEditModal = () => setIsEditModalOpen(false);
   const handleProfileSave = (updatedProfile: NDKUserProfile) => {
     setProfileDetails(updatedProfile);
     handleCloseEditModal();
   };
 
   // --- Render Logic ---
-  if (!npub) return <Alert severity="error">No profile NPub specified.</Alert>;
-
-  if (isLoadingProfile && userPosts.length === 0) {
+  if (isLoadingProfile && !profileDetails && !isOwnProfile) {
     return (
       <Box>
         <Skeleton variant="rectangular" height={150} sx={{ mb: 2 }} />
@@ -319,20 +316,24 @@ export const ProfilePage: React.FC = () => {
       </Box>
     );
   }
-
-  if (!profileUser && !isLoadingProfile) {
+  if (!profileUser && !isLoadingProfile)
     return (
       <Alert severity="error">
         Failed to load profile for {npub}. Invalid NPub?
       </Alert>
     );
-  }
-
-  if (profileUser && !profileDetails && !isLoadingProfile && !isOwnProfile) {
+  if (profileUser && !profileDetails && !isLoadingProfile && !isOwnProfile)
     return (
-      <Box>
+      <Alert severity="warning">
+        Could not load profile details for {npub}.
+      </Alert>
+    );
+
+  return (
+    <Box>
+      {profileUser && (
         <ProfileHeader
-          profileDetails={null}
+          profileDetails={profileDetails}
           profileUser={profileUser}
           isOwnProfile={isOwnProfile}
           isFollowing={isFollowing}
@@ -340,35 +341,24 @@ export const ProfilePage: React.FC = () => {
           onFollowToggle={handleFollowToggle}
           onEditProfile={handleEditProfile}
         />
-        <Alert severity="warning" sx={{ mt: 2 }}>
-          Could not load profile details for this user.
-        </Alert>
-      </Box>
-    );
-  }
+      )}
 
-  return (
-    <Box>
-      <ProfileHeader
-        profileDetails={profileDetails}
-        profileUser={profileUser!} // Assert non-null based on checks
-        isOwnProfile={isOwnProfile}
-        isFollowing={isFollowing}
-        isLoadingFollowStatus={isLoadingFollowStatus}
-        onFollowToggle={handleFollowToggle}
-        onEditProfile={handleEditProfile}
-      />
-
+      {/* Post Feed Section */}
       {userPosts.length === 0 && isLoadingPosts && (
         <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
           <CircularProgress />
         </Box>
       )}
-      {userPosts.length === 0 && !isLoadingPosts && isPostsReachingEnd && (
-        <Typography sx={{ textAlign: "center", p: 3, color: "text.secondary" }}>
-          User has no matching image posts.
-        </Typography>
-      )}
+      {userPosts.length === 0 &&
+        !isLoadingPosts &&
+        initialFetchDoneRef.current[npub || ""] && (
+          <Typography
+            sx={{ textAlign: "center", p: 3, color: "text.secondary" }}
+          >
+            User has no matching image posts.
+          </Typography>
+        )}
+
       <Box
         sx={{
           display: "flex",
@@ -381,23 +371,31 @@ export const ProfilePage: React.FC = () => {
           <ImagePost key={event.id} event={event} />
         ))}
       </Box>
-      {userPosts.length > 0 && !isLoadingPosts && !isPostsReachingEnd && (
+
+      {/* Load More Button */}
+      {userPosts.length > 0 && !isPostsReachingEnd && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
           <Button
             variant="contained"
             onClick={loadMorePosts}
             disabled={isLoadingPosts}
           >
-            Load More Posts
+            {isLoadingPosts ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Load More Posts"
+            )}
           </Button>
         </Box>
       )}
-      {isLoadingPosts && userPosts.length > 0 && (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-          <CircularProgress />
-        </Box>
+      {/* End of Feed Marker */}
+      {userPosts.length > 0 && isPostsReachingEnd && (
+        <Typography align="center" color="text.secondary" sx={{ my: 3 }}>
+          - End of Feed -
+        </Typography>
       )}
 
+      {/* Edit Modal */}
       {isOwnProfile && profileDetails && (
         <ProfileEditForm
           open={isEditModalOpen}
