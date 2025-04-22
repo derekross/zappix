@@ -1,3 +1,4 @@
+// src/contexts/NdkContext.tsx - Delay profile fetch until after NIP-65 check
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import NDK, { NDKNip07Signer, NDKPrivateKeySigner, NDKUser, NDKEvent, NDKKind, NDKFilter, NostrEvent, NDKSigner, NDKSubscriptionCacheUsage, NDKUserProfile } from '@nostr-dev-kit/ndk';
 import toast from 'react-hot-toast';
@@ -9,6 +10,7 @@ interface NdkContextProps {
     ndk: NDK | null;
     user: NDKUser | null;
     signer: NDKSigner | null;
+    loggedInUserProfile: NDKUserProfile | null;
     loginWithNip07: () => Promise<void>;
     loginWithNsec: (nsec: string) => Promise<void>;
     logout: () => void;
@@ -41,6 +43,7 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [ndk, setNdk] = useState<NDK | null>(null);
     const [signer, setSigner] = useState<NDKSigner | null>(null);
     const [user, setUser] = useState<NDKUser | null>(null);
+    const [loggedInUserProfile, setLoggedInUserProfile] = useState<NDKUserProfile | null>(null);
     const [readRelays, setReadRelays] = useState<string[]>(defaultRelays);
     const [writeRelays, setWriteRelays] = useState<string[]>(defaultRelays);
     const [explicitRelayUrls, setExplicitRelayUrls] = useState<string[]>(defaultRelays);
@@ -58,7 +61,6 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             explicitRelayUrls: explicitRelayUrls,
             signer: signer || undefined,
             debug: false,
-            // Consider adding poolOptions if needed
         });
         instance.pool.on('relay:connect', (relay) => console.log(`✅ Connected to relay: ${relay.url}`));
         instance.pool.on('relay:disconnect', (relay) => console.log(`❌ Disconnected from relay: ${relay.url}`));
@@ -81,6 +83,7 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const logout = useCallback(() => {
         setSigner(null);
         setUser(null);
+        setLoggedInUserProfile(null); // Clear profile on logout
         setNip65Event(null);
         setReadRelays(defaultRelays);
         setWriteRelays(defaultRelays);
@@ -92,7 +95,7 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const fetchNip65Relays = useCallback(async (userToFetch: NDKUser) => {
         if (!ndk) return;
         console.log("Fetching NIP-65 for", userToFetch.pubkey);
-        setRelaySource('loading');
+        setRelaySource('loading'); // Set state to loading
         setNip65Event(null);
         try {
             const filter: NDKFilter = { kinds: [10002], authors: [userToFetch.pubkey], limit: 1 };
@@ -115,26 +118,26 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 if (parsedRead.length > 0 || parsedWrite.length > 0) {
                     setReadRelays(parsedRead);
                     setWriteRelays(parsedWrite);
-                    setRelaySource('nip65');
+                    setRelaySource('nip65'); // Update state
                 } else {
                     setReadRelays(defaultRelays);
                     setWriteRelays(defaultRelays);
-                    setRelaySource('default');
+                    setRelaySource('default'); // Update state
                 }
             } else {
                 console.log("No NIP-65 event found, using defaults.");
                 setReadRelays(defaultRelays);
                 setWriteRelays(defaultRelays);
-                setRelaySource('default');
+                setRelaySource('default'); // Update state
             }
         } catch (error) {
             console.error("Error fetching NIP-65:", error);
             setReadRelays(defaultRelays);
             setWriteRelays(defaultRelays);
-            setRelaySource('default');
+            setRelaySource('default'); // Update state on error
             setNip65Event(null);
         }
-    }, [ndk]); // Depends on ndk instance
+    }, [ndk]);
 
     // Login Functions (memoized)
     const loginWithNip07 = useCallback(async () => {
@@ -143,22 +146,19 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const nip07signer = new NDKNip07Signer();
             const localNdkUser = await nip07signer.user();
             if (!localNdkUser?.pubkey) throw new Error("No pubkey from NIP-07");
-            localNdkUser.ndk = ndk; // Associate NDK instance
+            localNdkUser.ndk = ndk;
             setSigner(nip07signer);
-            setUser(localNdkUser);
+            setUser(localNdkUser); // Set user first
             toast.success('Logged in with extension!');
-            // Fetch profile and relays after setting user
-            await Promise.allSettled([
-                localNdkUser.fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST }),
-                fetchNip65Relays(localNdkUser)
-            ]);
+            // Now fetch relays (profile fetch moved to useEffect below)
+            await fetchNip65Relays(localNdkUser);
         } catch (error) {
             console.error("NIP-07 login failed:", error);
             logout();
             toast.error(`NIP-07 Login failed: ${error}`);
             throw error;
         }
-    }, [ndk, fetchNip65Relays, logout]); // Removed waitForNdkConnection dependency
+    }, [ndk, fetchNip65Relays, logout]);
 
     const loginWithNsec = useCallback(async (nsec: string) => {
         if (!ndk) throw new Error("NDK not initialized");
@@ -168,21 +168,48 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (!localNdkUser?.pubkey) throw new Error("No pubkey from NSEC");
             localNdkUser.ndk = ndk;
             setSigner(pkSigner);
-            setUser(localNdkUser);
+            setUser(localNdkUser); // Set user first
             toast.success('Logged in with NSEC!');
-            await Promise.allSettled([
-                localNdkUser.fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST }),
-                fetchNip65Relays(localNdkUser)
-            ]);
+            // Now fetch relays (profile fetch moved to useEffect below)
+            await fetchNip65Relays(localNdkUser);
         } catch (error) {
             console.error("NSEC login failed:", error);
             logout();
             toast.error(`NSEC Login failed: ${error}`);
             throw error;
         }
-    }, [ndk, fetchNip65Relays, logout]); // Removed waitForNdkConnection dependency
+    }, [ndk, fetchNip65Relays, logout]);
 
-    // Publish NIP-65 Relays (memoized)
+
+    // *** NEW Effect: Fetch profile *after* user is set and NIP-65 check is done ***
+    useEffect(() => {
+        // Only run if we have a user and the relay source check isn't actively loading
+        if (user && relaySource !== 'loading') {
+             console.log(`NdkContext: User logged in (${user.pubkey}) and relay source settled (${relaySource}). Fetching profile...`);
+            user.fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.ONLY_NETWORK })
+                .then(profile => {
+                    console.log("NdkContext: Delayed fetchProfile succeeded. Profile:", profile);
+                    if (profile) { // Check if profile is not null
+                         console.log("NdkContext: Setting loggedInUserProfile state now...");
+                         setLoggedInUserProfile(profile); // Update profile state
+                         console.log("NdkContext: State setter called.");
+                    } else {
+                        console.log("NdkContext: Delayed fetchProfile returned null, not updating state.");
+                        setLoggedInUserProfile(null); // Ensure state is null if fetch returns null
+                    }
+                })
+                .catch(err => {
+                    console.error("NdkContext: Delayed fetchProfile failed:", err);
+                    setLoggedInUserProfile(null); // Set to null on error
+                });
+        } else if (!user) {
+            // If user becomes null (logout), clear the profile state
+            setLoggedInUserProfile(null);
+        }
+    }, [user, relaySource]); // Dependencies: user object, relaySource status
+
+
+    // Publish NIP-65 Relays (memoized) - Unchanged
     const publishNip65Relays = useCallback(async (readList: string[], writeList: string[]): Promise<boolean> => {
         if (!ndk || !signer || !user) {
             toast.error("Cannot publish relays: NDK, signer, or user not available.");
@@ -191,22 +218,16 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsPublishingNip65(true);
         try {
             const event = new NDKEvent(ndk);
-            event.kind = 10002; // NIP-65 Kind
+            event.kind = 10002;
             event.created_at = Math.floor(Date.now() / 1000);
             event.pubkey = user.pubkey;
-
-            // Create 'r' tags
             readList.forEach(url => event.tags.push(['r', url, 'read']));
             writeList.forEach(url => event.tags.push(['r', url, 'write']));
-            // Deduplicate just in case, though Set usage earlier helps
             event.tags = Array.from(new Map(event.tags.map(tag => [`${tag[0]}:${tag[1]}`, tag])).values());
-            
             await event.sign(signer);
             const publishedRelays = await event.publish();
-            
             if (publishedRelays.size > 0) {
                 toast.success(`Relay list published to ${publishedRelays.size} relays.`);
-                // Update local state immediately
                 setReadRelays(readList);
                 setWriteRelays(writeList);
                 setNip65Event(event);
@@ -225,7 +246,7 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, [ndk, signer, user]);
 
-    // Toggle Theme Mode (memoized)
+    // Toggle Theme Mode (memoized) - Unchanged
     const toggleThemeMode = useCallback(() => {
         setThemeMode(prevMode => {
             const newMode = prevMode === 'light' ? 'dark' : 'light';
@@ -234,11 +255,12 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
     }, []);
 
-    // Context Value (memoized)
+    // Context Value (memoized) - Unchanged
     const contextValue = useMemo(() => ({
         ndk,
         user,
         signer,
+        loggedInUserProfile,
         loginWithNip07,
         loginWithNsec,
         logout,
@@ -254,15 +276,16 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         themeMode,
         toggleThemeMode,
     }), [
-        ndk, user, signer, loginWithNip07, loginWithNsec, logout, readRelays, writeRelays, 
-        explicitRelayUrls, relaySource, nip65Event, isPublishingNip65, 
+        ndk, user, signer, loggedInUserProfile,
+        loginWithNip07, loginWithNsec, logout, readRelays, writeRelays,
+        explicitRelayUrls, relaySource, nip65Event, isPublishingNip65,
         publishNip65Relays, fetchNip65Relays, themeMode, toggleThemeMode
     ]);
 
     return <NdkContext.Provider value={contextValue}>{children}</NdkContext.Provider>;
 };
 
-// Hook to use the context
+// Hook to use the context - Unchanged
 export const useNdk = () => {
     const context = useContext(NdkContext);
     if (context === undefined) {
