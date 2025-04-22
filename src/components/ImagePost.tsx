@@ -1,20 +1,31 @@
 // src/components/ImagePost.tsx
-import React, { useState, useEffect, useMemo } from 'react';
-import { NDKEvent } from '@nostr-dev-kit/ndk';
-import { Link as RouterLink } from 'react-router-dom';
-import { Card, CardHeader, CardMedia, CardContent, CardActions, Avatar, Typography, Box, IconButton, Chip, Link, Menu, MenuItem } from '@mui/material';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { NDKEvent, NDKFilter, NDKKind, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk';
+import { nip19 } from 'nostr-tools';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardMedia, CardContent, CardActions, Avatar, Typography, Box, IconButton, Chip, Link, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress } from '@mui/material'; 
 import { useNdk } from '../contexts/NdkContext';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import ReplyIcon from '@mui/icons-material/Reply';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'; 
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'; 
+import ShareIcon from '@mui/icons-material/Share';
+import PersonAddIcon from '@mui/icons-material/PersonAdd'; 
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
+import VolumeOffIcon from '@mui/icons-material/VolumeOff'; 
+import VolumeUpIcon from '@mui/icons-material/VolumeUp'; 
+import FlagIcon from '@mui/icons-material/Flag'; // Added Report/Flag icon
 import { ReportPostDialog } from './ReportPostDialog'; 
-import toast from 'react-hot-toast'; // Added toast
+import toast from 'react-hot-toast';
 
 interface ImagePostProps {
     event: NDKEvent;
 }
+
+const CONTACT_LIST_KIND: NDKKind = 3;
+const MUTE_LIST_KIND: NDKKind = 10000;
 
 // Helper to parse imeta tag (Unchanged)
 const parseImetaTag = (tags: string[][]): Record<string, string> => {
@@ -51,14 +62,20 @@ const checkSensitiveContent = (tags: string[][]): { isSensitive: boolean; reason
 };
 
 export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
-    // Added signer to context usage
     const { ndk, user: loggedInUser, signer } = useNdk(); 
+    const navigate = useNavigate();
     const [authorProfile, setAuthorProfile] = useState<any>(null);
     const [isBlurred, setIsBlurred] = useState<boolean>(false);
     const [warningReason, setWarningReason] = useState<string | null>(null);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
-    const [isSubmittingReport, setIsSubmittingReport] = useState(false); // Loading state for report submit
+    const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+    
+    const [isFollowingAuthor, setIsFollowingAuthor] = useState<boolean | null>(null);
+    const [isMutingAuthor, setIsMutingAuthor] = useState<boolean | null>(null); 
+    const [isProcessingFollow, setIsProcessingFollow] = useState(false);
+    const [isProcessingMute, setIsProcessingMute] = useState(false);
+    const [neventId, setNeventId] = useState<string>('');
 
     const metadata = useMemo(() => parseImetaTag(event.tags), [event.tags]);
     const imageUrl = metadata.url;
@@ -76,13 +93,200 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
             user.fetchProfile().then(profile => setAuthorProfile(profile));
         }
     }, [ndk, event.pubkey]);
+    
+    useEffect(() => {
+        try {
+            const encoded = nip19.neventEncode({ id: event.id, relays: event.relay ? [event.relay.url] : undefined, author: event.pubkey });
+            setNeventId(encoded);
+        } catch (e) {
+            console.error("Error encoding nevent:", e);
+            setNeventId('');
+        }
+    }, [event.id, event.relay, event.pubkey]);
 
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-        setAnchorEl(event.currentTarget);
+    useEffect(() => {
+        if (!ndk || !loggedInUser || loggedInUser.pubkey === event.pubkey) {
+            setIsFollowingAuthor(false);
+            setIsMutingAuthor(false);
+            return;
+        }
+        setIsFollowingAuthor(null);
+        setIsMutingAuthor(null);
+        const authorPubkey = event.pubkey;
+        let foundFollow = false;
+        let foundMute = false;
+
+        const contactFilter: NDKFilter = { kinds: [CONTACT_LIST_KIND], authors: [loggedInUser.pubkey], limit: 1 };
+        ndk.fetchEvent(contactFilter, { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
+            .then(contactListEvent => {
+                if (contactListEvent) {
+                    foundFollow = contactListEvent.tags.some(t => t[0] === 'p' && t[1] === authorPubkey);
+                }
+            })
+            .catch(err => console.error("Failed to fetch contacts for follow status:", err))
+            .finally(() => {
+                setIsFollowingAuthor(foundFollow);
+            });
+
+        const muteFilter: NDKFilter = { kinds: [MUTE_LIST_KIND], authors: [loggedInUser.pubkey], limit: 1 };
+        ndk.fetchEvent(muteFilter, { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
+            .then(muteListEvent => {
+                 if (muteListEvent) {
+                    foundMute = muteListEvent.tags.some(t => t[0] === 'p' && t[1] === authorPubkey);
+                }
+            })
+            .catch(err => console.error("Failed to fetch mute list:", err))
+            .finally(() => {
+                 setIsMutingAuthor(foundMute);
+            });
+    }, [ndk, loggedInUser, event.pubkey]);
+
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
+    const handleMenuClose = () => setAnchorEl(null);
+
+    const handleCopyNevent = () => {
+        if (neventId) {
+            navigator.clipboard.writeText(neventId)
+                .then(() => toast.success('Note ID (nevent) copied!'))
+                .catch(() => toast.error('Failed to copy Note ID.'));
+        } else {
+             toast.error('Could not generate Note ID.');
+        }
+        handleMenuClose();
     };
 
-    const handleMenuClose = () => {
-        setAnchorEl(null);
+    // --- Updated handleShare --- 
+    const handleShare = async () => {
+        // Use njump.me URL
+        const shareUrl = `https://njump.me/${neventId}`;
+        const shareTitle = `Nostr post by ${authorProfile?.displayName || event.pubkey.substring(0, 10)}...`;
+        const shareText = event.content || altText;
+
+        if (navigator.share && neventId) {
+            try {
+                await navigator.share({
+                    title: shareTitle,
+                    text: shareText,
+                    url: shareUrl, // Use njump URL
+                });
+                toast.success('Shared successfully!');
+            } catch (err: any) {
+                if (err.name !== 'AbortError') {
+                     console.error('Error sharing:', err);
+                    toast.error(`Could not share: ${err.message}`);
+                }
+            }
+        } else if (neventId) {
+            // Fallback to copying njump URL
+            navigator.clipboard.writeText(shareUrl)
+                .then(() => toast.success('Share URL (njump.me) copied!'))
+                .catch(() => toast.error('Failed to copy Share URL.'));
+        } else {
+             toast.error('Could not generate Share URL.');
+        }
+        handleMenuClose();
+    };
+    // -----------------------------
+
+    // --- handleFollowToggle, handleMuteToggle, handleReportClick, handleReportSubmit (Unchanged) ---
+    const handleFollowToggle = async () => {
+        if (!loggedInUser || !signer || !ndk || isProcessingFollow || loggedInUser.pubkey === event.pubkey) return;
+        const targetPubkey = event.pubkey;
+        const currentlyFollowing = isFollowingAuthor;
+        const actionToastId = 'follow-toast';
+        setIsProcessingFollow(true);
+        handleMenuClose();
+        toast.loading(currentlyFollowing ? 'Unfollowing...' : 'Following...', { id: actionToastId });
+        try {
+            const filter: NDKFilter = { kinds: [CONTACT_LIST_KIND], authors: [loggedInUser.pubkey], limit: 1 };
+            const currentContactListEvent = await ndk.fetchEvent(filter, { cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST });
+            let currentTags: string[][] = currentContactListEvent ? currentContactListEvent.tags : [];
+            let newTags: string[][] = [];
+            if (currentlyFollowing) {
+                newTags = currentTags.filter(tag => !(tag[0] === 'p' && tag[1] === targetPubkey));
+            } else {
+                if (!currentTags.some(tag => tag[0] === 'p' && tag[1] === targetPubkey)) {
+                    newTags = [...currentTags, ['p', targetPubkey]];
+                } else {
+                    newTags = currentTags;
+                }
+            }
+            if (newTags.length === currentTags.length && currentlyFollowing === false) {
+                 toast.success('Already following.', { id: actionToastId });
+                 setIsProcessingFollow(false);
+                 setIsFollowingAuthor(true);
+                 return;
+            }
+            const newEvent = new NDKEvent(ndk);
+            newEvent.kind = CONTACT_LIST_KIND;
+            newEvent.created_at = Math.floor(Date.now() / 1000);
+            newEvent.tags = newTags;
+            newEvent.content = currentContactListEvent?.content || ''; 
+            await newEvent.sign(signer);
+            const publishedRelays = await newEvent.publish();
+            if (publishedRelays.size > 0) {
+                toast.success(currentlyFollowing ? 'Unfollowed!' : 'Followed!', { id: actionToastId });
+                setIsFollowingAuthor(!currentlyFollowing);
+            } else {
+                 toast.error("Failed to publish contact list update.", { id: actionToastId });
+                 throw new Error("Publish failed");
+            }
+        } catch (error) {
+            toast.error(`Failed to ${currentlyFollowing ? 'unfollow' : 'follow'}.`, { id: actionToastId });
+            console.error("Follow/Unfollow Error:", error);
+        } finally {
+            setIsProcessingFollow(false);
+        }
+    };
+
+    const handleMuteToggle = async () => {
+        if (!loggedInUser || !signer || !ndk || isProcessingMute || loggedInUser.pubkey === event.pubkey) return;
+        const targetPubkey = event.pubkey;
+        const currentlyMuted = isMutingAuthor;
+        const actionToastId = 'mute-toast';
+        setIsProcessingMute(true);
+        handleMenuClose();
+        toast.loading(currentlyMuted ? 'Unmuting...' : 'Muting...', { id: actionToastId });
+        try {
+            const filter: NDKFilter = { kinds: [MUTE_LIST_KIND], authors: [loggedInUser.pubkey], limit: 1 };
+            const currentMuteListEvent = await ndk.fetchEvent(filter, { cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST });
+            let currentTags: string[][] = currentMuteListEvent ? currentMuteListEvent.tags : [];
+            let newTags: string[][] = [];
+            if (currentlyMuted) {
+                newTags = currentTags.filter(tag => !(tag[0] === 'p' && tag[1] === targetPubkey));
+            } else {
+                if (!currentTags.some(tag => tag[0] === 'p' && tag[1] === targetPubkey)) {
+                    newTags = [...currentTags, ['p', targetPubkey]];
+                } else {
+                    newTags = currentTags;
+                }
+            }
+            if (newTags.length === currentTags.length && currentlyMuted === false) {
+                 toast.success('Already muted.', { id: actionToastId });
+                 setIsProcessingMute(false);
+                 setIsMutingAuthor(true);
+                 return;
+            }
+            const newEvent = new NDKEvent(ndk);
+            newEvent.kind = MUTE_LIST_KIND;
+            newEvent.created_at = Math.floor(Date.now() / 1000);
+            newEvent.tags = newTags;
+            newEvent.content = ''; 
+            await newEvent.sign(signer);
+            const publishedRelays = await newEvent.publish();
+            if (publishedRelays.size > 0) {
+                toast.success(currentlyMuted ? 'Unmuted!' : 'Muted!', { id: actionToastId });
+                setIsMutingAuthor(!currentlyMuted);
+            } else {
+                 toast.error("Failed to publish mute list update.", { id: actionToastId });
+                 throw new Error("Publish failed");
+            }
+        } catch (error) {
+            toast.error(`Failed to ${currentlyMuted ? 'unmute' : 'mute'}.`, { id: actionToastId });
+            console.error("Mute/Unmute Error:", error);
+        } finally {
+            setIsProcessingMute(false);
+        }
     };
 
     const handleReportClick = () => {
@@ -95,60 +299,43 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         handleMenuClose();
     };
 
-    const handleCloseReportDialog = () => {
-        setIsReportDialogOpen(false);
-    };
-
-    // --- NIP-56 Report Submission Logic ---
     const handleReportSubmit = async (reportType: string, reasonText: string) => {
         if (!ndk || !loggedInUser || !signer) {
             toast.error("Cannot submit report: NDK, user, or signer missing.");
             handleCloseReportDialog();
             return;
         }
-
         setIsSubmittingReport(true);
         const reportToastId = 'report-toast';
         toast.loading('Submitting report...', { id: reportToastId });
-
         try {
-            // 1. Create Kind 1984 Event
             const reportEvent = new NDKEvent(ndk);
-            reportEvent.kind = 1984; // Reporting kind
+            reportEvent.kind = 1984;
             reportEvent.created_at = Math.floor(Date.now() / 1000);
-            
-            // 2. Add Tags
             reportEvent.tags = [
-                ['e', event.id], // Event being reported
-                ['p', event.pubkey], // Author of the event being reported
-                ['report', reportType] // Report type (nudity, spam, etc.)
+                ['e', event.id], 
+                ['p', event.pubkey], 
+                ['report', reportType]
             ];
-
-            // 3. Add Content (optional reason text)
-            reportEvent.content = reasonText || ''; // Use reasonText if provided
-
-            // 4. Sign Event
+            reportEvent.content = reasonText || ''; 
             await reportEvent.sign(signer);
-            console.log("Signed NIP-56 Report Event:", reportEvent.rawEvent());
-
-            // 5. Publish Event
             const publishedRelays = await reportEvent.publish();
-
             if (publishedRelays.size > 0) {
                 toast.success('Report submitted successfully!', { id: reportToastId });
-                console.log(`Report for event ${event.id} published to ${publishedRelays.size} relays.`);
             } else {
                 toast.error("Failed to publish report to any connected write relays.", { id: reportToastId });
-                throw new Error("Publish failed");
             }
-
         } catch (error) {
             console.error("Error submitting NIP-56 report:", error);
             toast.error(`Failed to submit report: ${error instanceof Error ? error.message : String(error)}`, { id: reportToastId });
         } finally {
             setIsSubmittingReport(false);
-            handleCloseReportDialog(); // Close dialog regardless of success/failure
+            handleCloseReportDialog();
         }
+    };
+
+    const handleCloseReportDialog = () => {
+        setIsReportDialogOpen(false);
     };
 
     const handleImageClick = () => {
@@ -157,13 +344,12 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         }
     };
 
-    if (!imageUrl?.startsWith('http')) {
-        return null; 
-    }
+    if (!imageUrl?.startsWith('http')) return null; 
 
     const authorDisplayName = authorProfile?.displayName || authorProfile?.name || event.pubkey.substring(0, 10) + '...';
     const authorAvatarUrl = authorProfile?.image?.startsWith('http') ? authorProfile.image : undefined;
     const isMenuOpen = Boolean(anchorEl);
+    const isOwnPost = loggedInUser?.pubkey === event.pubkey;
 
     return (
         <Card elevation={2} sx={{ mb: 2 }}>
@@ -179,22 +365,57 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                     </Avatar>
                 }
                 action={
-                    <>
-                        <IconButton aria-label="settings" onClick={handleMenuOpen}>
-                            <MoreVertIcon />
-                        </IconButton>
-                        <Menu
-                            id="post-action-menu"
-                            anchorEl={anchorEl}
-                            open={isMenuOpen}
-                            onClose={handleMenuClose}
-                            MenuListProps={{ 'aria-labelledby': 'basic-button' }}
-                        >
-                            <MenuItem onClick={handleReportClick} disabled={!loggedInUser}>
-                                Report Post
-                             </MenuItem>
-                        </Menu>
-                    </>
+                    (loggedInUser || neventId) && (
+                        <>
+                            <IconButton aria-label="settings" onClick={handleMenuOpen}>
+                                <MoreVertIcon />
+                            </IconButton>
+                            <Menu
+                                id={`post-action-menu-${event.id}`}
+                                anchorEl={anchorEl}
+                                open={isMenuOpen}
+                                onClose={handleMenuClose}
+                            >
+                                <MenuItem onClick={handleCopyNevent} disabled={!neventId}>
+                                    <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
+                                    <ListItemText>Copy Note ID</ListItemText> 
+                                </MenuItem>
+                                <MenuItem onClick={handleShare} disabled={!neventId}>
+                                     <ListItemIcon><ShareIcon fontSize="small" /></ListItemIcon>
+                                     <ListItemText>Share</ListItemText>
+                                </MenuItem>
+                                
+                                {loggedInUser && !isOwnPost && (
+                                    <MenuItem onClick={handleFollowToggle} disabled={isFollowingAuthor === null || isProcessingFollow}>
+                                        <ListItemIcon>
+                                            {isProcessingFollow ? <CircularProgress size={20}/> :
+                                             isFollowingAuthor ? <PersonRemoveIcon fontSize="small" /> : <PersonAddIcon fontSize="small" />}
+                                        </ListItemIcon>
+                                        <ListItemText>{isFollowingAuthor ? 'Unfollow Author' : 'Follow Author'}</ListItemText>
+                                    </MenuItem>
+                                )}
+                                {loggedInUser && !isOwnPost && (
+                                    <MenuItem onClick={handleMuteToggle} disabled={isMutingAuthor === null || isProcessingMute}>
+                                        <ListItemIcon>
+                                            {isProcessingMute ? <CircularProgress size={20}/> :
+                                             isMutingAuthor ? <VolumeUpIcon fontSize="small" /> : <VolumeOffIcon fontSize="small" />}
+                                        </ListItemIcon>
+                                        <ListItemText>{isMutingAuthor ? 'Unmute Author' : 'Mute Author'}</ListItemText>
+                                    </MenuItem>
+                                )}
+                                {loggedInUser && (
+                                    // --- Updated Report Post Item --- 
+                                    <MenuItem onClick={handleReportClick} disabled={isSubmittingReport}>
+                                         <ListItemIcon>
+                                             <FlagIcon fontSize="small" />
+                                         </ListItemIcon>
+                                         <ListItemText>Report Post</ListItemText>
+                                    </MenuItem>
+                                    // --------------------------------
+                                )}
+                            </Menu>
+                        </>
+                    )
                 }
                 title={
                     <Link component={RouterLink} to={`/profile/${event.author.npub}`} underline="hover" color="inherit">
@@ -205,60 +426,16 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
             />
             {/* ... (Rest of CardMedia, CardContent, CardActions remain the same) ... */}
              <Box sx={{ position: 'relative', cursor: isBlurred ? 'pointer' : 'default' }} onClick={handleImageClick}>
-                <CardMedia
-                    component="img"
-                    image={imageUrl}
-                    alt={altText}
-                    sx={{
-                        maxHeight: '80vh', 
-                        objectFit: 'contain', 
-                        width: '100%', 
-                        filter: isBlurred ? 'blur(25px)' : 'none', 
-                        transition: 'filter 0.3s ease-in-out',
-                    }}
-                />
-                {isBlurred && (
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            bgcolor: 'rgba(0, 0, 0, 0.5)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            textAlign: 'center',
-                            p: 2,
-                        }}
-                    >
-                        <VisibilityOffIcon sx={{ fontSize: 40, mb: 1 }} />
-                        <Typography variant="body1" gutterBottom>
-                            {warningReason || 'Content Warning'}
-                        </Typography>
-                        <Typography variant="caption">
-                            Click to reveal
-                        </Typography>
-                    </Box>
-                )}
+                <CardMedia component="img" image={imageUrl} alt={altText} sx={{ maxHeight: '80vh', objectFit: 'contain', width: '100%', filter: isBlurred ? 'blur(25px)' : 'none', transition: 'filter 0.3s ease-in-out' }} />
+                {isBlurred && (<Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, bgcolor: 'rgba(0, 0, 0, 0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white', textAlign: 'center', p: 2 }}><VisibilityOffIcon sx={{ fontSize: 40, mb: 1 }} /><Typography variant="body1" gutterBottom>{warningReason || 'Content Warning'}</Typography><Typography variant="caption">Click to reveal</Typography></Box>)}
             </Box>
-            {(event.content || altText !== event.content) && (
-                 <CardContent sx={{ pt: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                        {altText}
-                     </Typography>
-                 </CardContent>
-             )}
+            {(event.content || altText !== event.content) && (<CardContent sx={{ pt: 1 }}><Typography variant="body2" color="text.secondary">{altText}</Typography></CardContent>)}
             <CardActions disableSpacing sx={{ pt: 0 }}>
                 <IconButton aria-label="like"><FavoriteBorderIcon /></IconButton>
                 <IconButton aria-label="repost"><RepeatIcon /></IconButton>
                 <IconButton aria-label="reply"><ReplyIcon /></IconButton>
             </CardActions>
 
-            {/* Report Dialog - Passed the actual submit handler */}
             {loggedInUser && (
                 <ReportPostDialog
                     open={isReportDialogOpen}

@@ -1,54 +1,46 @@
-# React + TypeScript + Vite
+# <img src="zappix-logo.png" alt="Zappix Logo" height="30" style="vertical-align: middle; margin-right: 10px;"> Zappix
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Zappix is a Nostr client focused on providing a clean, image-centric user experience. Built with React, TypeScript, Material UI, and the Nostr Development Kit (NDK).
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+*   **Image-Focused Feeds:** View Global and Following feeds primarily displaying image posts (Kind 20 with `imeta` tags).
+*   **User Profiles:** View user profiles, including metadata (name, picture, bio) and NIP-05 verification status.
+*   **Profile Editing:** Update your own Nostr profile metadata (Kind 0).
+*   **Image Uploading:** Upload images via the standard NIP-96 flow (using Blossom servers) with NIP-98 authentication. File metadata is handled via NIP-94 concepts within Kind 20 posts.
+*   **Login Options:**
+    *   Browser Extension (NIP-07)
+    *   Remote Signer / Bunker (NIP-46)
+*   **Content Blurring:** Automatically blurs images tagged with `#nsfw` or containing a NIP-36 `content-warning` tag. Click to reveal.
+*   **Post Interaction:**
+    *   View post threads (replies).
+    *   Copy Note ID (`nevent` format via NIP-19).
+    *   Share posts externally using njump.me links.
+    *   Follow / Unfollow post authors (updates Kind 3 Contact List).
+    *   Mute / Unmute post authors (updates NIP-51 public Kind 10000 Mute List).
+    *   Report posts using NIP-56 (publishes Kind 1984).
+*   **Hashtag Feeds:** View posts filtered by a specific hashtag.
+*   **Theming:** Switch between Light and Dark modes.
 
-## Expanding the ESLint configuration
+## Supported NIPs
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Zappix aims to support modern Nostr standards. Key NIPs currently implemented include:
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+*   **NIP-01:** Basic protocol flow (Kinds 0, 1, 3).
+*   **NIP-05:** Mapping Nostr keys to DNS-based internet identifiers (Profile verification display).
+*   **NIP-07:** `window.nostr` capability for browser extensions (Login).
+*   **NIP-12:** Generic Tag Queries (Hashtag feed filtering).
+*   **NIP-19:** `bech32`-encoded entities (`npub`, `nevent` generation and linking).
+*   **NIP-36:** Sensitive Content tags (`content-warning`).
+*   **NIP-46:** Nostr Connect (Remote signer/bunker login).
+*   **NIP-51:** Lists (Public Kind 10000 Mute Lists).
+*   **NIP-56:** Reporting (Kind 1984 Report events).
+*   **NIP-94:** File Metadata (Used conceptually for image uploads within Kind 20).
+*   **NIP-96:** HTTP File Storage Integration (Image uploads via Blossom).
+*   **NIP-98:** HTTP Auth (Authentication for NIP-96 uploads).
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+*(Note: Zappix heavily utilizes Kind 20 Image Metadata events, which is a common convention but not yet a formally defined NIP.)*
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Getting Started
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+*(Add instructions here on how to build, run, and contribute to the project if desired)*
