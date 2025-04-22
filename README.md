@@ -43,4 +43,4 @@ Zappix aims to support modern Nostr standards. Key NIPs currently implemented in
 
 ## Getting Started
 
-*(Add instructions here on how to build, run, and contribute to the project if desired)*
+npm run dev
