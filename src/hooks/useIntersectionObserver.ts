@@ -1,68 +1,80 @@
 // src/hooks/useIntersectionObserver.ts
-import { useEffect, useRef } from 'react';
+import { useEffect, RefObject } from "react";
 
-interface UseIntersectionObserverProps {
-    target: React.RefObject<Element | null>;
-    onIntersect: () => void;
-    threshold?: number | number[];
-    rootMargin?: string;
-    enabled?: boolean; // To conditionally enable/disable the observer
+interface UseIntersectionObserverOptions {
+  target: RefObject<Element | null>;
+  onIntersect: () => void;
+  enabled?: boolean;
+  threshold?: number | number[];
+  root?: Element | null;
+  rootMargin?: string;
 }
 
-const useIntersectionObserver = ({
-    target,
-    onIntersect,
-    threshold = 1.0, // Trigger when 100% visible by default
-    rootMargin = '0px',
-    enabled = true, // Enabled by default
-}: UseIntersectionObserverProps) => {
-    const observerRef = useRef<IntersectionObserver | null>(null);
+function useIntersectionObserver({
+  target,
+  onIntersect,
+  enabled = true,
+  threshold = 0.1,
+  root = null,
+  rootMargin = "0px",
+}: UseIntersectionObserverOptions): void {
+  useEffect(() => {
+    if (!enabled) {
+      // console.log("Observer disabled"); // Optional log
+      return;
+    }
 
-    useEffect(() => {
-        if (!enabled || !target.current) {
-            // If disabled or target isn't set, disconnect any existing observer
-            if (observerRef.current) {
-                observerRef.current.disconnect();
-                observerRef.current = null;
-                // console.log("IntersectionObserver disconnected (disabled or no target).");
-            }
-            return;
+    // --- MORE ROBUST CHECK ---
+    // 1. Check if the ref object itself was passed correctly
+    if (!target) {
+      console.warn(
+        "Intersection Observer: 'target' prop (the ref object) is missing."
+      );
+      return; // Cannot proceed without the ref object
+    }
+
+    // 2. Get the DOM element from the ref's current property
+    const el = target.current;
+
+    // 3. Check if the DOM element exists yet
+    if (!el) {
+      // This can happen normally on initial render before the ref is attached.
+      // console.log("Observer waiting for target element..."); // Optional log
+      return; // Don't set up the observer yet
+    }
+    // --- END ROBUST CHECK ---
+
+    // console.log("Observer setting up for element:", el); // Optional log
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        // Ensure entry exists and is intersecting before calling callback
+        if (entry && entry.isIntersecting) {
+          // console.log("Element intersecting, calling onIntersect"); // Optional log
+          onIntersect();
         }
+      },
+      {
+        root,
+        rootMargin,
+        threshold,
+      }
+    );
 
-        // Ensure we don't create multiple observers for the same target
-        if (observerRef.current) {
-             observerRef.current.disconnect();
-        }
-        
-        // Create the observer
-        observerRef.current = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        // console.log("IntersectionObserver: Target intersected!");
-                        onIntersect();
-                    }
-                });
-            },
-            {
-                rootMargin,
-                threshold,
-            }
-        );
+    // Start observing the element (we know 'el' is valid here)
+    observer.observe(el);
 
-        const currentTarget = target.current; // Capture target ref value
-        // console.log("IntersectionObserver created and observing target:", currentTarget);
-        observerRef.current.observe(currentTarget);
-
-        // Cleanup function
-        return () => {
-            if (observerRef.current) {
-                 // console.log("IntersectionObserver disconnecting on cleanup.");
-                observerRef.current.disconnect();
-                observerRef.current = null;
-            }
-        };
-    }, [target, onIntersect, threshold, rootMargin, enabled]); // Re-run effect if any dependency changes
-};
+    // Cleanup function
+    return () => {
+      // console.log("Observer cleaning up for element:", el); // Optional log
+      // No need to check el again here because 'observe' would only have been called if it existed.
+      // However, checking doesn't hurt if there are complex re-render scenarios.
+      // if (el) {
+      observer.unobserve(el);
+      // }
+    };
+  }, [target, enabled, threshold, root, rootMargin, onIntersect]); // Dependencies
+}
 
 export default useIntersectionObserver;
