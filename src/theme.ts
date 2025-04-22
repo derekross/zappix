@@ -1,4 +1,4 @@
-import { createTheme, ThemeOptions } from '@mui/material/styles';
+import { ThemeOptions } from '@mui/material/styles';
 import { deepPurple, pink } from '@mui/material/colors';
 import { PaletteMode } from '@mui/material';
 

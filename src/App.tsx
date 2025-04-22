@@ -1,8 +1,8 @@
-// src/App.tsx - Refine redirect logic
+// src/App.tsx
 import React, {
   useState,
   useEffect,
-  useRef, // Import useRef
+  useRef,
   useCallback,
   useMemo,
 } from "react";
@@ -31,7 +31,7 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
-import Fab from "@mui/material/Fab"; // Added FAB
+import Fab from "@mui/material/Fab";
 import { Toaster } from "react-hot-toast";
 import { useNdk } from "./contexts/NdkContext";
 import { GlobalFeedPage } from "./pages/GlobalFeedPage";
@@ -40,16 +40,24 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HashtagFeedPage } from "./pages/HashtagFeedPage";
 import { ThreadPage } from "./pages/ThreadPage";
 import { FollowingFeedPage } from "./pages/FollowingFeedPage";
-import { CreatePostPage } from "./pages/CreatePostPage"; // Added CreatePostPage import
+import { CreatePostPage } from "./pages/CreatePostPage";
 import { LoginModal } from "./components/LoginModal";
 import { SignUpModal } from "./components/SignUpModal";
 import { createAppTheme } from "./theme";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
-import AddIcon from "@mui/icons-material/Add"; // Added Add icon for FAB
+import AddIcon from "@mui/icons-material/Add";
 
 function AppContent() {
-  const { ndk, user, signer, loggedInUserProfile, logout, themeMode, toggleThemeMode } = useNdk();
+  const {
+    ndk: _ndk,
+    user,
+    signer,
+    loggedInUserProfile,
+    logout,
+    themeMode,
+    toggleThemeMode,
+  } = useNdk();
   const [loginOpen, setLoginOpen] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
@@ -59,13 +67,13 @@ function AppContent() {
   const lastScrollY = useRef(0);
   const appBarHideThreshold = 10;
   const scrollUpBuffer = 5;
-  const hasRedirectedRef = useRef(false); // Ref to track initial redirect
+  const hasRedirectedRef = useRef(false);
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) =>
     setAnchorElUser(event.currentTarget);
   const handleCloseUserMenu = () => setAnchorElUser(null);
   const handleLogout = () => {
-    logout(); // This clears the user, triggering the effect below to reset the ref
+    logout();
     handleCloseUserMenu();
     navigate("/");
   };
@@ -95,23 +103,19 @@ function AppContent() {
     };
   }, [handleScroll]);
 
-  // Effect to redirect to /following ONCE after login if landing on /
   useEffect(() => {
-    // Reset flag if user logs out
     if (!user) {
       hasRedirectedRef.current = false;
       return;
     }
-
-    // Redirect only if logged in, on '/', and haven't redirected yet this session
-    if (user && location.pathname === '/' && !hasRedirectedRef.current) {
-      console.log("AppContent: User logged in on global feed, performing initial redirect to /following.");
-      navigate('/following', { replace: true });
-      hasRedirectedRef.current = true; // Set flag after redirecting
+    if (user && location.pathname === "/" && !hasRedirectedRef.current) {
+      console.log(
+        "AppContent: User logged in on global feed, performing initial redirect to /following."
+      );
+      navigate("/following", { replace: true });
+      hasRedirectedRef.current = true;
     }
-  }, [user, location.pathname, navigate]); // Dependencies: user state, current path, navigate function
-
-  // Logging effect removed
+  }, [user, location.pathname, navigate]);
 
   const userInitial =
     loggedInUserProfile?.displayName?.charAt(0)?.toUpperCase() ||
@@ -122,14 +126,17 @@ function AppContent() {
     () => createTheme(createAppTheme(themeMode)),
     [themeMode]
   );
-  const handleTabChange = (event: React.SyntheticEvent, newValue: string) =>
+
+  // FIX: Remove unused 'event' parameter
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) =>
     navigate(newValue);
 
   const getCurrentTab = () => {
     const currentPath = location?.pathname;
+    if (currentPath === "/following") return "/following";
     if (currentPath === "/") return "/";
-    if (currentPath?.startsWith("/following")) return "/following";
-    return false;
+    // Add other potential tab routes here if needed
+    return false; // Return false if no tab matches
   };
 
   return (
@@ -138,7 +145,7 @@ function AppContent() {
       <Slide appear={false} direction="down" in={isAppBarVisible}>
         <AppBar position="fixed" color="inherit" elevation={1}>
           <Toolbar>
-            {/* Logo and Tabs */}
+            {/* Logo */}
             <Box
               component={RouterLink}
               to="/"
@@ -156,9 +163,12 @@ function AppContent() {
                 style={{ height: "30px", marginRight: "10px" }}
               />
               <Typography variant="h6" noWrap component="div">
-                Zappix
+                {" "}
+                Zappix{" "}
               </Typography>
             </Box>
+
+            {/* Tabs */}
             <Tabs
               value={getCurrentTab()}
               onChange={handleTabChange}
@@ -180,24 +190,25 @@ function AppContent() {
                 />
               )}
             </Tabs>
+
             <Box sx={{ flexGrow: 1 }} />
-            {/* Login/Signup Buttons */}
-            {!user && !signer && (
+
+            {/* Login/Signup/User Menu */}
+            {!user && !signer ? (
               <>
                 <Button color="inherit" onClick={() => setLoginOpen(true)}>
-                  Login
+                  {" "}
+                  Login{" "}
                 </Button>
                 <Button color="inherit" onClick={() => setSignupOpen(true)}>
-                  Sign Up
+                  {" "}
+                  Sign Up{" "}
                 </Button>
               </>
-            )}
-            {/* User Menu */}
-            {signer && user && (
+            ) : signer && user ? (
               <Box sx={{ flexGrow: 0, ml: 1 }}>
                 <Tooltip title="Open menu">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    {/* Use loggedInUserProfile state for avatar */}
                     <Avatar
                       alt={
                         loggedInUserProfile?.displayName ||
@@ -210,8 +221,7 @@ function AppContent() {
                           : undefined
                       }
                     >
-                      {/* Show initial only if image is not available in state profile */}
-                      {(!loggedInUserProfile?.image?.startsWith("http"))
+                      {!loggedInUserProfile?.image?.startsWith("http")
                         ? userInitial
                         : null}
                     </Avatar>
@@ -229,44 +239,45 @@ function AppContent() {
                 >
                   <MenuItem
                     component={RouterLink}
-                    to={`/profile/${user.npub}`} // Keep using user.npub for link
+                    to={`/profile/${user.npub}`}
                     onClick={handleCloseUserMenu}
                   >
-                    <ListItemText>Profile</ListItemText>
+                    {" "}
+                    <ListItemText>Profile</ListItemText>{" "}
                   </MenuItem>
                   <MenuItem
                     component={RouterLink}
                     to="/settings"
                     onClick={handleCloseUserMenu}
                   >
-                    <ListItemText>Settings</ListItemText>
+                    {" "}
+                    <ListItemText>Settings</ListItemText>{" "}
                   </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      toggleThemeMode();
-                    }}
-                  >
+                  <MenuItem onClick={toggleThemeMode}>
                     <ListItemIcon>
+                      {" "}
                       {themeMode === "dark" ? (
                         <Brightness7Icon fontSize="small" />
                       ) : (
                         <Brightness4Icon fontSize="small" />
-                      )}
+                      )}{" "}
                     </ListItemIcon>
                     <ListItemText>
-                      {themeMode === "dark" ? "Light Mode" : "Dark Mode"}
+                      {" "}
+                      {themeMode === "dark" ? "Light Mode" : "Dark Mode"}{" "}
                     </ListItemText>
                   </MenuItem>
                   <MenuItem onClick={handleLogout}>
-                    <ListItemText>Logout</ListItemText>
+                    {" "}
+                    <ListItemText>Logout</ListItemText>{" "}
                   </MenuItem>
                 </Menu>
               </Box>
-            )}
+            ) : null}
           </Toolbar>
         </AppBar>
       </Slide>
-      <Toolbar />
+      <Toolbar /> {/* Offset for fixed AppBar */}
       <Container maxWidth="lg" sx={{ pt: 2, pb: 4, mx: "auto" }}>
         <Routes>
           <Route path="/" element={<GlobalFeedPage />} />
@@ -275,11 +286,10 @@ function AppContent() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/t/:hashtag" element={<HashtagFeedPage />} />
           <Route path="/n/:nevent" element={<ThreadPage />} />
-          <Route path="/create" element={<CreatePostPage />} />{" "}
-          {/* Added route for CreatePostPage */}
+          <Route path="/create" element={<CreatePostPage />} />
         </Routes>
       </Container>
-      {/* Add FAB for creating new post */} 
+      {/* FAB */}
       {user && (
         <Fab
           color="primary"
@@ -291,14 +301,7 @@ function AppContent() {
           <AddIcon />
         </Fab>
       )}
-      <LoginModal
-        open={loginOpen}
-        onClose={() => setLoginOpen(false)}
-        onSignUpClick={() => {
-          setLoginOpen(false);
-          setSignupOpen(true);
-        }}
-      />
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
       <SignUpModal open={signupOpen} onClose={() => setSignupOpen(false)} />
       <Toaster position="bottom-center" />
     </ThemeProvider>
@@ -306,6 +309,7 @@ function AppContent() {
 }
 
 function App() {
+  // Basic wrapper, could add other top-level providers here if needed
   return <AppContent />;
 }
 
