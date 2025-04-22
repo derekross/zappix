@@ -1,147 +1,251 @@
-// src/pages/FollowingFeedPage.tsx
+// /home/raven/zappix/src/pages/FollowingFeedPage.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNdk } from '../contexts/NdkContext';
-import { NDKEvent, NDKFilter, NDKKind, NDKUser, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk';
+import { NDKEvent, NDKFilter, NDKSubscription, NDKKind, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk';
 import { ImagePost } from '../components/ImagePost';
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
-import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
-import toast from 'react-hot-toast';
+import useIntersectionObserver from '../hooks/useIntersectionObserver';
 
-// Define the kinds and tags we want to see in the feed: Kind 20 with an imeta tag
-const FEED_FILTER: NDKFilter = {
-    kinds: [20], // Explicitly Kind 20 (not Kind 6)
-};
-const POSTS_PER_PAGE = 10;
+const IMAGE_POST_KIND = 20;
+const CONTACT_LIST_KIND = 3;
+const BATCH_SIZE = 10; // Number of events to fetch per batch
 
 export const FollowingFeedPage: React.FC = () => {
     const { ndk, user } = useNdk();
-    const [posts, setPosts] = useState<NDKEvent[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isReachingEnd, setIsReachingEnd] = useState(false);
-    const [followedPubkeys, setFollowedPubkeys] = useState<string[] | null>(null);
-    const [lastEventTime, setLastEventTime] = useState<number | undefined>(undefined);
-    const processingRef = useRef(false);
+    const [notes, setNotes] = useState<NDKEvent[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const [lastEventTimestamp, setLastEventTimestamp] = useState<number | undefined>(undefined);
+    const [followedPubkeys, setFollowedPubkeys] = useState<string[] | null>(null); // null initially, empty array if no follows, string array if follows exist
+    const [error, setError] = useState<string | null>(null);
+    const subscriptionRef = useRef<NDKSubscription | null>(null);
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-    // Fetch followed pubkeys (Kind 3)
+    // 1. Fetch Follow List (Kind 3)
     useEffect(() => {
+        // Reset state when user logs out or ndk changes
         if (!ndk || !user) {
-            setFollowedPubkeys(null); setPosts([]); setIsReachingEnd(false); setLastEventTime(undefined);
+            setNotes([]);
+            setFollowedPubkeys(null);
+            setIsLoading(true); // Show loading until we know if logged in
+            setError(null);
             return;
         }
+
+        setIsLoading(true);
+        setError(null);
+        setNotes([]); // Clear notes when user changes
+        setLastEventTimestamp(undefined);
+
         const fetchFollows = async () => {
-            console.log("Fetching Kind 3 event for follows list for:", user.pubkey);
-            setFollowedPubkeys(null); // Loading state
-             try {
-                 if (ndk.pool.connectedRelays().size === 0) {
-                    await ndk.connect(2000);
-                    if (ndk.pool.connectedRelays().size === 0) throw new Error("Failed to connect to relays.");
-                 }
-                const filter: NDKFilter = { kinds: [3 as NDKKind], authors: [user.pubkey], limit: 1 };
-                const latestKind3 = await ndk.fetchEvent(filter, { cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST });
-                if (latestKind3) {
-                    const pubkeys = latestKind3.tags.filter(t => t[0] === 'p' && t[1]?.length === 64).map(t => t[1]);
-                    const uniquePubkeys = Array.from(new Set(pubkeys));
-                    setFollowedPubkeys(uniquePubkeys.length > 0 ? uniquePubkeys : []);
+            console.log("FollowingFeed: Fetching follow list (Kind 3) for user", user.pubkey);
+            try {
+                const filter: NDKFilter = {
+                    kinds: [CONTACT_LIST_KIND as NDKKind],
+                    authors: [user.pubkey],
+                    limit: 1,
+                };
+                const contactListEvent = await ndk.fetchEvent(filter, { cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST });
+
+                if (contactListEvent) {
+                    const pubkeys = contactListEvent.tags
+                        .filter(tag => tag[0] === 'p' && tag[1]) // Filter for valid 'p' tags
+                        .map(tag => tag[1]);
+                    
+                    if (pubkeys.length > 0) {
+                        setFollowedPubkeys(pubkeys);
+                        console.log(`FollowingFeed: Found ${pubkeys.length} followed pubkeys.`);
+                    } else {
+                        setFollowedPubkeys([]); // Set to empty array if contact list exists but has no 'p' tags
+                        console.log("FollowingFeed: Found contact list, but no followed pubkeys.");
+                    }
                 } else {
-                    toast.info("Could not find your follows list (Kind 3 event).");
-                    setFollowedPubkeys([]);
+                    setFollowedPubkeys([]); // Set to empty array if no contact list found
+                    console.log("FollowingFeed: No contact list (Kind 3) found for user.");
                 }
-            } catch (error: any) {
-                toast.error(`Error fetching follows: ${error.message}`);
-                setFollowedPubkeys([]);
+            } catch (err: any) {
+                console.error("FollowingFeed: Error fetching contact list:", err);
+                setError("Failed to fetch your follow list. Please try again later.");
+                setFollowedPubkeys([]); // Set empty on error to prevent infinite loading
+            } finally {
+                 // Don't set isLoading false here, wait for subscription EOSE/close
             }
         };
+
         fetchFollows();
+
     }, [ndk, user]);
 
-    // Fetch feed based on followed authors & desired kinds
-    const fetchFollowingFeed = useCallback(async (until?: number) => {
-        if (processingRef.current || !ndk || followedPubkeys === null || isLoading || isReachingEnd) {
-             return;
+    // 2. Function to subscribe to feed events from followed users
+    const subscribeToFollowingFeed = useCallback((until?: number) => {
+        // Ensure NDK is ready and we know who the user follows (even if it's an empty list)
+        if (!ndk || !user || followedPubkeys === null) {
+             console.log("FollowingFeed: Skipping subscription (NDK, user, or followedPubkeys not ready).");
+             if (user && followedPubkeys === null) setIsLoading(true); // Keep loading if follows haven't been determined yet
+             else setIsLoading(false); // Not logged in or finished checking follows
+            return;
         }
+        
+        // If user follows no one, no need to subscribe
         if (followedPubkeys.length === 0) {
-             setIsReachingEnd(true);
-             setIsLoading(false); // Stop loading if no follows
-             return;
+            console.log("FollowingFeed: User follows no one, skipping subscription.");
+            setIsLoading(false);
+            setNotes([]); // Ensure notes are empty
+            return;
         }
-        processingRef.current = true;
+
+        if (subscriptionRef.current) {
+            subscriptionRef.current.stop();
+        }
 
         const filter: NDKFilter = {
-            ...FEED_FILTER, // Use the base filter (Kind 20)
-            limit: POSTS_PER_PAGE,
+            kinds: [IMAGE_POST_KIND as NDKKind],
+            authors: followedPubkeys, // Filter by followed authors
+            limit: BATCH_SIZE,
         };
-        // Only add authors filter if there are followed pubkeys
-        if (followedPubkeys.length > 0) {
-             filter.authors = followedPubkeys;
-        }
-        if (until) filter.until = until;
 
-        console.log(`Fetching following feed with filter: ${JSON.stringify(filter)}`);
-        setIsLoading(true);
-        try {
-            const fetchedEvents = await ndk.fetchEvents(filter, { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST });
-            const sortedEvents = Array.from(fetchedEvents).sort((a, b) => b.created_at! - a.created_at!);
-             console.log(`Fetched ${sortedEvents.length} matching events from following.`);
-            if (sortedEvents.length === 0 || sortedEvents.length < POSTS_PER_PAGE) {
-                setIsReachingEnd(true);
-            }
-            if (sortedEvents.length > 0) {
-                setLastEventTime(sortedEvents[sortedEvents.length - 1].created_at! - 1);
-            }
-            setPosts(prevPosts => {
-                const existingIds = new Set(prevPosts.map(p => p.id));
-                const newUniquePosts = sortedEvents.filter(p => !existingIds.has(p.id));
-                return [...prevPosts, ...newUniquePosts];
+        if (until) {
+            filter.until = until;
+        }
+
+        console.log("FollowingFeed: Subscribing with filter:", filter);
+        // We typically use fetchEvents for pagination, but subscribe can work for initial load + potential updates
+        const newSub = ndk.subscribe(filter, { closeOnEose: true }); // Close on EOSE for initial load
+        subscriptionRef.current = newSub;
+
+        newSub.on('event', (event: NDKEvent) => {
+            setNotes(prevNotes => {
+                if (prevNotes.some(note => note.id === event.id)) {
+                    return prevNotes;
+                }
+                const updatedNotes = [...prevNotes, event].sort((a, b) => b.created_at! - a.created_at!); 
+                if (updatedNotes.length > 0) {
+                    setLastEventTimestamp(updatedNotes[updatedNotes.length - 1].created_at);
+                }
+                return updatedNotes;
             });
-        } catch (error) { 
-            toast.error("Failed to fetch posts from following.");
-        } finally {
+        });
+
+        newSub.on('eose', () => {
+            console.log("FollowingFeed: Subscription EOSE received.");
             setIsLoading(false);
-            processingRef.current = false;
-        }
-    }, [ndk, isLoading, isReachingEnd, followedPubkeys]); // Add FEED_FILTER if it were not constant
+            setIsFetchingMore(false);
+            // Subscription closed by closeOnEose: true
+        });
 
+        newSub.on('closed', () => {
+             console.log("FollowingFeed: Subscription closed.");
+             setIsLoading(false); 
+             setIsFetchingMore(false);
+        });
+
+    }, [ndk, user, followedPubkeys]); 
+
+    // 3. Effect to trigger initial subscription when follows are ready
     useEffect(() => {
+        // Only subscribe when followedPubkeys is determined (not null)
         if (followedPubkeys !== null) {
-            setPosts([]); setLastEventTime(undefined); setIsReachingEnd(false); processingRef.current = false;
-            fetchFollowingFeed();
+            subscribeToFollowingFeed(); // Initial subscription without 'until'
         }
-         return () => { processingRef.current = true; } 
-    }, [followedPubkeys]);
 
-    const loadMore = () => { fetchFollowingFeed(lastEventTime); };
+        // Cleanup function
+        return () => {
+            if (subscriptionRef.current) {
+                console.log("FollowingFeed: Stopping subscription on unmount/dependency change.");
+                subscriptionRef.current.stop();
+                subscriptionRef.current = null;
+            }
+        };
+    }, [subscribeToFollowingFeed, followedPubkeys]); // Rerun if subscribe function changes or follows are loaded
 
-    // Render Logic
-    if (!user) { return <Alert severity="info">Please log in to see your following feed.</Alert>; }
-    if (followedPubkeys === null) { return <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /><Typography sx={{ ml: 2 }}>Loading follows...</Typography></Box>;}
-     if (followedPubkeys.length === 0) { return <Alert severity="info">Not following anyone or follows list not found.</Alert>; }
+    // 4. Function to load older events using fetchEvents
+    const loadMoreFollowing = useCallback(() => {
+        if (isFetchingMore || !lastEventTimestamp || !ndk || !user || followedPubkeys === null || followedPubkeys.length === 0) return;
+
+        console.log(`FollowingFeed: Loading more events until ${lastEventTimestamp}`);
+        setIsFetchingMore(true);
+        
+        const filter: NDKFilter = {
+            kinds: [IMAGE_POST_KIND as NDKKind],
+            authors: followedPubkeys,
+            limit: BATCH_SIZE,
+            until: lastEventTimestamp, // Fetch events older than the last one we have
+        };
+
+        ndk.fetchEvents(filter, { cacheUsage: NDKSubscriptionCacheUsage.ONLY_NETWORK }) // Force network fetch for pagination
+            .then(fetchedEvents => {
+                const uniqueNewEvents = Array.from(fetchedEvents).filter(newEvent => 
+                    !notes.some(existingNote => existingNote.id === newEvent.id) // Check against current notes state
+                );
+                
+                if (uniqueNewEvents.length > 0) {
+                    setNotes(prevNotes => {
+                        const updated = [...prevNotes, ...uniqueNewEvents].sort((a, b) => b.created_at! - a.created_at!);
+                        setLastEventTimestamp(updated[updated.length - 1].created_at);
+                        return updated;
+                    });
+                    console.log(`FollowingFeed: Loaded ${uniqueNewEvents.length} more events.`);
+                } else {
+                    console.log("FollowingFeed: No more older events found.");
+                    // Maybe set a flag to disable further loading attempts?
+                }
+            })
+            .catch(err => {
+                console.error("FollowingFeed: Error fetching more events:", err);
+                toast.error("Failed to load older posts.");
+            })
+            .finally(() => {
+                setIsFetchingMore(false);
+            });
+
+    }, [ndk, user, notes, followedPubkeys, lastEventTimestamp, isFetchingMore]);
+
+    // 5. Setup Intersection Observer
+    useIntersectionObserver({
+        target: loadMoreRef,
+        onIntersect: loadMoreFollowing,
+        enabled: !isLoading && !isFetchingMore && lastEventTimestamp !== undefined && followedPubkeys !== null && followedPubkeys.length > 0,
+    });
+
+    // 6. Render Logic
     return (
-        <Box>
-            {posts.length === 0 && isLoading && (
-                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>
-            )}
-            {posts.length === 0 && !isLoading && isReachingEnd && (
-                <Typography sx={{ textAlign: 'center', p: 3 }}>No matching image posts found from the people you follow.</Typography>
-            )}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, sm: 3 } }}>
-                 {/* ImagePost component will perform its own validation for Kind 20 + imeta */}
-                {posts.map(event => (
-                    <ImagePost key={event.id} event={event} />
-                ))}
-            </Box>
-            {posts.length > 0 && !isLoading && !isReachingEnd && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                    <Button variant="contained" onClick={loadMore} disabled={isLoading}>Load More</Button>
+        <Box sx={{ maxWidth: 600, mx: 'auto', mt: 2 }}>
+            {/* Show error if fetching follows failed */}
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+            {/* Show loading indicator while fetching follows or initial posts */}
+            {isLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                    <CircularProgress />
                 </Box>
             )}
-            {isLoading && posts.length > 0 && (
-                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>
+
+            {/* Show message if not loading, logged in, follows determined, but list is empty */}
+            {!isLoading && user && followedPubkeys?.length === 0 && (
+                <Typography sx={{ textAlign: 'center', p: 3 }}>You are not following anyone yet, or no posts found from the people you follow.</Typography>
             )}
-            {isReachingEnd && posts.length > 0 && (
-                 <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>End of feed.</Typography>
+            
+            {/* Show message if not logged in */}
+            {!user && (
+                 <Typography sx={{ textAlign: 'center', p: 3 }}>Please log in to see your following feed.</Typography>
+            )}
+
+            {/* Render posts if available */}
+            {!isLoading && notes.length > 0 && notes.map(note => (
+                <ImagePost key={note.id} event={note} />
+            ))}
+
+            {/* Intersection target */}
+            <div ref={loadMoreRef} style={{ height: '10px' }} /> 
+
+            {/* Show loading indicator when fetching more posts */}
+            {isFetchingMore && (
+                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                     <CircularProgress size={24} />
+                 </Box>
             )}
         </Box>
     );

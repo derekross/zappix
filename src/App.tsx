@@ -1,8 +1,8 @@
-// src/App.tsx - Adding logging for loggedInUserProfile
+// src/App.tsx - Refine redirect logic
 import React, {
   useState,
   useEffect,
-  useRef,
+  useRef, // Import useRef
   useCallback,
   useMemo,
 } from "react";
@@ -49,7 +49,7 @@ import Brightness7Icon from "@mui/icons-material/Brightness7";
 import AddIcon from "@mui/icons-material/Add"; // Added Add icon for FAB
 
 function AppContent() {
-  const { ndk, user, signer, loggedInUserProfile, logout, themeMode, toggleThemeMode } = useNdk(); // Get loggedInUserProfile from context
+  const { ndk, user, signer, loggedInUserProfile, logout, themeMode, toggleThemeMode } = useNdk();
   const [loginOpen, setLoginOpen] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
@@ -59,15 +59,16 @@ function AppContent() {
   const lastScrollY = useRef(0);
   const appBarHideThreshold = 10;
   const scrollUpBuffer = 5;
+  const hasRedirectedRef = useRef(false); // Ref to track initial redirect
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) =>
     setAnchorElUser(event.currentTarget);
   const handleCloseUserMenu = () => setAnchorElUser(null);
   const handleLogout = () => {
-    logout();
+    logout(); // This clears the user, triggering the effect below to reset the ref
     handleCloseUserMenu();
     navigate("/");
-  }; // Navigate home on logout
+  };
 
   const handleScroll = useCallback(() => {
     const currentScrollY = window.scrollY;
@@ -94,27 +95,28 @@ function AppContent() {
     };
   }, [handleScroll]);
 
-  // Effect to redirect to /following if user logs in while on global feed
+  // Effect to redirect to /following ONCE after login if landing on /
   useEffect(() => {
-    if (user && location.pathname === "/") {
-      // console.log("User logged in on global feed, redirecting to /following.");
-      navigate("/following", { replace: true });
+    // Reset flag if user logs out
+    if (!user) {
+      hasRedirectedRef.current = false;
+      return;
+    }
+
+    // Redirect only if logged in, on '/', and haven't redirected yet this session
+    if (user && location.pathname === '/' && !hasRedirectedRef.current) {
+      console.log("AppContent: User logged in on global feed, performing initial redirect to /following.");
+      navigate('/following', { replace: true });
+      hasRedirectedRef.current = true; // Set flag after redirecting
     }
   }, [user, location.pathname, navigate]); // Dependencies: user state, current path, navigate function
 
-  // *** ADDED LOGGING FOR loggedInUserProfile STATE ***
-  useEffect(() => {
-      console.log("AppContent: loggedInUserProfile state changed:", loggedInUserProfile);
-      if (loggedInUserProfile) {
-          console.log("AppContent: loggedInUserProfile.image:", loggedInUserProfile.image);
-      }
-  }, [loggedInUserProfile]); // Log specifically when this state changes
-  // *** END LOGGING ***
+  // Logging effect removed
 
   const userInitial =
-    loggedInUserProfile?.displayName?.charAt(0)?.toUpperCase() || // Use state profile first
+    loggedInUserProfile?.displayName?.charAt(0)?.toUpperCase() ||
     loggedInUserProfile?.name?.charAt(0)?.toUpperCase() ||
-    (user ? "N" : ""); // Fallback
+    (user ? "N" : "");
 
   const dynamicTheme = useMemo(
     () => createTheme(createAppTheme(themeMode)),
