@@ -15,7 +15,6 @@ import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import toast from "react-hot-toast";
 import useIntersectionObserver from "../hooks/useIntersectionObserver";
-import Button from "@mui/material/Button";
 
 const IMAGE_POST_KIND: NDKKind = 20;
 const CONTACT_LIST_KIND: NDKKind = 3;

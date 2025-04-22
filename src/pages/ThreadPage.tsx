@@ -3,13 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useNdk } from "../contexts/NdkContext";
 // FIX: Remove nip19 from NDK import
-import {
-  NDKEvent,
-  NDKFilter,
-  NDKKind,
-  NDKUserProfile,
-  NDKSubscriptionCacheUsage,
-} from "@nostr-dev-kit/ndk";
+import { NDKEvent, NDKFilter, NDKKind } from "@nostr-dev-kit/ndk";
 // FIX: Add correct import for nip19
 import { nip19 } from "nostr-tools";
 import { ImagePost } from "../components/ImagePost"; // Assuming root might be ImagePost
@@ -153,14 +147,16 @@ export const ThreadPage: React.FC = () => {
       // --- NIP-22 Tagging ---
       // Root scope tags (pointing to the image post)
       const rootTags = [
-        ["E", rootEventId, /* rootRelays?.[0] || '' */ "", rootEventPubkey], // Uppercase E for root event ID
+        // FIX: Remove extra empty string
+        ["E", rootEventId, rootRelays?.[0] || "", rootEventPubkey], // Uppercase E for root event ID
         ["K", String(rootEventKind)], // Uppercase K for root kind
         ["P", rootEventPubkey], // Uppercase P for root author pubkey
       ];
 
       // Parent scope tags (for a top-level comment, parent is the root)
       const parentTags = [
-        ["e", rootEventId, /* rootRelays?.[0] || '' */ "", rootEventPubkey], // lowercase e for parent event ID
+        // FIX: Remove extra empty string
+        ["e", rootEventId, rootRelays?.[0] || "", rootEventPubkey], // lowercase e for parent event ID
         ["k", String(rootEventKind)], // lowercase k for parent kind
         ["p", rootEventPubkey], // lowercase p for parent author pubkey
       ];
@@ -171,7 +167,7 @@ export const ThreadPage: React.FC = () => {
       commentEvent.tags = [...rootTags, ...parentTags];
 
       // Add own pubkey tag for identification (optional but good practice)
-      // commentEvent.tags.push(['p', loggedInUser.pubkey]);
+      commentEvent.tags.push(["p", loggedInUser.pubkey]);
 
       await commentEvent.sign(signer);
       const published = await commentEvent.publish(); // Publishes to user's write relays

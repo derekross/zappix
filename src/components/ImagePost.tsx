@@ -10,7 +10,7 @@ import {
 } from "@nostr-dev-kit/ndk";
 import { decode } from "light-bolt11-decoder";
 import { nip19 } from "nostr-tools";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Button,
   Card,
@@ -57,7 +57,7 @@ interface ImagePostProps {
 
 const CONTACT_LIST_KIND: NDKKind = 3;
 const MUTE_LIST_KIND: NDKKind = 10000;
-const REPORT_KIND: NDKKind = 1984;
+// const REPORT_KIND: NDKKind = 1984;
 const LIKE_KIND: NDKKind = 7;
 const REPOST_KIND: NDKKind = 6;
 const TEXT_NOTE_KIND: NDKKind = 1;
@@ -101,7 +101,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   console.log("Rendering ImagePost for event:", event.id); // Keep log concise
 
   const { ndk, user: loggedInUser, signer } = useNdk();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const [authorUser, setAuthorUser] = useState<NDKUser | null>(null);
   const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(
     null
@@ -117,7 +117,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   );
   const [isMutingAuthor, setIsMutingAuthor] = useState<boolean | null>(null);
   const [isProcessingFollow, setIsProcessingFollow] = useState(false);
-  const [isProcessingMute, setIsProcessingMuting] = useState(false);
+  const [isProcessingMute, setIsProcessingMute] = useState(false);
   const [neventId, setNeventId] = useState<string>("");
   const [likeCount, setLikeCount] = useState<number>(0);
   const [boostCount, setBoostCount] = useState<number>(0);
@@ -671,7 +671,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         limit: 1,
       };
       const currentContactListEvent = await ndk.fetchEvent(filter, {
-        cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST,
+        cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
       });
       let currentTags: string[][] = currentContactListEvent
         ? currentContactListEvent.tags
@@ -751,7 +751,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         limit: 1,
       };
       const currentMuteListEvent = await ndk.fetchEvent(filter, {
-        cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST,
+        cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
       });
       let currentTags: string[][] = currentMuteListEvent
         ? currentMuteListEvent.tags
@@ -1283,12 +1283,12 @@ const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) => {
     if (authorUser) {
       authorUser
         .fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
-        .then((profile) => {
+        .then((profile: NDKUserProfile | null) => {
           if (isMounted) {
             setAuthorProfile(profile);
           }
         })
-        .catch((err) =>
+        .catch((err: unknown) =>
           console.error("Failed to fetch comment author profile:", err)
         );
     }
