@@ -1,4 +1,4 @@
-# <img src="zappix-logo.png" alt="Zappix Logo" height="30" style="vertical-align: middle; margin-right: 10px;"> Zappix
+# Zappix
 
 Zappix is a Nostr client focused on providing a clean, image-centric user experience. Built with React, TypeScript, Material UI, and the Nostr Development Kit (NDK).
 
@@ -10,7 +10,7 @@ Zappix is a Nostr client focused on providing a clean, image-centric user experi
 *   **Image Uploading:** Upload images via the standard NIP-96 flow (using Blossom servers) with NIP-98 authentication. File metadata is handled via NIP-94 concepts within Kind 20 posts.
 *   **Login Options:**
     *   Browser Extension (NIP-07)
-    *   Remote Signer / Bunker (NIP-46)
+    *   Remote Signer / Bunker (NIP-46) (COMING SOON)
 *   **Content Blurring:** Automatically blurs images tagged with `#nsfw` or containing a NIP-36 `content-warning` tag. Click to reveal.
 *   **Post Interaction:**
     *   View post threads (replies).
@@ -26,21 +26,21 @@ Zappix is a Nostr client focused on providing a clean, image-centric user experi
 
 Zappix aims to support modern Nostr standards. Key NIPs currently implemented include:
 
-*   **NIP-01:** Basic protocol flow (Kinds 0, 1, 3).
+*   **NIP-01:** Basic protocol flow (Kinds 0, 3).
 *   **NIP-05:** Mapping Nostr keys to DNS-based internet identifiers (Profile verification display).
 *   **NIP-07:** `window.nostr` capability for browser extensions (Login).
 *   **NIP-12:** Generic Tag Queries (Hashtag feed filtering).
 *   **NIP-19:** `bech32`-encoded entities (`npub`, `nevent` generation and linking).
+*   **NIP-22:** Comments (Kind 1111).
 *   **NIP-36:** Sensitive Content tags (`content-warning`).
-*   **NIP-46:** Nostr Connect (Remote signer/bunker login).
+*   **NIP-46:** Nostr Connect (Remote signer/bunker login). (COMING SOON)
 *   **NIP-51:** Lists (Public Kind 10000 Mute Lists).
 *   **NIP-56:** Reporting (Kind 1984 Report events).
+*   **NIP-20:** Image Feeds (Kind 20 events).
 *   **NIP-94:** File Metadata (Used conceptually for image uploads within Kind 20).
 *   **NIP-96:** HTTP File Storage Integration (Image uploads via Blossom).
 *   **NIP-98:** HTTP Auth (Authentication for NIP-96 uploads).
 
-*(Note: Zappix heavily utilizes Kind 20 Image Metadata events, which is a common convention but not yet a formally defined NIP.)*
-
 ## Getting Started
 
-*(Add instructions here on how to build, run, and contribute to the project if desired)*
+npm run dev
