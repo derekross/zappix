@@ -134,7 +134,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const [showComments, setShowComments] = useState<boolean>(false);
   const [comments, setComments] = useState<NDKEvent[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState<boolean>(false);
-  const [newCommentText, setNewCommentText] = useState<string>('');
+  const [newCommentText, setNewCommentText] = useState<string>("");
 
   const metadata = useMemo(() => parseImetaTag(event.tags), [event.tags]);
   const imageUrl = metadata.url;
@@ -401,7 +401,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       setComments(commentsArray);
 
       // Fetch author profiles for comments
-      const authorPubkeys = commentsArray.map(comment => comment.pubkey);
+      const authorPubkeys = commentsArray.map((comment) => comment.pubkey);
       if (authorPubkeys.length > 0) {
         const profileFilter: NDKFilter = {
           kinds: [0],
@@ -412,7 +412,6 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         });
         // Profiles will be available in NDK cache, and components rendering comments can access them
       }
-
     } catch (error) {
       console.error("Error fetching comments:", error);
       setComments([]);
@@ -430,7 +429,15 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
   // Submit comment function
   const submitComment = useCallback(async () => {
-    if (!ndk || !signer || !loggedInUser || !newCommentText.trim() || !event?.id || !event?.pubkey) return;
+    if (
+      !ndk ||
+      !signer ||
+      !loggedInUser ||
+      !newCommentText.trim() ||
+      !event?.id ||
+      !event?.pubkey
+    )
+      return;
 
     const toastId = "comment-toast";
     toast.loading("Posting comment...", { id: toastId });
@@ -475,7 +482,10 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       }
     } catch (error) {
       console.error("Comment post error:", error);
-      toast.error(`Comment failed: ${error instanceof Error ? error.message : "Unknown"}`, { id: toastId });
+      toast.error(
+        `Comment failed: ${error instanceof Error ? error.message : "Unknown"}`,
+        { id: toastId }
+      );
     }
   }, [ndk, signer, loggedInUser, newCommentText, event, fetchComments]);
 
@@ -589,7 +599,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
   // Modified handleReply to toggle comments section
   const handleReply = useCallback(() => {
-    setShowComments(prev => !prev);
+    setShowComments((prev) => !prev);
   }, [setShowComments]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) =>
@@ -636,28 +646,223 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     }
     handleMenuClose();
   };
+  // --- handleFollowToggle, handleMuteToggle, handleReportClick, handleReportSubmit (Unchanged) ---
   const handleFollowToggle = async () => {
-    /* ... unchanged ... */
+    if (
+      !loggedInUser ||
+      !signer ||
+      !ndk ||
+      isProcessingFollow ||
+      loggedInUser.pubkey === event.pubkey
+    )
+      return;
+    const targetPubkey = event.pubkey;
+    const currentlyFollowing = isFollowingAuthor;
+    const actionToastId = "follow-toast";
+    setIsProcessingFollow(true);
+    handleMenuClose();
+    toast.loading(currentlyFollowing ? "Unfollowing..." : "Following...", {
+      id: actionToastId,
+    });
+    try {
+      const filter: NDKFilter = {
+        kinds: [CONTACT_LIST_KIND],
+        authors: [loggedInUser.pubkey],
+        limit: 1,
+      };
+      const currentContactListEvent = await ndk.fetchEvent(filter, {
+        cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST,
+      });
+      let currentTags: string[][] = currentContactListEvent
+        ? currentContactListEvent.tags
+        : [];
+      let newTags: string[][] = [];
+      if (currentlyFollowing) {
+        newTags = currentTags.filter(
+          (tag) => !(tag[0] === "p" && tag[1] === targetPubkey)
+        );
+      } else {
+        if (
+          !currentTags.some((tag) => tag[0] === "p" && tag[1] === targetPubkey)
+        ) {
+          newTags = [...currentTags, ["p", targetPubkey]];
+        } else {
+          newTags = currentTags;
+        }
+      }
+      if (
+        newTags.length === currentTags.length &&
+        currentlyFollowing === false
+      ) {
+        toast.success("Already following.", { id: actionToastId });
+        setIsProcessingFollow(false);
+        setIsFollowingAuthor(true);
+        return;
+      }
+      const newEvent = new NDKEvent(ndk);
+      newEvent.kind = CONTACT_LIST_KIND;
+      newEvent.created_at = Math.floor(Date.now() / 1000);
+      newEvent.tags = newTags;
+      newEvent.content = currentContactListEvent?.content || "";
+      await newEvent.sign(signer);
+      const publishedRelays = await newEvent.publish();
+      if (publishedRelays.size > 0) {
+        toast.success(currentlyFollowing ? "Unfollowed!" : "Followed!", {
+          id: actionToastId,
+        });
+        setIsFollowingAuthor(!currentlyFollowing);
+      } else {
+        toast.error("Failed to publish contact list update.", {
+          id: actionToastId,
+        });
+        throw new Error("Publish failed");
+      }
+    } catch (error) {
+      toast.error(`Failed to ${currentlyFollowing ? "unfollow" : "follow"}.`, {
+        id: actionToastId,
+      });
+      console.error("Follow/Unfollow Error:", error);
+    } finally {
+      setIsProcessingFollow(false);
+    }
   };
+
   const handleMuteToggle = async () => {
-    /* ... unchanged ... */
+    if (
+      !loggedInUser ||
+      !signer ||
+      !ndk ||
+      isProcessingMute ||
+      loggedInUser.pubkey === event.pubkey
+    )
+      return;
+    const targetPubkey = event.pubkey;
+    const currentlyMuted = isMutingAuthor;
+    const actionToastId = "mute-toast";
+    setIsProcessingMute(true);
+    handleMenuClose();
+    toast.loading(currentlyMuted ? "Unmuting..." : "Muting...", {
+      id: actionToastId,
+    });
+    try {
+      const filter: NDKFilter = {
+        kinds: [MUTE_LIST_KIND],
+        authors: [loggedInUser.pubkey],
+        limit: 1,
+      };
+      const currentMuteListEvent = await ndk.fetchEvent(filter, {
+        cacheUsage: NDKSubscriptionCacheUsage.NETWORK_FIRST,
+      });
+      let currentTags: string[][] = currentMuteListEvent
+        ? currentMuteListEvent.tags
+        : [];
+      let newTags: string[][] = [];
+      if (currentlyMuted) {
+        newTags = currentTags.filter(
+          (tag) => !(tag[0] === "p" && tag[1] === targetPubkey)
+        );
+      } else {
+        if (
+          !currentTags.some((tag) => tag[0] === "p" && tag[1] === targetPubkey)
+        ) {
+          newTags = [...currentTags, ["p", targetPubkey]];
+        } else {
+          newTags = currentTags;
+        }
+      }
+      if (newTags.length === currentTags.length && currentlyMuted === false) {
+        toast.success("Already muted.", { id: actionToastId });
+        setIsProcessingMute(false);
+        setIsMutingAuthor(true);
+        return;
+      }
+      const newEvent = new NDKEvent(ndk);
+      newEvent.kind = MUTE_LIST_KIND;
+      newEvent.created_at = Math.floor(Date.now() / 1000);
+      newEvent.tags = newTags;
+      newEvent.content = "";
+      await newEvent.sign(signer);
+      const publishedRelays = await newEvent.publish();
+      if (publishedRelays.size > 0) {
+        toast.success(currentlyMuted ? "Unmuted!" : "Muted!", {
+          id: actionToastId,
+        });
+        setIsMutingAuthor(!currentlyMuted);
+      } else {
+        toast.error("Failed to publish mute list update.", {
+          id: actionToastId,
+        });
+        throw new Error("Publish failed");
+      }
+    } catch (error) {
+      toast.error(`Failed to ${currentlyMuted ? "unmute" : "mute"}.`, {
+        id: actionToastId,
+      });
+      console.error("Mute/Unmute Error:", error);
+    } finally {
+      setIsProcessingMute(false);
+    }
   };
+
   const handleReportClick = () => {
-    /* ... unchanged ... */
+    if (!loggedInUser) {
+      toast.error("Please log in to report posts.");
+      handleMenuClose();
+      return;
+    }
+    setIsReportDialogOpen(true);
+    handleMenuClose();
   };
+
   const handleReportSubmit = async (reportType: string, reasonText: string) => {
-    /* ... unchanged ... */
+    if (!ndk || !loggedInUser || !signer) {
+      toast.error("Cannot submit report: NDK, user, or signer missing.");
+      handleCloseReportDialog();
+      return;
+    }
+    setIsSubmittingReport(true);
+    const reportToastId = "report-toast";
+    toast.loading("Submitting report...", { id: reportToastId });
+    try {
+      const reportEvent = new NDKEvent(ndk);
+      reportEvent.kind = 1984;
+      reportEvent.created_at = Math.floor(Date.now() / 1000);
+      reportEvent.tags = [
+        ["e", event.id],
+        ["p", event.pubkey],
+        ["report", reportType],
+      ];
+      reportEvent.content = reasonText || "";
+      await reportEvent.sign(signer);
+      const publishedRelays = await reportEvent.publish();
+      if (publishedRelays.size > 0) {
+        toast.success("Report submitted successfully!", { id: reportToastId });
+      } else {
+        toast.error("Failed to publish report to any connected write relays.", {
+          id: reportToastId,
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting NIP-56 report:", error);
+      toast.error(
+        `Failed to submit report: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { id: reportToastId }
+      );
+    } finally {
+      setIsSubmittingReport(false);
+      handleCloseReportDialog();
+    }
   };
+
   const handleCloseReportDialog = () => {
-    /* ... unchanged ... */
+    setIsReportDialogOpen(false);
   };
+
   const handleImageClick = () => {
     if (isBlurred) {
       setIsBlurred(false);
-    } else {
-      if (neventId) {
-        navigate(`/n/${neventId}`);
-      }
     }
   };
 
@@ -1002,20 +1207,30 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       {/* Comments Section */}
       <Collapse in={showComments} timeout="auto" unmountOnExit>
         <CardContent sx={{ pt: 0, pb: "8px !important" }}>
-          <Typography variant="h6" gutterBottom>Comments</Typography>
+          <Typography variant="h6" gutterBottom>
+            Comments
+          </Typography>
           {isLoadingComments ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}><CircularProgress size={20} /></Box>
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+              <CircularProgress size={20} />
+            </Box>
           ) : comments.length > 0 ? (
             <Box>
-              {comments.map(comment => (
-                <CommentItem key={comment.id} commentEvent={comment} ndk={ndk} />
+              {comments.map((comment) => (
+                <CommentItem
+                  key={comment.id}
+                  commentEvent={comment}
+                  ndk={ndk}
+                />
               ))}
             </Box>
           ) : (
-            <Typography variant="body2" color="text.secondary">No comments yet.</Typography>
+            <Typography variant="body2" color="text.secondary">
+              No comments yet.
+            </Typography>
           )}
           {loggedInUser && (
-            <Box sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ mt: 2, display: "flex", alignItems: "center" }}>
               <TextField
                 label="Add a comment"
                 variant="outlined"
@@ -1046,7 +1261,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         />
       )}
     </Card>
-    );
+  );
 };
 
 interface CommentItemProps {
@@ -1055,32 +1270,52 @@ interface CommentItemProps {
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) => {
-  const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(null);
-  const authorUser = useMemo(() => ndk.getUser({ pubkey: commentEvent.pubkey }), [ndk, commentEvent.pubkey]);
+  const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(
+    null
+  );
+  const authorUser = useMemo(
+    () => ndk.getUser({ pubkey: commentEvent.pubkey }),
+    [ndk, commentEvent.pubkey]
+  );
 
   useEffect(() => {
     let isMounted = true;
     if (authorUser) {
-      authorUser.fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
-        .then(profile => {
+      authorUser
+        .fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
+        .then((profile) => {
           if (isMounted) {
             setAuthorProfile(profile);
           }
         })
-        .catch(err => console.error("Failed to fetch comment author profile:", err));
+        .catch((err) =>
+          console.error("Failed to fetch comment author profile:", err)
+        );
     }
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [authorUser]);
 
-  const authorDisplayName = authorProfile?.displayName || authorProfile?.name || authorUser.npub.substring(0, 8) + "...";
-  const authorAvatarUrl = authorProfile?.image?.startsWith("http") ? authorProfile.image : undefined;
+  const authorDisplayName =
+    authorProfile?.displayName ||
+    authorProfile?.name ||
+    authorUser.npub.substring(0, 8) + "...";
+  const authorAvatarUrl = authorProfile?.image?.startsWith("http")
+    ? authorProfile.image
+    : undefined;
 
   return (
-    <Box sx={{ mb: 1, pb: 1, borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start' }}>
-      <Avatar
-        src={authorAvatarUrl}
-        sx={{ width: 24, height: 24, mr: 1 }}
-      >
+    <Box
+      sx={{
+        mb: 1,
+        pb: 1,
+        borderBottom: "1px solid #eee",
+        display: "flex",
+        alignItems: "flex-start",
+      }}
+    >
+      <Avatar src={authorAvatarUrl} sx={{ width: 24, height: 24, mr: 1 }}>
         {!authorAvatarUrl && authorDisplayName.charAt(0).toUpperCase()}
       </Avatar>
       <Box sx={{ flexGrow: 1 }}>
