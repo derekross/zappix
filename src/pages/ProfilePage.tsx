@@ -353,7 +353,15 @@ export const ProfilePage: React.FC = () => {
         !isLoadingPosts &&
         initialFetchDoneRef.current[npub || ""] && (
           <Typography
-            sx={{ textAlign: "center", p: 3, color: "text.secondary" }}
+            sx={{
+              textAlign: "center",
+              p: 3,
+              color: "text.secondary",
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+              whiteSpace: "normal", // <--- ensures wrapping
+              maxWidth: "100%", // <--- prevents overflow
+            }}
           >
             User has no matching image posts.
           </Typography>
@@ -365,6 +373,10 @@ export const ProfilePage: React.FC = () => {
           flexDirection: "column",
           gap: { xs: 2, sm: 3 },
           mt: 2,
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "hidden",
+          boxSizing: "border-box",
         }}
       >
         {userPosts.map((event) => (

@@ -49,6 +49,7 @@ import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import FlagIcon from "@mui/icons-material/Flag";
 import { ReportPostDialog } from "./ReportPostDialog";
 import toast from "react-hot-toast";
+import { MarkdownContent } from "./MarkdownContent";
 
 // Interface must be defined BEFORE the component uses it
 interface ImagePostProps {
@@ -63,18 +64,41 @@ const REPOST_KIND: NDKKind = 6;
 const TEXT_NOTE_KIND: NDKKind = 1;
 const ZAP_KIND: NDKKind = 9735;
 
-const parseImetaTag = (tags: string[][]): Record<string, string> => {
-  const imeta = tags.find((tag) => tag[0] === "imeta");
-  if (!imeta) return {};
-  const metaData: Record<string, string> = {};
-  imeta.slice(1).forEach((part) => {
-    const spaceIndex = part.indexOf(" ");
-    if (spaceIndex > 0) {
-      const key = part.substring(0, spaceIndex);
-      const value = part.substring(spaceIndex + 1);
-      metaData[key] = value;
+const parseImetaTag = (tags: string[][]): Record<string, string | string[]> => {
+  const metaData: Record<string, string | string[]> = {};
+  const imageUrls: string[] = [];
+
+  tags.forEach((tag) => {
+    if (tag[0] === "imeta") {
+      tag.slice(1).forEach((part) => {
+        const spaceIndex = part.indexOf(" ");
+        if (spaceIndex > 0) {
+          const key = part.substring(0, spaceIndex);
+          const value = part.substring(spaceIndex + 1);
+          if (key === "url") {
+            imageUrls.push(value);
+          } else {
+            // Store other imeta data if needed, handling potential duplicates or structuring appropriately
+            if (metaData[key]) {
+              if (Array.isArray(metaData[key])) {
+                (metaData[key] as string[]).push(value);
+              } else {
+                metaData[key] = [metaData[key] as string, value];
+              }
+            } else {
+              metaData[key] = value;
+            }
+          }
+        }
+      });
+    } else if (tag[0] === "url" && tag[1]) {
+      // Handle top-level 'url' tags as well
+      imageUrls.push(tag[1]);
     }
   });
+
+  metaData.url = imageUrls.filter((url) => url && url.startsWith("http")); // Filter for valid http urls
+
   return metaData;
 };
 const checkSensitiveContent = (
@@ -137,7 +161,10 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const [newCommentText, setNewCommentText] = useState<string>("");
 
   const metadata = useMemo(() => parseImetaTag(event.tags), [event.tags]);
-  const imageUrl = metadata.url;
+  const imageUrls = useMemo(
+    () => (Array.isArray(metadata.url) ? metadata.url : []),
+    [metadata.url]
+  );
   const altTextTag = event.tags.find((tag) => tag[0] === "alt");
   const altText = altTextTag?.[1] || event.content || "Nostr image post";
 
@@ -867,9 +894,10 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   };
 
   // --- Rendering ---
-  // Condition 1: Basic data check
-  if (!imageUrl?.startsWith("http")) {
-    console.warn(`Skipping render: Invalid imageUrl for event ${event.id}`);
+  // Condition 1: Basic data check (check if imageUrls has any valid http urls)
+  const validImageUrls = imageUrls.filter((url) => url?.startsWith("http"));
+  if (validImageUrls.length === 0) {
+    console.warn(`Skipping render: No valid imageUrls for event ${event.id}`);
     return null;
   }
 
@@ -928,7 +956,13 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const isOwnPost = loggedInUser?.pubkey === event.pubkey;
 
   return (
-    <Card elevation={2} sx={{ mb: { xs: 2, sm: 3 } }}>
+    <Card
+      elevation={2}
+      sx={{
+        mb: { xs: 2, sm: 3 },
+        // Removed maxWidth, mx, overflow - Let container handle sizing
+      }}
+    >
       <CardHeader
         avatar={
           <Avatar
@@ -1059,22 +1093,36 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         subheader={new Date(event.created_at! * 1000).toLocaleString()}
       />
       <Box
-        sx={{ position: "relative", cursor: isBlurred ? "pointer" : "default" }}
+        sx={{
+          position: "relative",
+          cursor: isBlurred ? "pointer" : "default",
+          width: "100%",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          gap: 2, // spacing between multiple images
+          mt: 2,
+        }}
         onClick={handleImageClick}
       >
-        <CardMedia
-          component="img"
-          image={imageUrl}
-          alt={altText}
-          sx={{
-            display: "block",
-            maxHeight: "80vh",
-            objectFit: "contain",
-            width: "100%",
-            filter: isBlurred ? "blur(25px)" : "none",
-            transition: "filter 0.3s ease-in-out",
-          }}
-        />
+        {validImageUrls.map((url, index) => (
+          <CardMedia
+            key={index}
+            component="img"
+            image={url}
+            alt={altText}
+            sx={{
+              width: "100%",
+              maxHeight: "80vh",
+              objectFit: "contain",
+              display: "block",
+              borderRadius: 1,
+              filter: isBlurred ? "blur(25px)" : "none",
+              transition: "filter 0.3s ease-in-out",
+            }}
+          />
+        ))}
+
         {isBlurred && (
           <Box
             sx={{
@@ -1091,25 +1139,26 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
               color: "white",
               textAlign: "center",
               p: 2,
+              zIndex: 1,
             }}
           >
             <VisibilityOffIcon sx={{ fontSize: 40, mb: 1 }} />
             <Typography variant="body1" gutterBottom>
               {warningReason || "Content Warning"}
             </Typography>
-            <Typography variant="caption">Click to reveal</Typography>
+            <Typography variant="caption">View content</Typography>
           </Box>
         )}
       </Box>
-      {((altText && altText !== event.content) || event.content) && (
+
+      {event.content && (
         <CardContent sx={{ pt: 1, pb: "8px !important" }}>
-          {" "}
           <Typography variant="body2" color="text.secondary">
-            {" "}
-            {altText || event.content}{" "}
-          </Typography>{" "}
+            <MarkdownContent content={event.content || ""} />
+          </Typography>
         </CardContent>
       )}
+
       <CardActions
         disableSpacing
         sx={{ pt: 0, justifyContent: "space-around" }}
