@@ -1,6 +1,7 @@
 // /home/raven/zappix/src/pages/GlobalFeedPage.tsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNdk } from "../contexts/NdkContext";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   NDKEvent,
   NDKFilter,
@@ -12,15 +13,18 @@ import { ImagePost } from "../components/ImagePost";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
-// FIX: Removed unused Button import
-// import Button from '@mui/material/Button';
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import useIntersectionObserver from "../hooks/useIntersectionObserver";
 
 const IMAGE_POST_KIND: NDKKind = 20; // Use NDKKind type
+//const TEXT_NOTE_KIND: NDKKind = 1; // Needed for filter
 const BATCH_SIZE = 10; // Number of events to fetch per batch
 
 export const GlobalFeedPage: React.FC = () => {
-  const { ndk, user } = useNdk(); // Get user from context
+  const { ndk, user } = useNdk(); // Get user and ndk from context
+  const navigate = useNavigate();
+  const location = useLocation();
   const [notes, setNotes] = useState<NDKEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -83,7 +87,7 @@ export const GlobalFeedPage: React.FC = () => {
       }
 
       const filter: NDKFilter = {
-        kinds: [IMAGE_POST_KIND],
+        kinds: [IMAGE_POST_KIND], // Only kind 20 for global image feed
         limit: BATCH_SIZE,
       };
 
@@ -92,50 +96,42 @@ export const GlobalFeedPage: React.FC = () => {
       }
 
       console.log("GlobalFeed: Subscribing with filter:", filter);
-      // closeOnEose: false - Keep open for live updates initially?
-      // closeOnEose: true - Better for strict pagination batches
-      const newSub = ndk.subscribe(filter, { closeOnEose: true }); // Close after initial batch loads
+      const newSub = ndk.subscribe(filter, { closeOnEose: true });
       subscriptionRef.current = newSub;
 
-      const processedEventIds = new Set<string>(); // Track events processed in this sub batch
+      const processedEventIds = new Set<string>();
 
       newSub.on("event", (event: NDKEvent) => {
-        if (processedEventIds.has(event.id)) return; // Already processed in this batch
+        if (processedEventIds.has(event.id)) return;
         processedEventIds.add(event.id);
 
         if (mutedPubkeys.has(event.pubkey)) {
           return; // Skip muted user
         }
 
-        // Update state only if the event is truly new compared to existing notes state
         setNotes((prevNotes) => {
           if (prevNotes.some((note) => note.id === event.id)) {
             return prevNotes;
           }
-          // Insert and maintain sort order
           const updatedNotes = [...prevNotes, event].sort(
             (a, b) => b.created_at! - a.created_at!
           );
-          // Update timestamp for the next fetch (use the oldest from the *newly added* batch)
-          // Note: This might be better handled in the 'eose' or fetchEvents logic
           return updatedNotes;
         });
       });
 
       newSub.on("eose", () => {
         console.log("GlobalFeed: Subscription EOSE received.");
-        setIsLoading(false); // Initial load finished
+        setIsLoading(false);
         setIsFetchingMore(false);
 
-        // Update the timestamp based on the actual received batch
         setNotes((currentNotes) => {
           if (currentNotes.length > 0) {
-            // Set timestamp to the oldest note currently displayed
             setLastEventTimestamp(
               currentNotes[currentNotes.length - 1].created_at
             );
           }
-          return currentNotes; // Return unchanged notes array
+          return currentNotes;
         });
       });
 
@@ -146,23 +142,22 @@ export const GlobalFeedPage: React.FC = () => {
       });
     },
     [ndk, mutedPubkeys]
-  ); // Re-subscribe if mutedPubkeys change
+  );
 
   // Initial subscription effect
   useEffect(() => {
     setIsLoading(true);
     setNotes([]);
     setLastEventTimestamp(undefined);
-    subscribeToFeed(); // Initial fetch
+    subscribeToFeed();
 
-    // Cleanup
     return () => {
       if (subscriptionRef.current) {
         subscriptionRef.current.stop();
         subscriptionRef.current = null;
       }
     };
-  }, [ndk, subscribeToFeed]); // Rerun if NDK or subscribe function ref changes
+  }, [ndk, subscribeToFeed]);
 
   // Function to load older events using fetchEvents for explicit pagination
   const loadMore = useCallback(() => {
@@ -174,7 +169,7 @@ export const GlobalFeedPage: React.FC = () => {
     const filter: NDKFilter = {
       kinds: [IMAGE_POST_KIND],
       limit: BATCH_SIZE,
-      until: lastEventTimestamp, // Fetch events created strictly before the last one we have
+      until: lastEventTimestamp,
     };
 
     ndk
@@ -188,11 +183,9 @@ export const GlobalFeedPage: React.FC = () => {
 
         if (uniqueNewEvents.length > 0) {
           setNotes((prevNotes) => {
-            // Add new events and re-sort
             const updated = [...prevNotes, ...uniqueNewEvents].sort(
               (a, b) => b.created_at! - a.created_at!
             );
-            // Update timestamp based on the oldest event in the combined list
             setLastEventTimestamp(updated[updated.length - 1].created_at);
             return updated;
           });
@@ -203,12 +196,10 @@ export const GlobalFeedPage: React.FC = () => {
           console.log(
             "GlobalFeed: No more older events found or all filtered."
           );
-          // Maybe set a "noMorePosts" flag here if needed
         }
       })
       .catch((error) => {
         console.error("GlobalFeed: Error fetching more events:", error);
-        // Optionally show a toast message to the user
       })
       .finally(() => {
         setIsFetchingMore(false);
@@ -222,40 +213,98 @@ export const GlobalFeedPage: React.FC = () => {
     enabled: !isLoading && !isFetchingMore && lastEventTimestamp !== undefined,
   });
 
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+    navigate(newValue);
+  };
+
   return (
-    <Box
-      sx={{
-        maxWidth: 600,
-        mx: "auto",
-        mt: 2,
-        display: "flex",
-        flexDirection: "column",
-        gap: { xs: 2, sm: 3 },
-      }}
-    >
-      {" "}
-      {/* Apply gap here */}
-      {isLoading && notes.length === 0 && (
-        <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-          <CircularProgress />
-        </Box>
-      )}
-      {!isLoading && notes.length === 0 && (
-        <Typography sx={{ textAlign: "center", p: 3, color: "text.secondary" }}>
-          No image posts found in the feed.
-        </Typography>
-      )}
-      {notes.map((note) => (
-        // Each ImagePost is now implicitly spaced by the parent Box's gap
-        <ImagePost key={note.id} event={note} />
-      ))}
-      {/* Intersection observer target */}
-      <div ref={loadMoreRef} style={{ height: "10px", width: "100%" }} />
-      {isFetchingMore && (
-        <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-          <CircularProgress size={24} />
-        </Box>
-      )}
-    </Box>
+    <>
+      {/* Feed Selection Tabs */}
+      <Box
+        sx={{ width: "100%", borderBottom: 1, borderColor: "divider", mb: 2 }}
+      >
+        <Tabs
+          value={location.pathname} // Use location to determine active tab
+          onChange={handleTabChange}
+          aria-label="feed selection tabs"
+          variant="fullWidth"
+        >
+          <Tab
+            label="Global"
+            value="/"
+            sx={{
+              minWidth: "auto",
+              px: { xs: 1, sm: 2 },
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
+            }}
+          />
+          {user && (
+            <Tab
+              label="Following"
+              value="/following"
+              sx={{
+                minWidth: "auto",
+                px: { xs: 1, sm: 2 },
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              }}
+            />
+          )}{" "}
+          {/* Conditional Following Tab */}
+          {user && (
+            <Tab
+              label="Local"
+              value="/local"
+              sx={{
+                minWidth: "auto",
+                px: { xs: 1, sm: 2 },
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              }}
+            />
+          )}{" "}
+          {/* Conditional Local Tab */}
+        </Tabs>
+      </Box>
+
+      {/* Feed Content Box  */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: { xs: 2, sm: 3 },
+          mt: 2,
+        }}
+      >
+        {isLoading && notes.length === 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+            <CircularProgress />
+          </Box>
+        )}
+        {!isLoading && notes.length === 0 && (
+          <Typography
+            noWrap={false}
+            sx={{
+              textAlign: "center",
+              p: 3,
+              color: "text.secondary",
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+            }}
+          >
+            No image posts found in the feed.
+          </Typography>
+        )}
+        {notes.map((note) => (
+          // Each ImagePost is now implicitly spaced by the parent Box's gap
+          <ImagePost key={note.id} event={note} />
+        ))}
+        {/* Intersection observer target */}
+        <div ref={loadMoreRef} style={{ height: "10px", width: "100%" }} />
+        {isFetchingMore && (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
+      </Box>
+    </>
   );
 };

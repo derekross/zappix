@@ -1,6 +1,7 @@
 // /home/raven/zappix/src/pages/FollowingFeedPage.tsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNdk } from "../contexts/NdkContext";
+import { useLocation, useNavigate } from "react-router-dom"; // Added imports
 import {
   NDKEvent,
   NDKFilter,
@@ -13,17 +14,21 @@ import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
+import Tabs from "@mui/material/Tabs"; // Add Tabs import
+import Tab from "@mui/material/Tab"; // Add Tab import
 import toast from "react-hot-toast";
 import useIntersectionObserver from "../hooks/useIntersectionObserver";
 
 const IMAGE_POST_KIND: NDKKind = 20;
 const CONTACT_LIST_KIND: NDKKind = 3;
+//const TEXT_NOTE_KIND: NDKKind = 1; // Needed?
 const BATCH_SIZE = 10;
 
 export const FollowingFeedPage: React.FC = () => {
   const { ndk, user } = useNdk();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [notes, setNotes] = useState<NDKEvent[]>([]);
-  // Rename isLoading to reflect its main purpose: loading posts or initial contacts
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [lastEventTimestamp, setLastEventTimestamp] = useState<
@@ -40,33 +45,23 @@ export const FollowingFeedPage: React.FC = () => {
   // --- Effect 1: Fetch Follow List ---
   useEffect(() => {
     isMounted.current = true;
-    console.log("FollowingFeed: Effect 1 - User/NDK check");
     if (!ndk || !user) {
-      console.log("FollowingFeed: Effect 1 - No user/NDK, resetting state");
       setNotes([]);
       setFollowedPubkeys(null);
-      setIsLoadingFeed(false); // Not loading if not logged in
+      setIsLoadingFeed(false);
       setError(null);
       setCanLoadMore(true);
       return;
     }
-
-    console.log(
-      "FollowingFeed: Effect 1 - User/NDK present, resetting state and fetching follows"
-    );
-    setIsLoadingFeed(true); // Start loading (covers contact fetch initially)
+    setIsLoadingFeed(true);
     setError(null);
     setNotes([]);
     setLastEventTimestamp(undefined);
     setCanLoadMore(true);
-    setFollowedPubkeys(null); // Mark as loading
+    setFollowedPubkeys(null);
     receivedEventIds.current.clear();
 
     const fetchFollows = async () => {
-      console.log(
-        "FollowingFeed: Fetching follow list (Kind 3) for user",
-        user.pubkey
-      );
       try {
         const filter: NDKFilter = {
           kinds: [CONTACT_LIST_KIND],
@@ -76,81 +71,48 @@ export const FollowingFeedPage: React.FC = () => {
         const contactListEvent = await ndk.fetchEvent(filter, {
           cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
         });
-
         if (!isMounted.current) return;
-
         if (contactListEvent) {
           const pubkeys = contactListEvent.tags
             .filter((tag) => tag[0] === "p" && tag[1])
             .map((tag) => tag[1]);
-          console.log(
-            `FollowingFeed: Found ${pubkeys.length} followed pubkeys.`
-          );
-          setFollowedPubkeys(pubkeys); // Set the list (triggers Effect 3)
-          // NOTE: Don't set isLoadingFeed false here. Let Effect 3 handle it after post fetch.
+          setFollowedPubkeys(pubkeys);
         } else {
-          console.log(
-            "FollowingFeed: No contact list (Kind 3) found for user."
-          );
-          setFollowedPubkeys([]); // Set empty list (triggers Effect 3)
-          // NOTE: Don't set isLoadingFeed false here. Effect 3 will see empty list and stop loading.
+          setFollowedPubkeys([]);
         }
       } catch (err: any) {
         if (!isMounted.current) return;
-        console.error("FollowingFeed: Error fetching contact list:", err);
         setError("Failed to fetch your follow list.");
-        setFollowedPubkeys([]); // Set empty list on error (triggers Effect 3)
-        // NOTE: Don't set isLoadingFeed false here. Let Effect 3 handle it.
+        setFollowedPubkeys([]);
       }
-      // No finally block needed here for isLoadingFeed
     };
-
     fetchFollows();
-
     return () => {
       isMounted.current = false;
     };
-  }, [ndk, user]); // Dependencies
+  }, [ndk, user]);
 
-  // --- Effect 2: Fetch Initial Posts (triggered by followedPubkeys change) ---
+  // --- Effect 2: Fetch Initial Posts ---
   useEffect(() => {
-    isMounted.current = true; // Also set on mount for this effect
-    // Guard: Only run if NDK exists and follows have been determined (not null)
-    if (followedPubkeys === null || !ndk) {
-      console.log(
-        "FollowingFeed: Effect 2 - Skipping initial post fetch (follows/NDK not ready)"
-      );
-      return;
-    }
-
-    // Guard: If follows list is empty, stop loading and return
+    isMounted.current = true;
+    if (followedPubkeys === null || !ndk) return;
     if (followedPubkeys.length === 0) {
-      console.log(
-        "FollowingFeed: Effect 2 - No follows, stopping load and clearing notes."
-      );
       setIsLoadingFeed(false);
       setNotes([]);
       setCanLoadMore(false);
       return;
     }
+    if (subscriptionRef.current) subscriptionRef.current.stop();
 
-    // Stop previous subscription if any
-    if (subscriptionRef.current) {
-      subscriptionRef.current.stop();
-    }
-
-    console.log(
-      `FollowingFeed: Effect 2 - Fetching initial posts for ${followedPubkeys.length} follows.`
-    );
-    setIsLoadingFeed(true); // Ensure loading is true for post fetch phase
+    setIsLoadingFeed(true);
     setError(null);
     setCanLoadMore(true);
-    setNotes([]); // Clear previous notes
+    setNotes([]);
     setLastEventTimestamp(undefined);
     receivedEventIds.current.clear();
 
     const filter: NDKFilter = {
-      kinds: [IMAGE_POST_KIND],
+      kinds: [IMAGE_POST_KIND], // Fetch kind 20 posts from followed authors
       authors: followedPubkeys,
       limit: BATCH_SIZE,
     };
@@ -167,55 +129,37 @@ export const FollowingFeedPage: React.FC = () => {
 
     sub.on("eose", () => {
       if (!isMounted.current) return;
-      console.log(
-        `FollowingFeed: Initial fetch EOSE received. ${batchEvents.length} events collected.`
-      );
       const sortedBatch = batchEvents.sort(
         (a, b) => b.created_at! - a.created_at!
       );
       setNotes(sortedBatch);
       if (sortedBatch.length > 0) {
         setLastEventTimestamp(sortedBatch[sortedBatch.length - 1].created_at);
-      } else {
-        setLastEventTimestamp(undefined);
       }
       setCanLoadMore(batchEvents.length >= BATCH_SIZE);
-      setIsLoadingFeed(false); // **** STOP LOADING HERE ****
+      setIsLoadingFeed(false);
       setIsFetchingMore(false);
-      console.log(
-        `FollowingFeed: Initial load finished. isLoadingFeed: false, canLoadMore: ${
-          batchEvents.length >= BATCH_SIZE
-        }`
-      );
     });
 
     sub.on("closed", () => {
-      console.log("FollowingFeed: Initial subscription closed.");
       if (isMounted.current && isLoadingFeed) {
-        // Check isLoadingFeed state
-        console.log(
-          "FollowingFeed: Setting isLoadingFeed false due to early close."
-        );
         setIsLoadingFeed(false);
         setIsFetchingMore(false);
-        if (notes.length === 0) setCanLoadMore(false); // Assume end if closed early with no notes
+        if (notes.length === 0) setCanLoadMore(false);
       }
     });
 
-    // Cleanup subscription when effect re-runs or component unmounts
     return () => {
-      console.log("FollowingFeed: Effect 2 cleanup - stopping subscription");
       if (subscriptionRef.current) {
         subscriptionRef.current.stop();
         subscriptionRef.current = null;
       }
-      isMounted.current = false; // Set unmounted on cleanup
+      isMounted.current = false;
     };
-  }, [followedPubkeys, ndk]); // Dependencies: trigger when follows list is ready OR NDK changes
+  }, [followedPubkeys, ndk]);
 
-  // --- Effect 3: Function to load older events --- (Renamed from Effect 4)
+  // --- Effect 3: Function to load older events ---
   const loadMoreFollowing = useCallback(async () => {
-    // Added !isLoadingFeed check to prevent overlap with initial load
     if (
       isLoadingFeed ||
       isFetchingMore ||
@@ -225,20 +169,10 @@ export const FollowingFeedPage: React.FC = () => {
       !user ||
       followedPubkeys === null ||
       followedPubkeys.length === 0
-    ) {
-      console.log("FollowingFeed: Load more skipped", {
-        isLoadingFeed,
-        isFetchingMore,
-        canLoadMore,
-        lastEventTimestamp_is_undefined: lastEventTimestamp === undefined,
-      });
+    )
       return;
-    }
 
-    console.log(
-      `FollowingFeed: Loading more events until ${lastEventTimestamp}`
-    );
-    setIsFetchingMore(true); // Set fetching more state
+    setIsFetchingMore(true);
     setError(null);
 
     const filter: NDKFilter = {
@@ -254,65 +188,37 @@ export const FollowingFeedPage: React.FC = () => {
         closeOnEose: true,
       });
       const fetchedEventsArray = Array.from(fetchedEventsSet);
-
       if (!isMounted.current) return;
-
-      console.log(
-        `FollowingFeed: Fetched ${fetchedEventsArray.length} raw older events.`
-      );
 
       if (fetchedEventsArray.length > 0) {
         setNotes((prevNotes) => {
           const combinedNotes = [...prevNotes, ...fetchedEventsArray];
           const uniqueNotesMap = new Map<string, NDKEvent>();
           combinedNotes.forEach((note) => {
-            if (!uniqueNotesMap.has(note.id)) {
-              uniqueNotesMap.set(note.id, note);
-            }
+            if (!uniqueNotesMap.has(note.id)) uniqueNotesMap.set(note.id, note);
           });
           const sortedUniqueNotes = Array.from(uniqueNotesMap.values()).sort(
             (a, b) => b.created_at! - a.created_at!
           );
           const newEventsAddedCount =
             sortedUniqueNotes.length - prevNotes.length;
-
-          if (newEventsAddedCount > 0) {
-            console.log(
-              `FollowingFeed: Added ${newEventsAddedCount} unique older events.`
+          if (newEventsAddedCount > 0 && sortedUniqueNotes.length > 0) {
+            setLastEventTimestamp(
+              sortedUniqueNotes[sortedUniqueNotes.length - 1].created_at
             );
-            if (sortedUniqueNotes.length > 0) {
-              setLastEventTimestamp(
-                sortedUniqueNotes[sortedUniqueNotes.length - 1].created_at
-              );
-            }
-          } else {
-            console.log(
-              "FollowingFeed: No new unique older events added after deduplication."
-            );
-            if (fetchedEventsArray.length < BATCH_SIZE) setCanLoadMore(false);
           }
+          if (fetchedEventsArray.length < BATCH_SIZE) setCanLoadMore(false);
           return sortedUniqueNotes;
         });
-
-        if (fetchedEventsArray.length < BATCH_SIZE) {
-          console.log(
-            "FollowingFeed: Fetched less than batch size, setting canLoadMore=false."
-          );
-          setCanLoadMore(false);
-        }
       } else {
-        console.log(
-          "FollowingFeed: No more older events found (fetch returned 0)."
-        );
         setCanLoadMore(false);
       }
     } catch (err) {
       if (!isMounted.current) return;
-      console.error("FollowingFeed: Error fetching more events:", err);
       toast.error("Failed to load older posts.");
       setCanLoadMore(false);
     } finally {
-      if (isMounted.current) setIsFetchingMore(false); // Stop fetching more indicator
+      if (isMounted.current) setIsFetchingMore(false);
     }
   }, [
     ndk,
@@ -323,13 +229,12 @@ export const FollowingFeedPage: React.FC = () => {
     isFetchingMore,
     isLoadingFeed,
     canLoadMore,
-  ]); // Renamed isLoading
+  ]);
 
-  // --- Effect 4: Setup Intersection Observer --- (Renamed from Effect 5)
+  // --- Effect 4: Setup Intersection Observer ---
   useIntersectionObserver({
     target: loadMoreRef,
     onIntersect: loadMoreFollowing,
-    // Use isLoadingFeed here
     enabled:
       !isLoadingFeed &&
       !isFetchingMore &&
@@ -339,100 +244,143 @@ export const FollowingFeedPage: React.FC = () => {
       followedPubkeys.length > 0,
   });
 
-  // DEBUG LOGGING before render
-  console.log("Rendering FollowingFeed:", {
-    isLoading: isLoadingFeed, // Use renamed state
-    isFetchingMore,
-    userExists: !!user,
-    followedPubkeysCount: followedPubkeys?.length,
-    notesCount: notes.length,
-    canLoadMore,
-    error,
-  });
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+    navigate(newValue);
+  };
 
   // 6. Render Logic
   return (
-    <Box
-      sx={{
-        maxWidth: 600,
-        mx: "auto",
-        mt: 2,
-        display: "flex",
-        flexDirection: "column",
-        gap: { xs: 2, sm: 3 },
-      }}
-    >
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {" "}
-          {error}{" "}
-        </Alert>
-      )}
+    <>
+      {/* Feed Selection Tabs */}
+      <Box
+        sx={{ width: "100%", borderBottom: 1, borderColor: "divider", mb: 2 }}
+      >
+        <Tabs
+          value={location.pathname} // Use location to determine active tab
+          onChange={handleTabChange}
+          aria-label="feed selection tabs"
+          variant="fullWidth"
+        >
+          <Tab
+            label="Global"
+            value="/"
+            sx={{
+              minWidth: "auto",
+              px: { xs: 1, sm: 2 },
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
+            }}
+          />
+          {user && (
+            <Tab
+              label="Following"
+              value="/following"
+              sx={{
+                minWidth: "auto",
+                px: { xs: 1, sm: 2 },
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              }}
+            />
+          )}
+          {user && (
+            <Tab
+              label="Local"
+              value="/local"
+              sx={{
+                minWidth: "auto",
+                px: { xs: 1, sm: 2 },
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              }}
+            />
+          )}
+        </Tabs>
+      </Box>
 
-      {/* Use isLoadingFeed for initial loading indicator */}
-      {(isLoadingFeed || (isFetchingMore && notes.length === 0)) && (
-        <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-          <CircularProgress />
-          <Typography sx={{ ml: 2 }}>
-            {followedPubkeys === null
-              ? "Loading contacts..."
-              : "Loading posts..."}
-          </Typography>
-        </Box>
-      )}
+      {/* Feed Content Box */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: { xs: 2, sm: 3 },
+          mt: 2,
+        }}
+      >
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
-      {/* Use isLoadingFeed in conditions */}
-      {!user && !isLoadingFeed && (
-        <Typography sx={{ textAlign: "center", p: 3, color: "text.secondary" }}>
-          {" "}
-          Please log in to see your following feed.{" "}
-        </Typography>
-      )}
-      {user && !isLoadingFeed && followedPubkeys?.length === 0 && (
-        <Typography sx={{ textAlign: "center", p: 3, color: "text.secondary" }}>
-          {" "}
-          You aren't following anyone yet. Find users to follow!{" "}
-        </Typography>
-      )}
+        {(isLoadingFeed || (isFetchingMore && notes.length === 0)) && (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>
+              {followedPubkeys === null
+                ? "Loading contacts..."
+                : "Loading posts..."}
+            </Typography>
+          </Box>
+        )}
 
-      {/* Render posts if NOT initial loading AND user exists */}
-      {!isLoadingFeed &&
-        user &&
-        notes.map((note) => <ImagePost key={note.id} event={note} />)}
-
-      {/* No Posts message - use isLoadingFeed */}
-      {user &&
-        !isLoadingFeed &&
-        !isFetchingMore &&
-        followedPubkeys &&
-        followedPubkeys.length > 0 &&
-        notes.length === 0 && (
+        {!user && !isLoadingFeed && (
           <Typography
             sx={{ textAlign: "center", p: 3, color: "text.secondary" }}
           >
-            No image posts found from the people you follow yet.
+            Please log in to see your following feed.
+          </Typography>
+        )}
+        {user && !isLoadingFeed && followedPubkeys?.length === 0 && (
+          <Typography
+            noWrap={false}
+            sx={{
+              textAlign: "center",
+              p: 3,
+              color: "text.secondary",
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+            }}
+          >
+            You aren't following anyone yet. Find users to follow!
           </Typography>
         )}
 
-      {/* Intersection observer target */}
-      <div ref={loadMoreRef} style={{ height: "10px", width: "100%" }} />
+        {!isLoadingFeed &&
+          user &&
+          notes.map((note) => (
+            // Render ImagePost directly, relying on its internal styles
+            <ImagePost key={note.id} event={note} />
+          ))}
 
-      {/* Load More Spinner */}
-      {isFetchingMore && notes.length > 0 && (
-        <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-          <CircularProgress size={24} />
-        </Box>
-      )}
+        {user &&
+          !isLoadingFeed &&
+          !isFetchingMore &&
+          followedPubkeys &&
+          followedPubkeys.length > 0 &&
+          notes.length === 0 && (
+            <Typography
+              sx={{ textAlign: "center", p: 3, color: "text.secondary" }}
+            >
+              No image posts found from the people you follow yet.
+            </Typography>
+          )}
 
-      {/* End of Feed Marker - use isLoadingFeed */}
-      {!canLoadMore &&
-        !isLoadingFeed &&
-        !isFetchingMore &&
-        notes.length > 0 && (
-          <Typography align="center" color="text.secondary" sx={{ my: 3 }}>
-            - End of Feed -
-          </Typography>
+        {/* Intersection observer target */}
+        <div ref={loadMoreRef} style={{ height: "10px", width: "100%" }} />
+
+        {isFetchingMore && notes.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
         )}
-    </Box>
+
+        {!canLoadMore &&
+          !isLoadingFeed &&
+          !isFetchingMore &&
+          notes.length > 0 && (
+            <Typography align="center" color="text.secondary" sx={{ my: 3 }}>
+              - End of Feed -
+            </Typography>
+          )}
+      </Box>
+    </>
   );
 };
