@@ -93,20 +93,14 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 }) => {
   const displayNpub = profileUser.npub;
   const shortNpub = `${displayNpub.substring(0, 10)}...${displayNpub.substring(
-    displayNpub.length - 6
+    displayNpub.length - 6,
   )}`;
   const displayName = profileDetails?.displayName || profileDetails?.name;
-  const bannerUrl = profileDetails?.banner?.startsWith("http")
-    ? profileDetails.banner
-    : undefined;
-  const avatarUrl = profileDetails?.image?.startsWith("http")
-    ? profileDetails.image
-    : undefined;
+  const bannerUrl = profileDetails?.banner?.startsWith("http") ? profileDetails.banner : undefined;
+  const avatarUrl = profileDetails?.image?.startsWith("http") ? profileDetails.image : undefined;
   const nip05 = profileDetails?.nip05;
   const lud16 = profileDetails?.lud16;
-  const website = profileDetails?.website?.startsWith("http")
-    ? profileDetails.website
-    : undefined;
+  const website = profileDetails?.website?.startsWith("http") ? profileDetails.website : undefined;
 
   // FIX: Removed unused variable
   // const isNip05Verified = false; // Placeholder
@@ -226,9 +220,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <Box sx={{ mt: 2 }}>
             <Chip
               icon={<LinkIcon fontSize="small" />}
-              label={website
-                .replace(/^https?:\/\/(www.)?/, "")
-                .replace(/\/$/, "")}
+              label={website.replace(/^https?:\/\/(www.)?/, "").replace(/\/$/, "")}
               component="a"
               href={website}
               target="_blank"

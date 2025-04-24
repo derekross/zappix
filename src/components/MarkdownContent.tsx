@@ -48,13 +48,9 @@ const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
           .fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
           .then((p) => {
             setProfile(p);
-            setDisplayName(
-              p?.displayName || p?.name || bareUri.substring(0, 10) + "..."
-            );
+            setDisplayName(p?.displayName || p?.name || bareUri.substring(0, 10) + "...");
           })
-          .catch((e) =>
-            console.error(`Failed to fetch profile for ${bareUri}`, e)
-          )
+          .catch((e) => console.error(`Failed to fetch profile for ${bareUri}`, e))
           .finally(() => setIsLoading(false));
       } else if (
         decodedType === "nprofile" &&
@@ -72,13 +68,9 @@ const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
           .fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
           .then((p) => {
             setProfile(p);
-            setDisplayName(
-              p?.displayName || p?.name || profileNpub.substring(0, 10) + "..."
-            );
+            setDisplayName(p?.displayName || p?.name || profileNpub.substring(0, 10) + "...");
           })
-          .catch((e) =>
-            console.error(`Failed to fetch profile for ${bareUri}`, e)
-          )
+          .catch((e) => console.error(`Failed to fetch profile for ${bareUri}`, e))
           .finally(() => setIsLoading(false));
       } else if (decodedType === "note") {
         setNpub(""); // No user profile to fetch for note
@@ -89,9 +81,7 @@ const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
         const neventData = decodedData as nip19.EventPointer;
         setNpub("");
         setTargetPath(`/n/${bareUri}`);
-        setDisplayName(
-          nip19.noteEncode(neventData.id).substring(0, 10) + "..."
-        ); // Display truncated note ID
+        setDisplayName(nip19.noteEncode(neventData.id).substring(0, 10) + "..."); // Display truncated note ID
         setIsLoading(false);
       }
       // Add more types (naddr, nrelay, etc.) if needed
@@ -110,11 +100,7 @@ const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
 
   if (isLoading) {
     return (
-      <Skeleton
-        variant="text"
-        width={80}
-        sx={{ display: "inline-block", ml: 0.5, mr: 0.5 }}
-      />
+      <Skeleton variant="text" width={80} sx={{ display: "inline-block", ml: 0.5, mr: 0.5 }} />
     );
   }
 
@@ -122,11 +108,7 @@ const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
     // Use Tooltip to show full npub/note ID on hover
     return (
       <Tooltip title={npub || uri} placement="top">
-        <Link
-          component={RouterLink}
-          to={targetPath}
-          sx={{ fontWeight: "medium" }}
-        >
+        <Link component={RouterLink} to={targetPath} sx={{ fontWeight: "medium" }}>
           @{displayName}
         </Link>
       </Tooltip>
@@ -143,17 +125,10 @@ type CustomAnchorRenderer = React.FC<
   React.AnchorHTMLAttributes<HTMLAnchorElement> & { node?: any }
 >;
 
-export const MarkdownContent: React.FC<MarkdownContentProps> = ({
-  content,
-}) => {
+export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => {
   const { ndk } = useNdk(); // NDK needed for NostrMention
 
-  const LinkRenderer: CustomAnchorRenderer = ({
-    node,
-    children,
-    href,
-    ...props
-  }) => {
+  const LinkRenderer: CustomAnchorRenderer = ({ node, children, href, ...props }) => {
     const targetHref = href || "";
 
     // Check for nostr: URI first
@@ -180,12 +155,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
     // External links
     else {
       return (
-        <Link
-          href={targetHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={props.title}
-        >
+        <Link href={targetHref} target="_blank" rel="noopener noreferrer" title={props.title}>
           {children}
         </Link>
       );
@@ -200,26 +170,15 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
   // Prevent rendering if NDK is not yet available, as NostrMention needs it
   if (!ndk) {
     return (
-      <Typography
-        component="div"
-        variant="body1"
-        sx={{ wordBreak: "break-word" }}
-      >
+      <Typography component="div" variant="body1" sx={{ wordBreak: "break-word" }}>
         {content}
       </Typography>
     ); // Render plain text or skeleton
   }
 
   return (
-    <Typography
-      component="div"
-      variant="body1"
-      sx={{ wordBreak: "break-word" }}
-    >
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={markdownComponents}
-      >
+    <Typography component="div" variant="body1" sx={{ wordBreak: "break-word" }}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
         {content}
       </ReactMarkdown>
     </Typography>

@@ -1,19 +1,8 @@
 // src/components/Feed.tsx
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNdk } from "../contexts/NdkContext";
 // FIX: Removed unused NDKRelaySet import
-import {
-  NDKEvent,
-  NDKFilter,
-  NDKKind,
-  NDKSubscriptionCacheUsage,
-} from "@nostr-dev-kit/ndk";
+import { NDKEvent, NDKFilter, NDKKind, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { ImagePost } from "./ImagePost";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -27,14 +16,10 @@ const IMAGE_POST_KIND: NDKKind = 20;
 export const Feed: React.FC = () => {
   const { ndk, user } = useNdk();
   const [feedEvents, setFeedEvents] = useState<NDKEvent[]>([]);
-  const [followingPubkeys, setFollowingPubkeys] = useState<string[] | null>(
-    null
-  ); // null = not loaded
+  const [followingPubkeys, setFollowingPubkeys] = useState<string[] | null>(null); // null = not loaded
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [oldestEventTimestamp, setOldestEventTimestamp] = useState<
-    number | undefined
-  >(undefined);
+  const [oldestEventTimestamp, setOldestEventTimestamp] = useState<number | undefined>(undefined);
   const [canLoadMore, setCanLoadMore] = useState(true);
   const receivedEventIds = useRef(new Set<string>());
   const isMounted = useRef(false);
@@ -44,9 +29,7 @@ export const Feed: React.FC = () => {
   const processFeedEvents = useCallback(
     (events: NDKEvent[], isInitial: boolean) => {
       if (!isMounted.current) return;
-      let oldestTs: number | undefined = isInitial
-        ? undefined
-        : oldestEventTimestamp;
+      let oldestTs: number | undefined = isInitial ? undefined : oldestEventTimestamp;
       let addedNew = false;
       const newUniqueEvents: NDKEvent[] = [];
       if (isInitial) {
@@ -57,10 +40,7 @@ export const Feed: React.FC = () => {
           receivedEventIds.current.add(event.id);
           newUniqueEvents.push(event);
           addedNew = true;
-          if (
-            event.created_at &&
-            (oldestTs === undefined || event.created_at < oldestTs)
-          ) {
+          if (event.created_at && (oldestTs === undefined || event.created_at < oldestTs)) {
             oldestTs = event.created_at;
           }
         }
@@ -68,8 +48,8 @@ export const Feed: React.FC = () => {
       if (addedNew) {
         setFeedEvents((prev) =>
           (isInitial ? newUniqueEvents : [...prev, ...newUniqueEvents]).sort(
-            (a, b) => b.created_at! - a.created_at!
-          )
+            (a, b) => b.created_at! - a.created_at!,
+          ),
         );
         setOldestEventTimestamp(oldestTs);
         setCanLoadMore(events.length >= FEED_FETCH_LIMIT);
@@ -83,7 +63,7 @@ export const Feed: React.FC = () => {
         setFeedEvents([]);
       }
     },
-    [oldestEventTimestamp]
+    [oldestEventTimestamp],
   );
 
   // --- Effect 1: Reset and Fetch Contacts on User Change ---
@@ -108,14 +88,12 @@ export const Feed: React.FC = () => {
     ndk
       .fetchEvent(
         { kinds: [NDKKind.Contacts], authors: [user.pubkey] },
-        { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST, closeOnEose: true }
+        { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST, closeOnEose: true },
       )
       .then((contactListEvent) => {
         if (!isMounted.current) return;
         const pubkeys =
-          contactListEvent?.tags
-            .filter((t) => t[0] === "p" && t[1])
-            .map((t) => t[1]) || [];
+          contactListEvent?.tags.filter((t) => t[0] === "p" && t[1]).map((t) => t[1]) || [];
         console.log(`Feed: Found ${pubkeys.length} follows.`);
         setFollowingPubkeys(pubkeys);
         if (pubkeys.length === 0) {
@@ -142,7 +120,7 @@ export const Feed: React.FC = () => {
     if (followingPubkeys !== null && ndk) {
       const fetchId = ++currentFetchId.current;
       console.log(
-        `Feed: Contacts ready (count: ${followingPubkeys.length}). Fetching initial posts (ID: ${fetchId}).`
+        `Feed: Contacts ready (count: ${followingPubkeys.length}). Fetching initial posts (ID: ${fetchId}).`,
       );
       setIsLoading(true);
       setError(null);
@@ -180,8 +158,7 @@ export const Feed: React.FC = () => {
           }
         })
         .finally(() => {
-          if (isMounted.current && fetchId === currentFetchId.current)
-            setIsLoading(false);
+          if (isMounted.current && fetchId === currentFetchId.current) setIsLoading(false);
         });
     }
   }, [followingPubkeys, ndk, processFeedEvents]);
@@ -200,9 +177,7 @@ export const Feed: React.FC = () => {
       return;
 
     const fetchId = ++currentFetchId.current;
-    console.log(
-      `Feed: Loading more (ID: ${fetchId}) until ${oldestEventTimestamp}`
-    );
+    console.log(`Feed: Loading more (ID: ${fetchId}) until ${oldestEventTimestamp}`);
     setIsLoading(true);
     setError(null);
 
@@ -229,8 +204,7 @@ export const Feed: React.FC = () => {
         setCanLoadMore(false);
       }
     } finally {
-      if (fetchId === currentFetchId.current && isMounted.current)
-        setIsLoading(false);
+      if (fetchId === currentFetchId.current && isMounted.current) setIsLoading(false);
     }
   }, [
     isLoading,
@@ -245,13 +219,12 @@ export const Feed: React.FC = () => {
   // Memoize rendered posts
   const renderedPosts = useMemo(
     () => feedEvents.map((event) => <ImagePost key={event.id} event={event} />),
-    [feedEvents]
+    [feedEvents],
   );
 
   // --- Rendering Logic ---
   if (isLoading && feedEvents.length === 0) {
-    const loadingText =
-      followingPubkeys === null ? "Loading contacts..." : "Loading posts...";
+    const loadingText = followingPubkeys === null ? "Loading contacts..." : "Loading posts...";
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
         <CircularProgress />

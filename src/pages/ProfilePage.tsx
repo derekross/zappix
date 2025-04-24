@@ -34,24 +34,19 @@ export const ProfilePage: React.FC = () => {
 
   // Profile User State
   const [profileUser, setProfileUser] = useState<NDKUser | null>(null);
-  const [profileDetails, setProfileDetails] = useState<NDKUserProfile | null>(
-    null
-  );
+  const [profileDetails, setProfileDetails] = useState<NDKUserProfile | null>(null);
   const [isOwnProfile, setIsOwnProfile] = useState<boolean>(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   // Follow State
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
-  const [isLoadingFollowStatus, setIsLoadingFollowStatus] =
-    useState<boolean>(false);
+  const [isLoadingFollowStatus, setIsLoadingFollowStatus] = useState<boolean>(false);
 
   // Profile Posts State
   const [userPosts, setUserPosts] = useState<NDKEvent[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [isPostsReachingEnd, setIsPostsReachingEnd] = useState(false);
-  const [lastPostTime, setLastPostTime] = useState<number | undefined>(
-    undefined
-  );
+  const [lastPostTime, setLastPostTime] = useState<number | undefined>(undefined);
   const initialFetchDoneRef = useRef<Record<string, boolean>>({});
 
   // Edit Modal State
@@ -134,7 +129,7 @@ export const ProfilePage: React.FC = () => {
       .fetchEvent(filter, { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
       .then((contactListEvent) => {
         const foundFollow = !!contactListEvent?.tags.some(
-          (t) => t[0] === "p" && t[1] === authorPubkey
+          (t) => t[0] === "p" && t[1] === authorPubkey,
         );
         setIsFollowing(foundFollow);
       })
@@ -166,9 +161,7 @@ export const ProfilePage: React.FC = () => {
           cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
         });
         const fetchedEvents = Array.from(fetchedEventsSet);
-        const sortedEvents = fetchedEvents.sort(
-          (a, b) => b.created_at! - a.created_at!
-        );
+        const sortedEvents = fetchedEvents.sort((a, b) => b.created_at! - a.created_at!);
 
         if (sortedEvents.length === 0 || sortedEvents.length < POSTS_PER_PAGE) {
           setIsPostsReachingEnd(true);
@@ -177,20 +170,15 @@ export const ProfilePage: React.FC = () => {
         }
 
         if (sortedEvents.length > 0) {
-          const oldestInBatch =
-            sortedEvents[sortedEvents.length - 1].created_at!;
+          const oldestInBatch = sortedEvents[sortedEvents.length - 1].created_at!;
           setLastPostTime(oldestInBatch > 0 ? oldestInBatch - 1 : 0);
         }
 
         setUserPosts((prevPosts) => {
           const existingIds = new Set(prevPosts.map((p) => p.id));
-          const newUniquePosts = sortedEvents.filter(
-            (p) => !existingIds.has(p.id)
-          );
+          const newUniquePosts = sortedEvents.filter((p) => !existingIds.has(p.id));
           const updatedPosts =
-            until !== undefined
-              ? [...prevPosts, ...newUniquePosts]
-              : newUniquePosts;
+            until !== undefined ? [...prevPosts, ...newUniquePosts] : newUniquePosts;
           return updatedPosts.sort((a, b) => b.created_at! - a.created_at!);
         });
       } catch (error) {
@@ -201,17 +189,13 @@ export const ProfilePage: React.FC = () => {
         setIsLoadingPosts(false);
       }
     },
-    [ndk, profileUser]
+    [ndk, profileUser],
   );
 
   // Effect to trigger initial post fetch
   useEffect(() => {
     const currentNpub = npub || "";
-    if (
-      profileUser &&
-      !isLoadingPosts &&
-      !initialFetchDoneRef.current[currentNpub]
-    ) {
+    if (profileUser && !isLoadingPosts && !initialFetchDoneRef.current[currentNpub]) {
       initialFetchDoneRef.current[currentNpub] = true;
       fetchPosts();
     }
@@ -228,14 +212,7 @@ export const ProfilePage: React.FC = () => {
 
   // --- Button Handlers ---
   const handleFollowToggle = async () => {
-    if (
-      !loggedInUser ||
-      !profileUser ||
-      !signer ||
-      isOwnProfile ||
-      isLoadingFollowStatus ||
-      !ndk
-    )
+    if (!loggedInUser || !profileUser || !signer || isOwnProfile || isLoadingFollowStatus || !ndk)
       return;
     const targetPubkey = profileUser.pubkey;
     const currentlyFollowing = isFollowing;
@@ -252,25 +229,17 @@ export const ProfilePage: React.FC = () => {
       let currentTags: string[][] = currentContactListEvent?.tags || [];
       let newTags: string[][];
       if (currentlyFollowing) {
-        newTags = currentTags.filter(
-          (tag) => !(tag[0] === "p" && tag[1] === targetPubkey)
-        );
+        newTags = currentTags.filter((tag) => !(tag[0] === "p" && tag[1] === targetPubkey));
       } else {
-        if (
-          !currentTags.some((tag) => tag[0] === "p" && tag[1] === targetPubkey)
-        ) {
+        if (!currentTags.some((tag) => tag[0] === "p" && tag[1] === targetPubkey)) {
           newTags = [...currentTags, ["p", targetPubkey]];
         } else {
           newTags = currentTags;
         }
       }
-      if (
-        JSON.stringify(currentTags.sort()) === JSON.stringify(newTags.sort())
-      ) {
+      if (JSON.stringify(currentTags.sort()) === JSON.stringify(newTags.sort())) {
         // FIX 2: Use base toast() instead of toast.info()
-        toast(
-          currentlyFollowing ? "Already not following." : "Already following."
-        );
+        toast(currentlyFollowing ? "Already not following." : "Already following.");
         setIsFollowing(currentlyFollowing);
         setIsLoadingFollowStatus(false);
         return;
@@ -317,17 +286,9 @@ export const ProfilePage: React.FC = () => {
     );
   }
   if (!profileUser && !isLoadingProfile)
-    return (
-      <Alert severity="error">
-        Failed to load profile for {npub}. Invalid NPub?
-      </Alert>
-    );
+    return <Alert severity="error">Failed to load profile for {npub}. Invalid NPub?</Alert>;
   if (profileUser && !profileDetails && !isLoadingProfile && !isOwnProfile)
-    return (
-      <Alert severity="warning">
-        Could not load profile details for {npub}.
-      </Alert>
-    );
+    return <Alert severity="warning">Could not load profile details for {npub}.</Alert>;
 
   return (
     <Box>
@@ -349,23 +310,21 @@ export const ProfilePage: React.FC = () => {
           <CircularProgress />
         </Box>
       )}
-      {userPosts.length === 0 &&
-        !isLoadingPosts &&
-        initialFetchDoneRef.current[npub || ""] && (
-          <Typography
-            sx={{
-              textAlign: "center",
-              p: 3,
-              color: "text.secondary",
-              wordBreak: "break-word",
-              overflowWrap: "break-word",
-              whiteSpace: "normal", // <--- ensures wrapping
-              maxWidth: "100%", // <--- prevents overflow
-            }}
-          >
-            User has no matching image posts.
-          </Typography>
-        )}
+      {userPosts.length === 0 && !isLoadingPosts && initialFetchDoneRef.current[npub || ""] && (
+        <Typography
+          sx={{
+            textAlign: "center",
+            p: 3,
+            color: "text.secondary",
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+            whiteSpace: "normal", // <--- ensures wrapping
+            maxWidth: "100%", // <--- prevents overflow
+          }}
+        >
+          User has no matching image posts.
+        </Typography>
+      )}
 
       <Box
         sx={{
@@ -387,16 +346,8 @@ export const ProfilePage: React.FC = () => {
       {/* Load More Button */}
       {userPosts.length > 0 && !isPostsReachingEnd && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-          <Button
-            variant="contained"
-            onClick={loadMorePosts}
-            disabled={isLoadingPosts}
-          >
-            {isLoadingPosts ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              "Load More Posts"
-            )}
+          <Button variant="contained" onClick={loadMorePosts} disabled={isLoadingPosts}>
+            {isLoadingPosts ? <CircularProgress size={24} color="inherit" /> : "Load More Posts"}
           </Button>
         </Box>
       )}

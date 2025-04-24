@@ -153,11 +153,7 @@ export function SignUpModal({ open, onClose }: SignUpModalProps) {
 
         {!isGenerating && !generated && (
           // Show button only if explicitly not generated and not generating
-          <Button
-            onClick={generateKeys}
-            variant="contained"
-            disabled={isGenerating}
-          >
+          <Button onClick={generateKeys} variant="contained" disabled={isGenerating}>
             Generate Keys
           </Button>
         )}
@@ -165,9 +161,8 @@ export function SignUpModal({ open, onClose }: SignUpModalProps) {
         {generated && (
           <>
             <Alert severity="warning" sx={{ mb: 2 }}>
-              **IMPORTANT:** Save your **Secret Key (nsec)** somewhere safe
-              (password manager). If you lose it, you lose access to your
-              account. **Do not share it with anyone.**
+              **IMPORTANT:** Save your **Secret Key (nsec)** somewhere safe (password manager). If
+              you lose it, you lose access to your account. **Do not share it with anyone.**
             </Alert>
             <TextField
               label="Public Key (npub)"
@@ -213,9 +208,7 @@ export function SignUpModal({ open, onClose }: SignUpModalProps) {
               helperText="KEEP THIS SECRET! Needed to log in."
               sx={{ mb: 2 }}
             />
-            <Box
-              sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}
-            >
+            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
               <Button
                 onClick={handleLoginWithGeneratedKey}
                 variant="contained"

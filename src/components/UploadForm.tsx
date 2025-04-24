@@ -55,7 +55,7 @@ const uploadFileToBlossom = async (
   signer: NDKSigner,
   uploadBlob: Blob,
   serverApiUrl: string,
-  fileHash: string
+  fileHash: string,
 ): Promise<{ url: string; hash: string; mimeType: string }> => {
   const controlEvent = new NDKEvent(ndk!);
   controlEvent.kind = 24242 as NDKKind;
@@ -70,17 +70,13 @@ const uploadFileToBlossom = async (
     await controlEvent.publish();
     await new Promise((resolve) => setTimeout(resolve, 1500));
   } catch (publishError) {
-    console.warn(
-      "Failed to publish control event, proceeding with upload anyway:",
-      publishError
-    );
+    console.warn("Failed to publish control event, proceeding with upload anyway:", publishError);
   }
   const putUrl = `${serverApiUrl.replace(/\/$/, "")}/upload`;
   let authHeader = "";
   try {
     const rawEvent = controlEvent.rawEvent();
-    if (!rawEvent.id || !rawEvent.sig)
-      throw new Error("Control event invalid (missing id/sig)");
+    if (!rawEvent.id || !rawEvent.sig) throw new Error("Control event invalid (missing id/sig)");
     authHeader = `Nostr ${btoa(JSON.stringify(rawEvent))}`;
   } catch (e: any) {
     throw new Error(`Auth header preparation failed: ${e.message}`);
@@ -114,17 +110,14 @@ const uploadFileToBlossom = async (
         `${serverApiUrl.replace(/\/$/, "")}/${fileHashFromTag}`;
       responseHash = responseData?.sha256 || fileHashFromTag;
       if (!responseUrl || !responseHash) {
-        console.warn(
-          "Response missing URL/Hash, falling back using file hash."
-        );
+        console.warn("Response missing URL/Hash, falling back using file hash.");
       }
     } catch (jsonError) {
       console.warn(
         "Failed to parse Blossom response JSON, constructing URL/Hash manually.",
-        jsonError
+        jsonError,
       );
-      if (!fileHashFromTag)
-        throw new Error("JSON parsing failed and no file hash available");
+      if (!fileHashFromTag) throw new Error("JSON parsing failed and no file hash available");
       responseUrl = `${serverApiUrl.replace(/\/$/, "")}/${fileHashFromTag}`;
       responseHash = fileHashFromTag;
     }
@@ -141,9 +134,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
   onCancel,
 }) => {
   const { ndk, signer, user } = useNdk();
-  const [processedData, setProcessedData] = useState<ProcessedImageData | null>(
-    null
-  );
+  const [processedData, setProcessedData] = useState<ProcessedImageData | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [hashtags, setHashtags] = useState("");
@@ -157,9 +148,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
   const [addContentWarning, setAddContentWarning] = useState(false);
   const [contentWarningReason, setContentWarningReason] = useState("");
   const [selectedServerApiUrl, setSelectedServerApiUrl] = useState<string>(
-    () =>
-      localStorage.getItem(LOCAL_STORAGE_BLOSSOM_SERVER_URL_KEY) ||
-      BLOSSOM_SERVERS[0].apiUrl
+    () => localStorage.getItem(LOCAL_STORAGE_BLOSSOM_SERVER_URL_KEY) || BLOSSOM_SERVERS[0].apiUrl,
   );
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -167,41 +156,31 @@ export const UploadForm: React.FC<UploadFormProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Helpers
-  const handleServerSelectChangeMUI = useCallback(
-    (event: SelectChangeEvent<string>) => {
-      setSelectedServerApiUrl(event.target.value as string);
-    },
-    []
-  );
+  const handleServerSelectChangeMUI = useCallback((event: SelectChangeEvent<string>) => {
+    setSelectedServerApiUrl(event.target.value as string);
+  }, []);
   const handleSetDefault = useCallback(() => {
-    localStorage.setItem(
-      LOCAL_STORAGE_BLOSSOM_SERVER_URL_KEY,
-      selectedServerApiUrl
-    );
+    localStorage.setItem(LOCAL_STORAGE_BLOSSOM_SERVER_URL_KEY, selectedServerApiUrl);
     const n =
-      BLOSSOM_SERVERS.find((s) => s.apiUrl === selectedServerApiUrl)?.name ||
-      selectedServerApiUrl;
+      BLOSSOM_SERVERS.find((s) => s.apiUrl === selectedServerApiUrl)?.name || selectedServerApiUrl;
     toast.success(`Default server saved: ${n}`);
   }, [selectedServerApiUrl]);
-  const calculateSha256 = useCallback(
-    async (inputBlob: Blob): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = (e) => {
-          if (e.target?.result instanceof ArrayBuffer) {
-            resolve(sha256(e.target.result));
-          } else {
-            reject(new Error("Not ArrayBuffer"));
-          }
-        };
-        r.onerror = (e) => {
-          reject(new Error(`Read fail:${e}`));
-        };
-        r.readAsArrayBuffer(inputBlob);
-      });
-    },
-    []
-  );
+  const calculateSha256 = useCallback(async (inputBlob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = (e) => {
+        if (e.target?.result instanceof ArrayBuffer) {
+          resolve(sha256(e.target.result));
+        } else {
+          reject(new Error("Not ArrayBuffer"));
+        }
+      };
+      r.onerror = (e) => {
+        reject(new Error(`Read fail:${e}`));
+      };
+      r.readAsArrayBuffer(inputBlob);
+    });
+  }, []);
   const generateGeohash = useCallback((lat: number, lon: number): string => {
     try {
       return ngeohash.encode(lat, lon, 9);
@@ -233,7 +212,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
             toast.error(`Geo fail: ${e.message}`);
             setCurrentLocation(null);
             setAddLocation(false);
-          }
+          },
         );
       }
     } else if (!n) {
@@ -259,18 +238,13 @@ export const UploadForm: React.FC<UploadFormProps> = ({
             ctx.drawImage(img, 0, 0);
             let calculatedBlurhash = "";
             try {
-              const imageData = ctx.getImageData(
-                0,
-                0,
-                canvas.width,
-                canvas.height
-              );
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
               calculatedBlurhash = blurhashEncode(
                 imageData.data,
                 canvas.width,
                 canvas.height,
                 4,
-                3
+                3,
               );
             } catch (e: any) {
               console.error("Blurhash encoding error:", e);
@@ -291,21 +265,18 @@ export const UploadForm: React.FC<UploadFormProps> = ({
                 }
               },
               sourceFile.type,
-              0.9
+              0.9,
             );
           };
-          img.onerror = (err) =>
-            reject(new Error(`Image loading failed: ${err}`));
-          if (typeof event.target?.result === "string")
-            img.src = event.target.result;
+          img.onerror = (err) => reject(new Error(`Image loading failed: ${err}`));
+          if (typeof event.target?.result === "string") img.src = event.target.result;
           else reject(new Error("FileReader result was not a string"));
         };
-        reader.onerror = (err) =>
-          reject(new Error(`FileReader failed: ${err}`));
+        reader.onerror = (err) => reject(new Error(`FileReader failed: ${err}`));
         reader.readAsDataURL(sourceFile);
       });
     },
-    [canvasRef, calculateSha256]
+    [canvasRef, calculateSha256],
   );
 
   // Effect to process the initialFile prop
@@ -313,10 +284,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
     let isMounted = true;
     const processFile = async () => {
       if (!initialFile) return;
-      console.log(
-        "UploadForm: Processing initial file prop:",
-        initialFile.name
-      );
+      console.log("UploadForm: Processing initial file prop:", initialFile.name);
       setIsProcessingImage(true);
       setProcessedData(null);
       setPreviewUrl(null);
@@ -333,11 +301,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({
           setDescription(
             (prev) =>
               prev ||
-              initialFile.name.substring(
-                0,
-                initialFile.name.lastIndexOf(".")
-              ) ||
-              initialFile.name
+              initialFile.name.substring(0, initialFile.name.lastIndexOf(".")) ||
+              initialFile.name,
           );
           toast.success("Image ready.", { id: processToastId });
         }
@@ -374,18 +339,14 @@ export const UploadForm: React.FC<UploadFormProps> = ({
         toast.error("Content Warning Reason required.");
         return;
       }
-      const server = BLOSSOM_SERVERS.find(
-        (s) => s.apiUrl === selectedServerApiUrl
-      );
+      const server = BLOSSOM_SERVERS.find((s) => s.apiUrl === selectedServerApiUrl);
       if (!server) {
         toast.error(`Invalid Server Selected`);
         return;
       }
       setIsUploading(true);
       setIsPublishing(false);
-      const processToastId = toast.loading(
-        `Starting upload to ${server.name}...`
-      );
+      const processToastId = toast.loading(`Starting upload to ${server.name}...`);
       const {
         blob: processedBlob,
         hash: fileHash,
@@ -400,7 +361,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
           signer!,
           processedBlob,
           server.apiUrl,
-          fileHash
+          fileHash,
         );
         setIsUploading(false);
         setIsPublishing(true);
@@ -414,19 +375,14 @@ export const UploadForm: React.FC<UploadFormProps> = ({
         imetaTag.push(`url ${imageUrl}`);
         imetaTag.push(`m ${mimeType}`);
         imetaTag.push(`x ${imageHashRes}`);
-        imetaTag.push(
-          `dim ${calculatedDimensions.width}x${calculatedDimensions.height}`
-        );
+        imetaTag.push(`dim ${calculatedDimensions.width}x${calculatedDimensions.height}`);
         if (calculatedBlurhash) imetaTag.push(`blurhash ${calculatedBlurhash}`);
         imetaTag.push(`alt ${description.trim()}`);
         tags.push(imetaTag);
         tags.push(["url", imageUrl]);
         tags.push(["m", mimeType]);
         tags.push(["x", imageHashRes]);
-        tags.push([
-          "dim",
-          `${calculatedDimensions.width}x${calculatedDimensions.height}`,
-        ]);
+        tags.push(["dim", `${calculatedDimensions.width}x${calculatedDimensions.height}`]);
         if (calculatedBlurhash) tags.push(["blurhash", calculatedBlurhash]);
         hashtags
           .split(/[,\s]+/)
@@ -478,7 +434,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
       generateGeohash,
       onUploadSuccess,
       onCancel,
-    ]
+    ],
   );
 
   // --- Rendering (Using MUI Components) ---
@@ -515,11 +471,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
     );
   }
   if (!processedData) {
-    return (
-      <Alert severity="error">
-        Cannot render form: Image data not available.
-      </Alert>
-    );
+    return <Alert severity="error">Cannot render form: Image data not available.</Alert>;
   }
 
   return (
@@ -636,26 +588,16 @@ export const UploadForm: React.FC<UploadFormProps> = ({
             {" "}
             Current default:{" "}
             {BLOSSOM_SERVERS.find(
-              (s) =>
-                s.apiUrl ===
-                localStorage.getItem(LOCAL_STORAGE_BLOSSOM_SERVER_URL_KEY)
+              (s) => s.apiUrl === localStorage.getItem(LOCAL_STORAGE_BLOSSOM_SERVER_URL_KEY),
             )?.name || "None Set"}{" "}
           </Typography>
-          <Button
-            size="small"
-            onClick={handleSetDefault}
-            disabled={isProcessingOverall}
-          >
+          <Button size="small" onClick={handleSetDefault} disabled={isProcessingOverall}>
             Set as Default
           </Button>
         </Box>
       </FormControl>
       <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end", gap: 1 }}>
-        <Button
-          onClick={onCancel}
-          disabled={isProcessingOverall}
-          variant="outlined"
-        >
+        <Button onClick={onCancel} disabled={isProcessingOverall} variant="outlined">
           Cancel
         </Button>
         <Button
@@ -663,9 +605,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
           variant="contained"
           disabled={isProcessingOverall || !processedData}
           startIcon={
-            isUploading || isPublishing ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : null
+            isUploading || isPublishing ? <CircularProgress size={20} color="inherit" /> : null
           }
         >
           {buttonText}

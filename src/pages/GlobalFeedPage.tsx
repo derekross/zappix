@@ -28,9 +28,7 @@ export const GlobalFeedPage: React.FC = () => {
   const [notes, setNotes] = useState<NDKEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [lastEventTimestamp, setLastEventTimestamp] = useState<
-    number | undefined
-  >(undefined);
+  const [lastEventTimestamp, setLastEventTimestamp] = useState<number | undefined>(undefined);
   const [mutedPubkeys, setMutedPubkeys] = useState<Set<string>>(new Set()); // State for muted pubkeys
   const subscriptionRef = useRef<NDKSubscription | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -43,10 +41,7 @@ export const GlobalFeedPage: React.FC = () => {
     }
 
     const fetchMuteList = async () => {
-      console.log(
-        "GlobalFeed: Fetching mute list (Kind 10000) for user",
-        user.pubkey
-      );
+      console.log("GlobalFeed: Fetching mute list (Kind 10000) for user", user.pubkey);
       try {
         const muteListEvent = await ndk.fetchEvent(
           {
@@ -54,7 +49,7 @@ export const GlobalFeedPage: React.FC = () => {
             authors: [user.pubkey],
             limit: 1, // Fetch only the latest
           },
-          { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST } // Use cache first
+          { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST }, // Use cache first
         );
 
         if (muteListEvent) {
@@ -113,9 +108,7 @@ export const GlobalFeedPage: React.FC = () => {
           if (prevNotes.some((note) => note.id === event.id)) {
             return prevNotes;
           }
-          const updatedNotes = [...prevNotes, event].sort(
-            (a, b) => b.created_at! - a.created_at!
-          );
+          const updatedNotes = [...prevNotes, event].sort((a, b) => b.created_at! - a.created_at!);
           return updatedNotes;
         });
       });
@@ -127,9 +120,7 @@ export const GlobalFeedPage: React.FC = () => {
 
         setNotes((currentNotes) => {
           if (currentNotes.length > 0) {
-            setLastEventTimestamp(
-              currentNotes[currentNotes.length - 1].created_at
-            );
+            setLastEventTimestamp(currentNotes[currentNotes.length - 1].created_at);
           }
           return currentNotes;
         });
@@ -141,7 +132,7 @@ export const GlobalFeedPage: React.FC = () => {
         setIsFetchingMore(false);
       });
     },
-    [ndk, mutedPubkeys]
+    [ndk, mutedPubkeys],
   );
 
   // Initial subscription effect
@@ -178,24 +169,20 @@ export const GlobalFeedPage: React.FC = () => {
         const uniqueNewEvents = Array.from(fetchedEvents).filter(
           (newEvent) =>
             !notes.some((existingNote) => existingNote.id === newEvent.id) &&
-            !mutedPubkeys.has(newEvent.pubkey)
+            !mutedPubkeys.has(newEvent.pubkey),
         );
 
         if (uniqueNewEvents.length > 0) {
           setNotes((prevNotes) => {
             const updated = [...prevNotes, ...uniqueNewEvents].sort(
-              (a, b) => b.created_at! - a.created_at!
+              (a, b) => b.created_at! - a.created_at!,
             );
             setLastEventTimestamp(updated[updated.length - 1].created_at);
             return updated;
           });
-          console.log(
-            `GlobalFeed: Loaded ${uniqueNewEvents.length} more events.`
-          );
+          console.log(`GlobalFeed: Loaded ${uniqueNewEvents.length} more events.`);
         } else {
-          console.log(
-            "GlobalFeed: No more older events found or all filtered."
-          );
+          console.log("GlobalFeed: No more older events found or all filtered.");
         }
       })
       .catch((error) => {
@@ -220,9 +207,7 @@ export const GlobalFeedPage: React.FC = () => {
   return (
     <>
       {/* Feed Selection Tabs */}
-      <Box
-        sx={{ width: "100%", borderBottom: 1, borderColor: "divider", mb: 2 }}
-      >
+      <Box sx={{ width: "100%", borderBottom: 1, borderColor: "divider", mb: 2 }}>
         <Tabs
           value={location.pathname} // Use location to determine active tab
           onChange={handleTabChange}

@@ -49,51 +49,38 @@ export const SettingsPage: React.FC = () => {
   } = useNdk();
 
   // Local state for editable relay lists
-  const [editableReadRelays, setEditableReadRelays] = useState<string[]>(
-    readRelays || []
-  );
-  const [editableWriteRelays, setEditableWriteRelays] = useState<string[]>(
-    writeRelays || []
-  );
+  const [editableReadRelays, setEditableReadRelays] = useState<string[]>(readRelays || []);
+  const [editableWriteRelays, setEditableWriteRelays] = useState<string[]>(writeRelays || []);
   const [newReadRelay, setNewReadRelay] = useState("");
   const [newWriteRelay, setNewWriteRelay] = useState("");
 
   const [defaultZapAmount, setDefaultZapAmount] = useState<string>("");
 
   // Blossom Server State
-  const [selectedBlossomOption, setSelectedBlossomOption] = useState<string>(
-    "https://blossom.band"
-  );
+  const [selectedBlossomOption, setSelectedBlossomOption] =
+    useState<string>("https://blossom.band");
   const [customBlossomUrl, setCustomBlossomUrl] = useState<string>("");
 
   // Sync editable relay lists with context when context changes
   useEffect(() => {
-    console.log(
-      "Context read relays changed, updating editableReadRelays:",
-      readRelays
-    );
+    console.log("Context read relays changed, updating editableReadRelays:", readRelays);
     setEditableReadRelays(readRelays || []);
   }, [readRelays]);
 
   useEffect(() => {
-    console.log(
-      "Context write relays changed, updating editableWriteRelays:",
-      writeRelays
-    );
+    console.log("Context write relays changed, updating editableWriteRelays:", writeRelays);
     setEditableWriteRelays(writeRelays || []);
   }, [writeRelays]);
 
   // Load default zap amount
   useEffect(() => {
-    const storedAmount =
-      localStorage.getItem(LS_DEFAULT_ZAP_AMOUNT_KEY) || "21";
+    const storedAmount = localStorage.getItem(LS_DEFAULT_ZAP_AMOUNT_KEY) || "21";
     setDefaultZapAmount(storedAmount);
   }, []);
 
   // Load Blossom server setting
   useEffect(() => {
-    const storedUrl =
-      localStorage.getItem(LS_BLOSSOM_SERVER_URL_KEY) || "https://blossom.band";
+    const storedUrl = localStorage.getItem(LS_BLOSSOM_SERVER_URL_KEY) || "https://blossom.band";
     if (PREDEFINED_BLOSSOM_SERVERS[storedUrl]) {
       setSelectedBlossomOption(storedUrl);
     } else if (storedUrl) {
@@ -140,12 +127,9 @@ export const SettingsPage: React.FC = () => {
     }
   }, [newWriteRelay, editableWriteRelays]);
 
-  const handleRemoveEditableWriteRelay = useCallback(
-    (relayToRemove: string) => {
-      setEditableWriteRelays((prev) => prev.filter((r) => r !== relayToRemove));
-    },
-    []
-  );
+  const handleRemoveEditableWriteRelay = useCallback((relayToRemove: string) => {
+    setEditableWriteRelays((prev) => prev.filter((r) => r !== relayToRemove));
+  }, []);
 
   const handleRestoreEditableDefaults = useCallback(() => {
     setEditableReadRelays(defaultRelays);
@@ -211,13 +195,8 @@ export const SettingsPage: React.FC = () => {
       urlToSave = selectedBlossomOption;
     }
 
-    if (
-      !urlToSave ||
-      !(urlToSave.startsWith("http://") || urlToSave.startsWith("https://"))
-    ) {
-      toast.error(
-        "Invalid Blossom Server URL. Must start with http:// or https://"
-      );
+    if (!urlToSave || !(urlToSave.startsWith("http://") || urlToSave.startsWith("https://"))) {
+      toast.error("Invalid Blossom Server URL. Must start with http:// or https://");
       return;
     }
     if (urlToSave.endsWith("/")) {
@@ -242,7 +221,7 @@ export const SettingsPage: React.FC = () => {
     addHandler: () => void,
     removeHandler: (relay: string) => void,
     newRelayValue: string,
-    setNewRelayValue: (val: string) => void
+    setNewRelayValue: (val: string) => void,
   ) => (
     <Box sx={{ mb: 3 }}>
       <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: "bold" }}>
@@ -287,11 +266,7 @@ export const SettingsPage: React.FC = () => {
           size="small"
         />
         <Tooltip title={`Add relay to ${title}`}>
-          <IconButton
-            color="primary"
-            onClick={addHandler}
-            aria-label={`add relay to ${title}`}
-          >
+          <IconButton color="primary" onClick={addHandler} aria-label={`add relay to ${title}`}>
             <AddIcon />
           </IconButton>
         </Tooltip>
@@ -336,16 +311,10 @@ export const SettingsPage: React.FC = () => {
           Media Upload Server (Blossom)
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Choose the Blossom server (NIP-96/NIP-98 compliant) to upload images
-          to.
+          Choose the Blossom server (NIP-96/NIP-98 compliant) to upload images to.
         </Typography>
-        <FormControl
-          fullWidth
-          sx={{ mb: selectedBlossomOption === "custom" ? 1 : 2 }}
-        >
-          <InputLabel id="blossom-server-select-label">
-            Blossom Server
-          </InputLabel>
+        <FormControl fullWidth sx={{ mb: selectedBlossomOption === "custom" ? 1 : 2 }}>
+          <InputLabel id="blossom-server-select-label">Blossom Server</InputLabel>
           <Select
             labelId="blossom-server-select-label"
             id="blossom-server-select"
@@ -354,13 +323,11 @@ export const SettingsPage: React.FC = () => {
             onChange={handleBlossomSelectChange}
             size="small"
           >
-            {Object.entries(PREDEFINED_BLOSSOM_SERVERS).map(
-              ([value, label]) => (
-                <MenuItem key={value} value={value}>
-                  {label}
-                </MenuItem>
-              )
-            )}
+            {Object.entries(PREDEFINED_BLOSSOM_SERVERS).map(([value, label]) => (
+              <MenuItem key={value} value={value}>
+                {label}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
 
@@ -416,20 +383,18 @@ export const SettingsPage: React.FC = () => {
           )}
           {relaySource === "default" && user && (
             <Alert severity="warning">
-              No NIP-65 list found or list was empty. Using default relays.
-              Publish a list below to customize.
+              No NIP-65 list found or list was empty. Using default relays. Publish a list below to
+              customize.
             </Alert>
           )}
           {relaySource === "default" && !user && (
             <Alert severity="info">
-              Using default relays. Log in to manage your personal relay list
-              (NIP-65).
+              Using default relays. Log in to manage your personal relay list (NIP-65).
             </Alert>
           )}
           {relaySource === "logged_out" && (
             <Alert severity="info">
-              Using default relays. Log in to manage your personal relay list
-              (NIP-65).
+              Using default relays. Log in to manage your personal relay list (NIP-65).
             </Alert>
           )}
         </Box>
@@ -443,7 +408,7 @@ export const SettingsPage: React.FC = () => {
           handleAddEditableReadRelay,
           handleRemoveEditableReadRelay,
           newReadRelay,
-          setNewReadRelay
+          setNewReadRelay,
         )}
         {renderRelayList(
           "Write Relays (Outbox)",
@@ -451,7 +416,7 @@ export const SettingsPage: React.FC = () => {
           handleAddEditableWriteRelay,
           handleRemoveEditableWriteRelay,
           newWriteRelay,
-          setNewWriteRelay
+          setNewWriteRelay,
         )}
 
         <Divider sx={{ my: 2 }} />
@@ -465,18 +430,13 @@ export const SettingsPage: React.FC = () => {
             <Button
               variant="contained"
               startIcon={
-                isPublishingNip65 ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : (
-                  <SaveIcon />
-                )
+                isPublishingNip65 ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />
               }
               onClick={handlePublishRelays}
               disabled={
                 !user ||
                 isPublishingNip65 ||
-                (editableReadRelays.length === 0 &&
-                  editableWriteRelays.length === 0) ||
+                (editableReadRelays.length === 0 && editableWriteRelays.length === 0) ||
                 !hasUnpublishedChanges
               }
               fullWidth
@@ -510,29 +470,17 @@ export const SettingsPage: React.FC = () => {
           </Grid>
         </Grid>
         {!user && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mt: 1 }}
-          >
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
             Log in to save and publish your relay lists.
           </Typography>
         )}
         {user && !hasUnpublishedChanges && relaySource === "nip65" && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mt: 1 }}
-          >
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
             No unpublished changes.
           </Typography>
         )}
         {user && hasUnpublishedChanges && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mt: 1 }}
-          >
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
             You have unpublished changes.
           </Typography>
         )}

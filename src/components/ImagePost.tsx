@@ -102,7 +102,7 @@ const parseImetaTag = (tags: string[][]): Record<string, string | string[]> => {
   return metaData;
 };
 const checkSensitiveContent = (
-  tags: string[][]
+  tags: string[][],
 ): { isSensitive: boolean; reason: string | null } => {
   let isSensitive = false;
   let reason: string | null = null;
@@ -127,18 +127,14 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const { ndk, user: loggedInUser, signer } = useNdk();
   // const navigate = useNavigate();
   const [authorUser, setAuthorUser] = useState<NDKUser | null>(null);
-  const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(
-    null
-  );
+  const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(null);
   const [isLoadingAuthor, setIsLoadingAuthor] = useState<boolean>(true); // Initialize true
   const [isBlurred, setIsBlurred] = useState<boolean>(false);
   const [warningReason, setWarningReason] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
-  const [isFollowingAuthor, setIsFollowingAuthor] = useState<boolean | null>(
-    null
-  );
+  const [isFollowingAuthor, setIsFollowingAuthor] = useState<boolean | null>(null);
   const [isMutingAuthor, setIsMutingAuthor] = useState<boolean | null>(null);
   const [isProcessingFollow, setIsProcessingFollow] = useState(false);
   const [isProcessingMute, setIsProcessingMute] = useState(false);
@@ -163,7 +159,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const metadata = useMemo(() => parseImetaTag(event.tags), [event.tags]);
   const imageUrls = useMemo(
     () => (Array.isArray(metadata.url) ? metadata.url : []),
-    [metadata.url]
+    [metadata.url],
   );
   const altTextTag = event.tags.find((tag) => tag[0] === "alt");
   const altText = altTextTag?.[1] || event.content || "Nostr image post";
@@ -179,9 +175,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   useEffect(() => {
     let isMounted = true; // Track mount status for this effect
     if (ndk && event.pubkey) {
-      console.log(
-        `ImagePost (${event.id}): Fetching profile for ${event.pubkey}`
-      );
+      console.log(`ImagePost (${event.id}): Fetching profile for ${event.pubkey}`);
       setIsLoadingAuthor(true);
       setAuthorUser(null); // Reset crucial states if event.pubkey changes
       setAuthorProfile(null);
@@ -193,24 +187,18 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         .then((profile) => {
           if (isMounted) {
             // Only update state if component is still mounted
-            console.log(
-              `ImagePost (${event.id}): Profile fetched for ${event.pubkey}`,
-              profile
-            );
+            console.log(`ImagePost (${event.id}): Profile fetched for ${event.pubkey}`, profile);
             setAuthorProfile(profile);
           }
         })
         .catch((err) => {
           if (isMounted)
-            console.error(
-              `ImagePost (${event.id}): Failed profile fetch ${event.pubkey}:`,
-              err
-            );
+            console.error(`ImagePost (${event.id}): Failed profile fetch ${event.pubkey}:`, err);
         })
         .finally(() => {
           if (isMounted) {
             console.log(
-              `ImagePost (${event.id}): Finished profile fetch attempt for ${event.pubkey}`
+              `ImagePost (${event.id}): Finished profile fetch attempt for ${event.pubkey}`,
             );
             setIsLoadingAuthor(false);
           }
@@ -261,7 +249,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         });
         if (isMounted) {
           const foundFollow = !!contactListEvent?.tags.some(
-            (t) => t[0] === "p" && t[1] === authorPubkey
+            (t) => t[0] === "p" && t[1] === authorPubkey,
           );
           setIsFollowingAuthor(foundFollow);
         }
@@ -275,7 +263,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         });
         if (isMounted) {
           const foundMute = !!muteListEvent?.tags.some(
-            (t) => t[0] === "p" && t[1] === authorPubkey
+            (t) => t[0] === "p" && t[1] === authorPubkey,
           );
           setIsMutingAuthor(foundMute);
         }
@@ -340,13 +328,13 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
             ndk
               .fetchEvent(
                 { ...likeFilter, authors: [userPubkey], limit: 1 },
-                { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST }
+                { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST },
               )
               .catch(() => null),
             ndk
               .fetchEvent(
                 { ...boostFilter, authors: [userPubkey], limit: 1 },
-                { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST }
+                { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST },
               )
               .catch(() => null),
           ]);
@@ -361,31 +349,19 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         let totalSats = 0;
         zapEvents.forEach((zapReceiptEvent) => {
           try {
-            const descriptionTag = zapReceiptEvent.tags.find(
-              (t) => t[0] === "description"
-            );
+            const descriptionTag = zapReceiptEvent.tags.find((t) => t[0] === "description");
             if (descriptionTag && descriptionTag[1]) {
               const zapRequestString = descriptionTag[1];
               const zapRequestData = JSON.parse(zapRequestString);
               const zapRequestTags = zapRequestData.tags || [];
-              const bolt11Tag = zapRequestTags.find(
-                (t: string[]) => t[0] === "bolt11"
-              );
+              const bolt11Tag = zapRequestTags.find((t: string[]) => t[0] === "bolt11");
               if (bolt11Tag && bolt11Tag[1]) {
                 const bolt11Invoice = bolt11Tag[1];
                 const decodedInvoice = decode(bolt11Invoice);
-                const amountSection = decodedInvoice.sections?.find(
-                  (s) => s.name === "amount"
-                );
-                if (
-                  amountSection?.value &&
-                  typeof amountSection.value === "number"
-                ) {
+                const amountSection = decodedInvoice.sections?.find((s) => s.name === "amount");
+                if (amountSection?.value && typeof amountSection.value === "number") {
                   totalSats += amountSection.value / 1000;
-                } else if (
-                  amountSection?.value &&
-                  typeof amountSection.value === "string"
-                ) {
+                } else if (amountSection?.value && typeof amountSection.value === "string") {
                   try {
                     totalSats += parseInt(amountSection.value, 10) / 1000;
                   } catch (e) {}
@@ -393,10 +369,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
               }
             }
           } catch (e) {
-            console.error(
-              `Error processing zap event: ${zapReceiptEvent.id}`,
-              e
-            );
+            console.error(`Error processing zap event: ${zapReceiptEvent.id}`, e);
           }
         });
         if (isSubscribed) setZapTotalSats(totalSats);
@@ -456,14 +429,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
   // Submit comment function
   const submitComment = useCallback(async () => {
-    if (
-      !ndk ||
-      !signer ||
-      !loggedInUser ||
-      !newCommentText.trim() ||
-      !event?.id ||
-      !event?.pubkey
-    )
+    if (!ndk || !signer || !loggedInUser || !newCommentText.trim() || !event?.id || !event?.pubkey)
       return;
 
     const toastId = "comment-toast";
@@ -509,10 +475,9 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       }
     } catch (error) {
       console.error("Comment post error:", error);
-      toast.error(
-        `Comment failed: ${error instanceof Error ? error.message : "Unknown"}`,
-        { id: toastId }
-      );
+      toast.error(`Comment failed: ${error instanceof Error ? error.message : "Unknown"}`, {
+        id: toastId,
+      });
     }
   }, [ndk, signer, loggedInUser, newCommentText, event, fetchComments]);
 
@@ -547,22 +512,13 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       }
     } catch (error) {
       console.error("Like error:", error);
-      toast.error(
-        `Like failed: ${error instanceof Error ? error.message : "Unknown"}`,
-        { id: toastId }
-      );
+      toast.error(`Like failed: ${error instanceof Error ? error.message : "Unknown"}`, {
+        id: toastId,
+      });
     } finally {
       setIsProcessingLike(false);
     }
-  }, [
-    ndk,
-    signer,
-    loggedInUser,
-    event.id,
-    event.pubkey,
-    hasLiked,
-    isProcessingLike,
-  ]);
+  }, [ndk, signer, loggedInUser, event.id, event.pubkey, hasLiked, isProcessingLike]);
   const handleBoost = useCallback(async () => {
     if (!ndk || !signer || !loggedInUser || isProcessingBoost) return;
     setIsProcessingBoost(true);
@@ -595,22 +551,13 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       }
     } catch (error) {
       console.error("Boost error:", error);
-      toast.error(
-        `Boost failed: ${error instanceof Error ? error.message : "Unknown"}`,
-        { id: toastId }
-      );
+      toast.error(`Boost failed: ${error instanceof Error ? error.message : "Unknown"}`, {
+        id: toastId,
+      });
     } finally {
       setIsProcessingBoost(false);
     }
-  }, [
-    ndk,
-    signer,
-    loggedInUser,
-    event.id,
-    event.pubkey,
-    hasBoosted,
-    isProcessingBoost,
-  ]);
+  }, [ndk, signer, loggedInUser, event.id, event.pubkey, hasBoosted, isProcessingBoost]);
   const handleZap = useCallback(() => {
     if (!loggedInUser) {
       toast.error("Please log in to Zap.");
@@ -629,8 +576,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     setShowComments((prev) => !prev);
   }, [setShowComments]);
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) =>
-    setAnchorEl(event.currentTarget);
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
   const handleCopyNevent = () => {
     if (neventId) {
@@ -700,27 +646,18 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       const currentContactListEvent = await ndk.fetchEvent(filter, {
         cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
       });
-      let currentTags: string[][] = currentContactListEvent
-        ? currentContactListEvent.tags
-        : [];
+      let currentTags: string[][] = currentContactListEvent ? currentContactListEvent.tags : [];
       let newTags: string[][] = [];
       if (currentlyFollowing) {
-        newTags = currentTags.filter(
-          (tag) => !(tag[0] === "p" && tag[1] === targetPubkey)
-        );
+        newTags = currentTags.filter((tag) => !(tag[0] === "p" && tag[1] === targetPubkey));
       } else {
-        if (
-          !currentTags.some((tag) => tag[0] === "p" && tag[1] === targetPubkey)
-        ) {
+        if (!currentTags.some((tag) => tag[0] === "p" && tag[1] === targetPubkey)) {
           newTags = [...currentTags, ["p", targetPubkey]];
         } else {
           newTags = currentTags;
         }
       }
-      if (
-        newTags.length === currentTags.length &&
-        currentlyFollowing === false
-      ) {
+      if (newTags.length === currentTags.length && currentlyFollowing === false) {
         toast.success("Already following.", { id: actionToastId });
         setIsProcessingFollow(false);
         setIsFollowingAuthor(true);
@@ -780,18 +717,12 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       const currentMuteListEvent = await ndk.fetchEvent(filter, {
         cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
       });
-      let currentTags: string[][] = currentMuteListEvent
-        ? currentMuteListEvent.tags
-        : [];
+      let currentTags: string[][] = currentMuteListEvent ? currentMuteListEvent.tags : [];
       let newTags: string[][] = [];
       if (currentlyMuted) {
-        newTags = currentTags.filter(
-          (tag) => !(tag[0] === "p" && tag[1] === targetPubkey)
-        );
+        newTags = currentTags.filter((tag) => !(tag[0] === "p" && tag[1] === targetPubkey));
       } else {
-        if (
-          !currentTags.some((tag) => tag[0] === "p" && tag[1] === targetPubkey)
-        ) {
+        if (!currentTags.some((tag) => tag[0] === "p" && tag[1] === targetPubkey)) {
           newTags = [...currentTags, ["p", targetPubkey]];
         } else {
           newTags = currentTags;
@@ -872,10 +803,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     } catch (error) {
       console.error("Error submitting NIP-56 report:", error);
       toast.error(
-        `Failed to submit report: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        { id: reportToastId }
+        `Failed to submit report: ${error instanceof Error ? error.message : String(error)}`,
+        { id: reportToastId },
       );
     } finally {
       setIsSubmittingReport(false);
@@ -903,28 +832,12 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
   // Condition 2: Show Skeleton while author profile is loading
   if (isLoadingAuthor) {
-    console.log(
-      `Rendering Skeleton for event ${event.id} because isLoadingAuthor is true`
-    );
+    console.log(`Rendering Skeleton for event ${event.id} because isLoadingAuthor is true`);
     return (
       <Card elevation={2} sx={{ mb: { xs: 2, sm: 3 } }}>
         <CardHeader
-          avatar={
-            <Skeleton
-              animation="wave"
-              variant="circular"
-              width={40}
-              height={40}
-            />
-          }
-          title={
-            <Skeleton
-              animation="wave"
-              height={10}
-              width="40%"
-              style={{ marginBottom: 6 }}
-            />
-          }
+          avatar={<Skeleton animation="wave" variant="circular" width={40} height={40} />}
+          title={<Skeleton animation="wave" height={10} width="40%" style={{ marginBottom: 6 }} />}
           subheader={<Skeleton animation="wave" height={10} width="20%" />}
         />
         <Skeleton sx={{ height: 300 }} animation="wave" variant="rectangular" />
@@ -938,17 +851,13 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
   // Condition 3: If loading finished, but authorUser still wasn\'t set
   if (!authorUser) {
-    console.warn(
-      `Skipping render: authorUser is null after loading attempt for event ${event.id}`
-    );
+    console.warn(`Skipping render: authorUser is null after loading attempt for event ${event.id}`);
     return null; // Or render an error placeholder
   }
 
   // --- Proceed with rendering now that authorUser is available ---
   const authorDisplayName =
-    authorProfile?.displayName ||
-    authorProfile?.name ||
-    authorUser.npub.substring(0, 10) + "...";
+    authorProfile?.displayName || authorProfile?.name || authorUser.npub.substring(0, 10) + "...";
   const authorAvatarUrl = authorProfile?.image?.startsWith("http")
     ? authorProfile.image
     : undefined;
@@ -983,9 +892,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                 aria-label="settings"
                 onClick={handleMenuOpen}
                 id={`post-actions-button-${event.id}`}
-                aria-controls={
-                  isMenuOpen ? `post-action-menu-${event.id}` : undefined
-                }
+                aria-controls={isMenuOpen ? `post-action-menu-${event.id}` : undefined}
                 aria-haspopup="true"
                 aria-expanded={isMenuOpen ? "true" : undefined}
               >
@@ -1063,10 +970,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                   </MenuItem>
                 )}{" "}
                 {loggedInUser && !isOwnPost && (
-                  <MenuItem
-                    onClick={handleReportClick}
-                    disabled={isSubmittingReport}
-                  >
+                  <MenuItem onClick={handleReportClick} disabled={isSubmittingReport}>
                     {" "}
                     <ListItemIcon>
                       {" "}
@@ -1159,10 +1063,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         </CardContent>
       )}
 
-      <CardActions
-        disableSpacing
-        sx={{ pt: 0, justifyContent: "space-around" }}
-      >
+      <CardActions disableSpacing sx={{ pt: 0, justifyContent: "space-around" }}>
         <Button
           size="small"
           startIcon={
@@ -1236,11 +1137,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
           onClick={handleZap}
           disabled={!loggedInUser || isProcessingZap || !authorProfile?.lud16}
           sx={{ minWidth: 63 }}
-          title={
-            !authorProfile?.lud16
-              ? "Author has no Lightning Address"
-              : undefined
-          }
+          title={!authorProfile?.lud16 ? "Author has no Lightning Address" : undefined}
         >
           {" "}
           {isLoadingReactions ? (
@@ -1266,11 +1163,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
           ) : comments.length > 0 ? (
             <Box>
               {comments.map((comment) => (
-                <CommentItem
-                  key={comment.id}
-                  commentEvent={comment}
-                  ndk={ndk}
-                />
+                <CommentItem key={comment.id} commentEvent={comment} ndk={ndk} />
               ))}
             </Box>
           ) : (
@@ -1289,11 +1182,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                 onChange={(e) => setNewCommentText(e.target.value)}
                 sx={{ mr: 1 }}
               />
-              <Button
-                variant="contained"
-                onClick={submitComment}
-                disabled={!newCommentText.trim()}
-              >
+              <Button variant="contained" onClick={submitComment} disabled={!newCommentText.trim()}>
                 Post
               </Button>
             </Box>
@@ -1319,12 +1208,10 @@ interface CommentItemProps {
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) => {
-  const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(
-    null
-  );
+  const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(null);
   const authorUser = useMemo(
     () => ndk.getUser({ pubkey: commentEvent.pubkey }),
-    [ndk, commentEvent.pubkey]
+    [ndk, commentEvent.pubkey],
   );
 
   useEffect(() => {
@@ -1337,9 +1224,7 @@ const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) => {
             setAuthorProfile(profile);
           }
         })
-        .catch((err: unknown) =>
-          console.error("Failed to fetch comment author profile:", err)
-        );
+        .catch((err: unknown) => console.error("Failed to fetch comment author profile:", err));
     }
     return () => {
       isMounted = false;
@@ -1347,9 +1232,7 @@ const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) => {
   }, [authorUser]);
 
   const authorDisplayName =
-    authorProfile?.displayName ||
-    authorProfile?.name ||
-    authorUser.npub.substring(0, 8) + "...";
+    authorProfile?.displayName || authorProfile?.name || authorUser.npub.substring(0, 8) + "...";
   const authorAvatarUrl = authorProfile?.image?.startsWith("http")
     ? authorProfile.image
     : undefined;
@@ -1380,7 +1263,6 @@ const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) => {
 const formatSats = (amount: number): string => {
   if (isNaN(amount) || amount <= 0) return "";
   if (amount < 1000) return amount.toString();
-  if (amount < 1000000)
-    return (amount / 1000).toFixed(amount % 1000 === 0 ? 0 : 1) + "k";
+  if (amount < 1000000) return (amount / 1000).toFixed(amount % 1000 === 0 ? 0 : 1) + "k";
   return (amount / 1000000).toFixed(amount % 1000000 === 0 ? 0 : 1) + "M";
 };
