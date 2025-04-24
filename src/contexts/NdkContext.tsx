@@ -59,6 +59,11 @@ const defaultRelays = [
   "wss://nos.lol",
 ];
 
+const LOCAL_STORAGE_KEYS = {
+  NPUB: "npub",
+  NSEC: "nsec",
+};
+
 export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -129,9 +134,14 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(null);
     setLoggedInUserProfile(null);
     setNip65Event(null);
+
     setReadRelays(defaultRelays);
     setWriteRelays(defaultRelays);
     setRelaySource("logged_out");
+    
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.NPUB);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.NSEC);
+    
     toast.success("Logged out");
   }, []);
 
@@ -211,7 +221,16 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({
       localNdkUser.ndk = ndk; // Associate NDK instance
       setSigner(nip07signer);
       setUser(localNdkUser);
-      toast.success("Logged in with extension!");
+
+      // Get currently stored npub from localstorage.
+      const localStoragePub = localStorage.getItem(LOCAL_STORAGE_KEYS.NPUB);
+      // If no npub was previously stored in localstorage, display a login message to the user.
+      if (localStoragePub == null) {
+        toast.success("Logged in with extension!");
+      }
+      // Store the logged in user's npub in localstorage.
+      localStorage.setItem(LOCAL_STORAGE_KEYS.NPUB, localNdkUser.npub);
+
       await fetchNip65Relays(localNdkUser); // Fetch relays after user is set
     } catch (error) {
       console.error("NIP-07 login failed:", error);
@@ -235,7 +254,17 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({
         localNdkUser.ndk = ndk;
         setSigner(pkSigner);
         setUser(localNdkUser);
-        toast.success("Logged in with NSEC!");
+
+        // Get currently stored npub from localstorage.
+        const localStoragePub = localStorage.getItem(LOCAL_STORAGE_KEYS.NPUB);
+        // If no npub was previously stored in localstorage, display a login message to the user.
+        if (localStoragePub == null) {
+          toast.success("Logged in with NSEC!");
+        }
+        // Store the logged in user's npub and nsec in localstorage.
+        localStorage.setItem(LOCAL_STORAGE_KEYS.NPUB, localNdkUser.npub);
+        localStorage.setItem(LOCAL_STORAGE_KEYS.NSEC, nsec);
+
         await fetchNip65Relays(localNdkUser);
       } catch (error) {
         console.error("NSEC login failed:", error);
@@ -250,6 +279,31 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [ndk, fetchNip65Relays, logout]
   );
+
+  useEffect(() => {
+    // Get public and secret keys from localstorage.
+    const localStoragePub = localStorage.getItem(LOCAL_STORAGE_KEYS.NPUB);
+    const localStorageSec = localStorage.getItem(LOCAL_STORAGE_KEYS.NSEC);
+
+    // Autologin should be attempted if ndk is initialized and no user object is available.
+    const shouldAttemptAutoLogin = ndk != null && user == null;
+    // User has previously logged in with nsec if it is available in localstorage.
+    const isUserLoggedInWithNsec = localStorageSec != null;
+    // User has previously logged in with a browser extension if the npub is available
+    // but the nsec is not.
+    const isUserLoggedInWithExtension =
+      !isUserLoggedInWithNsec && localStoragePub != null;
+
+    if (shouldAttemptAutoLogin) {
+      if (isUserLoggedInWithNsec) {
+        loginWithNsec(localStorageSec);
+      }
+
+      if (isUserLoggedInWithExtension) {
+        loginWithNip07();
+      }
+    }
+  }, [ndk, user, loginWithNsec, loginWithNip07]);
 
   // Effect: Fetch profile *after* user is set and NIP-65 check is done
   useEffect(() => {
