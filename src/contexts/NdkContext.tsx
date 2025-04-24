@@ -53,7 +53,7 @@ const defaultRelays = [
   "wss://relay.damus.io",
   "wss://relay.primal.net",
   "wss://relay.snort.social",
-  "wss://purplepag.es",
+  // "wss://purplepag.es",
   "wss://nostr.wine",
   "wss://relay.nostr.band",
   "wss://nos.lol",

@@ -18,7 +18,7 @@ import Tab from "@mui/material/Tab";
 import useIntersectionObserver from "../hooks/useIntersectionObserver";
 
 const IMAGE_POST_KIND: NDKKind = 20; // Use NDKKind type
-const TEXT_NOTE_KIND: NDKKind = 1; // Needed for filter
+//const TEXT_NOTE_KIND: NDKKind = 1; // Needed for filter
 const BATCH_SIZE = 10; // Number of events to fetch per batch
 
 export const GlobalFeedPage: React.FC = () => {
@@ -213,7 +213,7 @@ export const GlobalFeedPage: React.FC = () => {
     enabled: !isLoading && !isFetchingMore && lastEventTimestamp !== undefined,
   });
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
     navigate(newValue);
   };
 

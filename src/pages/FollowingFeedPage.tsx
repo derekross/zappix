@@ -21,7 +21,7 @@ import useIntersectionObserver from "../hooks/useIntersectionObserver";
 
 const IMAGE_POST_KIND: NDKKind = 20;
 const CONTACT_LIST_KIND: NDKKind = 3;
-const TEXT_NOTE_KIND: NDKKind = 1; // Needed?
+//const TEXT_NOTE_KIND: NDKKind = 1; // Needed?
 const BATCH_SIZE = 10;
 
 export const FollowingFeedPage: React.FC = () => {
@@ -244,7 +244,7 @@ export const FollowingFeedPage: React.FC = () => {
       followedPubkeys.length > 0,
   });
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
     navigate(newValue);
   };
 

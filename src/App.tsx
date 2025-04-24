@@ -3,7 +3,7 @@ import React, {
   useState,
   useEffect,
   useRef,
-  useCallback,
+  //useCallback,
   useMemo,
 } from "react";
 import {
@@ -15,7 +15,7 @@ import {
 } from "react-router-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles"; // Correct import for ThemeProvider, createTheme
 import CssBaseline from "@mui/material/CssBaseline";
-import Container from "@mui/material/Container";
+//import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
@@ -28,10 +28,10 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
-import Fab from "@mui/material/Fab";
+//import Fab from "@mui/material/Fab";
 import useMediaQuery from "@mui/material/useMediaQuery"; // Correct import for useMediaQuery
 import { useTheme } from "@mui/material/styles"; // Correct import for useTheme
-import { Toaster } from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import { useNdk } from "./contexts/NdkContext";
 import { GlobalFeedPage } from "./pages/GlobalFeedPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -45,7 +45,7 @@ import { SignUpModal } from "./components/SignUpModal";
 import { createAppTheme } from "./theme";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
-import AddIcon from "@mui/icons-material/Add";
+//import AddIcon from "@mui/icons-material/Add";
 import HomeIcon from "@mui/icons-material/Home";
 import SearchIcon from "@mui/icons-material/Search";
 import BurstModeIcon from "@mui/icons-material/BurstMode"; // Using BurstMode for Flix
@@ -57,7 +57,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 
 function AppContent() {
   const {
-    ndk,
+    //ndk,
     user,
     signer,
     loggedInUserProfile,

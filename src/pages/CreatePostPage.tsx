@@ -4,8 +4,8 @@ import React, {
   useEffect,
   ChangeEvent,
   FormEvent,
-  useCallback,
-  useMemo,
+  //useCallback,
+  //useMemo,
 } from "react";
 import {
   Box,
@@ -350,11 +350,19 @@ export const CreatePostPage: React.FC = () => {
         const fullErrorMsg = `Upload completed with errors: ${uploadErrors.join(
           ", "
         )}`;
-        setUploadError((prev) =>
-          prev && prev !== error?.message
-            ? `${prev}, ${fullErrorMsg}`
-            : fullErrorMsg
-        );
+        setUploadError((prev) => {
+          // Check if the new message is already part of the previous message
+          // to avoid excessive duplication if the same error happens repeatedly
+          if (prev && prev.includes(fullErrorMsg)) {
+            return prev;
+          }
+          // Append if previous error exists and is different
+          if (prev) {
+            return `${prev}. ${fullErrorMsg}`; // Use a separator like period+space
+          }
+          // Otherwise, just set the new error message
+          return fullErrorMsg;
+        });
         toast.error("Some image uploads failed. Check errors.", {
           duration: 5000,
         });

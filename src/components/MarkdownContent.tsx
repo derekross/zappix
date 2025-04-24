@@ -19,7 +19,7 @@ interface NostrMentionProps {
 
 const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
   const { ndk } = useNdk();
-  const [profile, setProfile] = useState<NDKUserProfile | null>(null);
+  const [, setProfile] = useState<NDKUserProfile | null>(null);
   const [displayName, setDisplayName] = useState<string>("");
   const [npub, setNpub] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
