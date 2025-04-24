@@ -1,64 +1,64 @@
-// src/App.tsx
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  //useCallback,
-  useMemo,
-} from "react";
-import { Route, Routes, Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
-import { ThemeProvider, createTheme } from "@mui/material/styles"; // Correct import for ThemeProvider, createTheme
-import CssBaseline from "@mui/material/CssBaseline";
-//import Container from "@mui/material/Container";
-import Box from "@mui/material/Box";
-import AppBar from "@mui/material/AppBar";
-import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
-import Avatar from "@mui/material/Avatar";
-import Tooltip from "@mui/material/Tooltip";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-//import Fab from "@mui/material/Fab";
-import useMediaQuery from "@mui/material/useMediaQuery"; // Correct import for useMediaQuery
-import { useTheme } from "@mui/material/styles"; // Correct import for useTheme
-import toast, { Toaster } from "react-hot-toast";
-import { useNdk } from "./contexts/NdkContext";
-import { GlobalFeedPage } from "./pages/GlobalFeedPage";
-import { ProfilePage } from "./pages/ProfilePage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { HashtagFeedPage } from "./pages/HashtagFeedPage";
-import { ThreadPage } from "./pages/ThreadPage";
-import { FollowingFeedPage } from "./pages/FollowingFeedPage";
-import { CreatePostPage } from "./pages/CreatePostPage";
-import { LoginModal } from "./components/LoginModal";
-import { SignUpModal } from "./components/SignUpModal";
-import { createAppTheme } from "./theme";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import CreateIcon from "@mui/icons-material/Create";
 //import AddIcon from "@mui/icons-material/Add";
 import HomeIcon from "@mui/icons-material/Home";
+import LogoutIcon from "@mui/icons-material/Logout";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import PersonIcon from "@mui/icons-material/Person";
 import SearchIcon from "@mui/icons-material/Search";
+import SettingsIcon from "@mui/icons-material/Settings";
 //import BurstModeIcon from "@mui/icons-material/BurstMode"; // Using BurstMode for Flix
 import VideoLibraryIcon from "@mui/icons-material/VideoLibrary";
-import CreateIcon from "@mui/icons-material/Create";
-import PersonIcon from "@mui/icons-material/Person";
-import SettingsIcon from "@mui/icons-material/Settings";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import LogoutIcon from "@mui/icons-material/Logout";
+import AppBar from "@mui/material/AppBar";
+import Avatar from "@mui/material/Avatar";
+//import Container from "@mui/material/Container";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CssBaseline from "@mui/material/CssBaseline";
+import IconButton from "@mui/material/IconButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Toolbar from "@mui/material/Toolbar";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { ThemeProvider, createTheme } from "@mui/material/styles"; // Correct import for ThemeProvider, createTheme
+import { useTheme } from "@mui/material/styles"; // Correct import for useTheme
+//import Fab from "@mui/material/Fab";
+import useMediaQuery from "@mui/material/useMediaQuery"; // Correct import for useMediaQuery
+// src/App.tsx
+import React, {
+  useEffect,
+  //useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import toast, { Toaster } from "react-hot-toast";
+import { Link as RouterLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { LoginModal } from "./components/LoginModal";
+import { SignUpModal } from "./components/SignUpModal";
+import { useNdk } from "./contexts/NdkContext";
+import { CreatePostPage } from "./pages/CreatePostPage";
+import { FollowingFeedPage } from "./pages/FollowingFeedPage";
+import { GlobalFeedPage } from "./pages/GlobalFeedPage";
+import { HashtagFeedPage } from "./pages/HashtagFeedPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { ThreadPage } from "./pages/ThreadPage";
+import { createAppTheme } from "./theme";
 
 function AppContent() {
   const {
     //ndk,
-    user,
-    signer,
     loggedInUserProfile,
     logout,
+    signer,
     themeMode,
     toggleThemeMode,
+    user,
   } = useNdk();
   const [loginOpen, setLoginOpen] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
@@ -124,34 +124,34 @@ function AppContent() {
           <Box
             component="nav"
             sx={{
-              width: 200, // Fixed width for the left menu
-              flexShrink: 0,
               bgcolor: "background.paper", // Example background color
               borderRight: "1px solid divider", // Example separator
               display: "flex",
               flexDirection: "column",
+              flexShrink: 0,
               height: "100%",
+              width: 200, // Fixed width for the left menu
             }}
           >
             {/* Logo and Name (Desktop) */}
             <Box
               component={RouterLink}
-              to="/"
               sx={{
-                display: "flex",
                 alignItems: "center",
                 color: "inherit",
-                textDecoration: "none",
-                p: 2, // Padding around logo
+                display: "flex",
                 mb: 1, // Margin below logo
+                p: 2, // Padding around logo
+                textDecoration: "none",
               }}
+              to="/"
             >
               <img
-                src="/zappix-logo.png"
                 alt="Zappix Logo"
+                src="/zappix-logo.png"
                 style={{ height: "30px", marginRight: "10px" }}
               />
-              <Typography variant="h6" noWrap component="div">
+              <Typography component="div" noWrap variant="h6">
                 Zappix
               </Typography>
             </Box>
@@ -161,14 +161,14 @@ function AppContent() {
               {" "}
               {/* Makes nav scrollable if needed */}
               <Button
+                component={RouterLink}
                 fullWidth
                 sx={{
                   justifyContent: "flex-start",
                   mb: 1,
-                  textAlign: "left",
                   padding: "8px 16px",
+                  textAlign: "left",
                 }}
-                component={RouterLink}
                 to="/"
               >
                 <ListItemIcon sx={{ minWidth: 36 }}>
@@ -179,13 +179,13 @@ function AppContent() {
               {/* Add Search and Flix placeholders or actual implementation later */}
               <Button
                 fullWidth
+                onClick={() => toast("Search not implemented")}
                 sx={{
                   justifyContent: "flex-start",
                   mb: 1,
-                  textAlign: "left",
                   padding: "8px 16px",
+                  textAlign: "left",
                 }}
-                onClick={() => toast("Search not implemented")}
               >
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   <SearchIcon />
@@ -194,13 +194,13 @@ function AppContent() {
               </Button>
               <Button
                 fullWidth
+                onClick={() => toast("Flix not implemented")}
                 sx={{
                   justifyContent: "flex-start",
                   mb: 1,
-                  textAlign: "left",
                   padding: "8px 16px",
+                  textAlign: "left",
                 }}
-                onClick={() => toast("Flix not implemented")}
               >
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   <VideoLibraryIcon />
@@ -208,14 +208,14 @@ function AppContent() {
                 <ListItemText primary="Flix" />
               </Button>
               <Button
+                component={RouterLink}
                 fullWidth
                 sx={{
                   justifyContent: "flex-start",
                   mb: 1,
-                  textAlign: "left",
                   padding: "8px 16px",
+                  textAlign: "left",
                 }}
-                component={RouterLink}
                 to="/create"
               >
                 <ListItemIcon sx={{ minWidth: 36 }}>
@@ -226,33 +226,33 @@ function AppContent() {
             </Box>
 
             {/* Desktop Auth/User Controls */}
-            <Box sx={{ p: 2, mt: "auto" }}>
+            <Box sx={{ mt: "auto", p: 2 }}>
               {" "}
               {/* Align to bottom */}
               {!user && !signer ? (
                 <Box>
                   <Button
                     fullWidth
-                    variant="outlined"
                     onClick={() => setLoginOpen(true)}
                     sx={{ mb: 1 }}
+                    variant="outlined"
                   >
                     Login
                   </Button>
-                  <Button fullWidth variant="contained" onClick={() => setSignupOpen(true)}>
+                  <Button fullWidth onClick={() => setSignupOpen(true)} variant="contained">
                     Sign Up
                   </Button>
                 </Box>
               ) : (
                 <Box
                   sx={{
+                    alignItems: "center",
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "center",
                   }}
                 >
                   <Tooltip title="Open menu">
-                    <IconButton onClick={handleOpenUserMenu} sx={{ p: 0, mb: 1 }}>
+                    <IconButton onClick={handleOpenUserMenu} sx={{ mb: 1, p: 0 }}>
                       <Avatar
                         alt={
                           loggedInUserProfile?.displayName || loggedInUserProfile?.name || "User"
@@ -267,29 +267,29 @@ function AppContent() {
                       </Avatar>
                     </IconButton>
                   </Tooltip>
-                  <Typography variant="caption" sx={{ mb: 1, textAlign: "center" }}>
+                  <Typography sx={{ mb: 1, textAlign: "center" }} variant="caption">
                     {loggedInUserProfile?.displayName || user?.npub.substring(0, 8) + "..."}
                   </Typography>
-                  <IconButton onClick={toggleThemeMode} color="inherit">
+                  <IconButton color="inherit" onClick={toggleThemeMode}>
                     {themeMode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
                   </IconButton>
                   {/* User Menu (for profile, settings, logout on desktop) */}
                   <Menu
-                    id="user-menu-desktop"
                     anchorEl={anchorElUser}
-                    open={Boolean(anchorElUser)}
+                    anchorOrigin={{ horizontal: "right", vertical: "top" }}
+                    id="user-menu-desktop"
                     onClose={handleCloseUserMenu}
-                    anchorOrigin={{ vertical: "top", horizontal: "right" }}
-                    transformOrigin={{ vertical: "top", horizontal: "left" }}
+                    open={Boolean(anchorElUser)}
+                    transformOrigin={{ horizontal: "left", vertical: "top" }}
                   >
                     <MenuItem
                       component={RouterLink}
-                      to={`/profile/${user?.npub}`}
                       onClick={handleCloseUserMenu}
+                      to={`/profile/${user?.npub}`}
                     >
                       Profile
                     </MenuItem>
-                    <MenuItem component={RouterLink} to="/settings" onClick={handleCloseUserMenu}>
+                    <MenuItem component={RouterLink} onClick={handleCloseUserMenu} to="/settings">
                       Settings
                     </MenuItem>
                     <MenuItem onClick={handleLogout}>Logout</MenuItem>
@@ -305,31 +305,31 @@ function AppContent() {
           component="main"
           sx={{
             flexGrow: 1,
+            height: "100vh",
+            overflowY: "auto", // Allow content scrolling
             //ml: isDesktop ? '240px' : 0, // RESTORED Offset for desktop menu
             pb: isDesktop ? 0 : "56px", // Padding at bottom for mobile nav
-            overflowY: "auto", // Allow content scrolling
-            height: "100vh",
             //p: 0, // padding handled by pages/content
           }}
         >
           {/* Container removed, Routes rendered directly in Box */}
           <Routes>
-            <Route path="/" element={<GlobalFeedPage />} />
-            <Route path="/following" element={<FollowingFeedPage />} />
-            <Route path="/profile/:npub" element={<ProfilePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/t/:hashtag" element={<HashtagFeedPage />} />
-            <Route path="/n/:nevent" element={<ThreadPage />} />
-            <Route path="/create" element={<CreatePostPage />} />
+            <Route element={<GlobalFeedPage />} path="/" />
+            <Route element={<FollowingFeedPage />} path="/following" />
+            <Route element={<ProfilePage />} path="/profile/:npub" />
+            <Route element={<SettingsPage />} path="/settings" />
+            <Route element={<HashtagFeedPage />} path="/t/:hashtag" />
+            <Route element={<ThreadPage />} path="/n/:nevent" />
+            <Route element={<CreatePostPage />} path="/create" />
           </Routes>
         </Box>
 
         {!isDesktop && (
           // Mobile Bottom AppBar
           <AppBar
-            position="fixed"
             color="inherit"
-            sx={{ top: "auto", bottom: 0, borderTop: "1px solid divider" }}
+            position="fixed"
+            sx={{ borderTop: "1px solid divider", bottom: 0, top: "auto" }}
           >
             <Toolbar sx={{ justifyContent: "space-around" }}>
               {/* Mobile Navigation Icons */}
@@ -367,19 +367,19 @@ function AppContent() {
               {/* Mobile Overflow Menu Button */}
               <IconButton
                 color="inherit"
-                onClick={handleOpenMobileMenu}
                 id="mobile-overflow-button"
+                onClick={handleOpenMobileMenu}
               >
                 <MoreVertIcon />
               </IconButton>
               {/* Mobile Overflow Menu */}
               <Menu
-                id="mobile-overflow-menu"
                 anchorEl={mobileMenuAnchorEl}
-                open={Boolean(mobileMenuAnchorEl)}
+                anchorOrigin={{ horizontal: "right", vertical: "top" }}
+                id="mobile-overflow-menu"
                 onClose={handleCloseMobileMenu}
-                anchorOrigin={{ vertical: "top", horizontal: "right" }}
-                transformOrigin={{ vertical: "bottom", horizontal: "right" }}
+                open={Boolean(mobileMenuAnchorEl)}
+                transformOrigin={{ horizontal: "right", vertical: "bottom" }}
               >
                 {!user && (
                   <MenuItem
@@ -437,8 +437,8 @@ function AppContent() {
       </Box>
 
       {/* Modals and Toaster (Render outside main layout) */}
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
-      <SignUpModal open={signupOpen} onClose={() => setSignupOpen(false)} />
+      <LoginModal onClose={() => setLoginOpen(false)} open={loginOpen} />
+      <SignUpModal onClose={() => setSignupOpen(false)} open={signupOpen} />
       <Toaster position="bottom-center" />
 
       {/* FAB - No longer needed as Create is in nav */}

@@ -1,14 +1,14 @@
-// src/components/Feed.tsx
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useNdk } from "../contexts/NdkContext";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 // FIX: Removed unused NDKRelaySet import
 import { NDKEvent, NDKFilter, NDKKind, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
+// src/components/Feed.tsx
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNdk } from "../contexts/NdkContext";
 import { ImagePost } from "./ImagePost";
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import Alert from "@mui/material/Alert";
 
 const FEED_FETCH_LIMIT = 15;
 const IMAGE_POST_KIND: NDKKind = 20;
@@ -16,10 +16,10 @@ const IMAGE_POST_KIND: NDKKind = 20;
 export const Feed: React.FC = () => {
   const { ndk, user } = useNdk();
   const [feedEvents, setFeedEvents] = useState<NDKEvent[]>([]);
-  const [followingPubkeys, setFollowingPubkeys] = useState<string[] | null>(null); // null = not loaded
+  const [followingPubkeys, setFollowingPubkeys] = useState<null | string[]>(null); // null = not loaded
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [oldestEventTimestamp, setOldestEventTimestamp] = useState<number | undefined>(undefined);
+  const [error, setError] = useState<null | string>(null);
+  const [oldestEventTimestamp, setOldestEventTimestamp] = useState<undefined | number>(undefined);
   const [canLoadMore, setCanLoadMore] = useState(true);
   const receivedEventIds = useRef(new Set<string>());
   const isMounted = useRef(false);
@@ -29,7 +29,7 @@ export const Feed: React.FC = () => {
   const processFeedEvents = useCallback(
     (events: NDKEvent[], isInitial: boolean) => {
       if (!isMounted.current) return;
-      let oldestTs: number | undefined = isInitial ? undefined : oldestEventTimestamp;
+      let oldestTs: undefined | number = isInitial ? undefined : oldestEventTimestamp;
       let addedNew = false;
       const newUniqueEvents: NDKEvent[] = [];
       if (isInitial) {
@@ -87,7 +87,7 @@ export const Feed: React.FC = () => {
     console.log("Feed: Fetching contacts...");
     ndk
       .fetchEvent(
-        { kinds: [NDKKind.Contacts], authors: [user.pubkey] },
+        { authors: [user.pubkey], kinds: [NDKKind.Contacts] },
         { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST, closeOnEose: true },
       )
       .then((contactListEvent) => {
@@ -135,15 +135,15 @@ export const Feed: React.FC = () => {
       }
 
       const filter: NDKFilter = {
+        authors: followingPubkeys,
         kinds: [IMAGE_POST_KIND],
         limit: FEED_FETCH_LIMIT,
-        authors: followingPubkeys,
       };
 
       ndk
         .fetchEvents(filter, {
-          closeOnEose: true,
           cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
+          closeOnEose: true,
         })
         .then((events) => {
           if (isMounted.current && fetchId === currentFetchId.current) {
@@ -182,18 +182,18 @@ export const Feed: React.FC = () => {
     setError(null);
 
     const filter: NDKFilter = {
+      authors: followingPubkeys,
       kinds: [IMAGE_POST_KIND],
       limit: FEED_FETCH_LIMIT,
       until: oldestEventTimestamp,
-      authors: followingPubkeys,
     };
     // let relaySet: NDKRelaySet | undefined = undefined; // Removed as it wasn't used
 
     try {
       // Pass undefined for relaySet to use default behavior
       const events = await ndk.fetchEvents(filter, {
-        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
+        closeOnEose: true,
       });
       if (fetchId === currentFetchId.current && isMounted.current) {
         processFeedEvents(Array.from(events), false);
@@ -218,7 +218,7 @@ export const Feed: React.FC = () => {
 
   // Memoize rendered posts
   const renderedPosts = useMemo(
-    () => feedEvents.map((event) => <ImagePost key={event.id} event={event} />),
+    () => feedEvents.map((event) => <ImagePost event={event} key={event.id} />),
     [feedEvents],
   );
 
@@ -260,12 +260,12 @@ export const Feed: React.FC = () => {
   return (
     <Box
       sx={{
-        maxWidth: 600,
-        mx: "auto",
-        mt: 2,
         display: "flex",
         flexDirection: "column",
-        gap: { xs: 2, sm: 3 },
+        gap: { sm: 3, xs: 2 },
+        maxWidth: 600,
+        mt: 2,
+        mx: "auto",
       }}
     >
       {error && !isLoading && feedEvents.length > 0 && (
@@ -275,8 +275,8 @@ export const Feed: React.FC = () => {
       )}
       {renderedPosts}
       {canLoadMore && (
-        <Box sx={{ textAlign: "center", margin: "20px" }}>
-          <Button onClick={loadMore} disabled={isLoading} variant="outlined">
+        <Box sx={{ margin: "20px", textAlign: "center" }}>
+          <Button disabled={isLoading} onClick={loadMore} variant="outlined">
             {isLoading ? <CircularProgress size={24} /> : "Load More Posts"}
           </Button>
         </Box>

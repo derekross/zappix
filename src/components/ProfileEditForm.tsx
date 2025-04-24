@@ -1,19 +1,19 @@
 // src/components/ProfileEditForm.tsx
-import React, { useState, useEffect, useRef, ChangeEvent } from "react";
-import { NDKUserProfile, NDKEvent } from "@nostr-dev-kit/ndk";
-import { useNdk } from "../contexts/NdkContext";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import Stack from "@mui/material/Stack";
-import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
-import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import { NDKEvent, NDKUserProfile } from "@nostr-dev-kit/ndk";
+import React, { ChangeEvent, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { useNdk } from "../contexts/NdkContext";
 
 // --- Helper Functions ---
 
@@ -41,10 +41,10 @@ function base64Encode(str: string): string {
 
 // --- Component Props ---
 interface ProfileEditFormProps {
+  currentUserProfile: null | NDKUserProfile;
   open: boolean;
   onClose: () => void;
   onSave: (updatedProfile: NDKUserProfile) => void;
-  currentUserProfile: NDKUserProfile | null;
 }
 
 // --- Blossom Server Config Key ---
@@ -52,12 +52,12 @@ const BLOSSOM_STORAGE_KEY = "nostrImageAppBlossomServerUrl";
 const BLOSSOM_DEFAULT_SERVER = "https://blossom.band"; // Default server
 
 export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
-  open,
+  currentUserProfile,
   onClose,
   onSave,
-  currentUserProfile,
+  open,
 }) => {
-  const { ndk, user, signer } = useNdk();
+  const { ndk, signer, user } = useNdk();
   const [profile, setProfile] = useState<NDKUserProfile>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -108,7 +108,7 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
   // --- Reused Blossom Upload Logic ---
   const handleFileChange = async (
     event: ChangeEvent<HTMLInputElement>,
-    fieldName: "image" | "banner",
+    fieldName: "banner" | "image",
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -159,13 +159,13 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
       console.log(`Performing HEAD request to ${uploadEndpoint}...`);
       toast.loading("Checking server requirements...", { id: uploadToastId });
       const headResponse = await fetch(uploadEndpoint, {
-        method: "HEAD",
         headers: {
           Authorization: authHeader,
-          "X-Content-Type": file.type,
           "X-Content-Length": file.size.toString(),
+          "X-Content-Type": file.type,
           "X-SHA-256": fileHash,
         },
+        method: "HEAD",
       });
       console.log(`HEAD Response Status: ${headResponse.status}`);
       if (!headResponse.ok) {
@@ -187,13 +187,13 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
       toast.loading("Uploading image...", { id: uploadToastId });
       const fileBuffer = await file.arrayBuffer();
       const putResponse = await fetch(uploadEndpoint, {
-        method: "PUT",
+        body: fileBuffer, // Raw file data
         headers: {
           Authorization: authHeader,
-          "Content-Type": file.type,
           "Content-Length": file.size.toString(), // Required for PUT
+          "Content-Type": file.type,
         },
-        body: fileBuffer, // Raw file data
+        method: "PUT",
       });
 
       if (!putResponse.ok) {
@@ -274,135 +274,135 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
   const isUploading = isUploadingAvatar || isUploadingBanner;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog fullWidth maxWidth="sm" onClose={onClose} open={open}>
       <DialogTitle>Edit Your Profile</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {/* Standard Fields */}
           <TextField
+            disabled={isUploading}
+            fullWidth
             label="Display Name"
             name="displayName"
-            value={profile.displayName || ""}
             onChange={handleChange}
-            fullWidth
-            disabled={isUploading}
+            value={profile.displayName || ""}
           />
           <TextField
+            disabled={isUploading}
+            fullWidth
             label="Username (handle)"
             name="name"
-            value={profile.name || ""}
             onChange={handleChange}
-            fullWidth
-            disabled={isUploading}
+            value={profile.name || ""}
           />
           <TextField
-            label="About"
-            name="about"
-            value={profile.about || ""}
-            onChange={handleChange}
-            fullWidth
-            multiline
-            rows={3}
             disabled={isUploading}
+            fullWidth
+            label="About"
+            multiline
+            name="about"
+            onChange={handleChange}
+            rows={3}
+            value={profile.about || ""}
           />
 
           {/* Avatar Upload */}
           <TextField
-            label="Profile Picture URL"
-            name="image"
-            value={profile.image || ""}
-            onChange={handleChange}
-            fullWidth
-            type="url"
-            disabled={isUploading} // Disable during any upload
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton
                     aria-label="upload picture"
-                    onClick={() => handleUploadIconClick(avatarInputRef)}
-                    edge="end"
                     disabled={isUploading} // Disable during any upload
+                    edge="end"
+                    onClick={() => handleUploadIconClick(avatarInputRef)}
                   >
                     {isUploadingAvatar ? <CircularProgress size={20} /> : <PhotoCameraIcon />}
                   </IconButton>
                 </InputAdornment>
               ),
             }}
+            disabled={isUploading} // Disable during any upload
+            fullWidth
+            label="Profile Picture URL"
+            name="image"
+            onChange={handleChange}
+            type="url"
+            value={profile.image || ""}
           />
           <input
-            ref={avatarInputRef}
-            type="file"
             accept="image/*"
             hidden
             onChange={(e) => handleFileChange(e, "image")}
+            ref={avatarInputRef}
+            type="file"
           />
 
           {/* Banner Upload */}
           <TextField
-            label="Banner URL"
-            name="banner"
-            value={profile.banner || ""}
-            onChange={handleChange}
-            fullWidth
-            type="url"
-            disabled={isUploading} // Disable during any upload
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton
                     aria-label="upload banner"
-                    onClick={() => handleUploadIconClick(bannerInputRef)}
-                    edge="end"
                     disabled={isUploading} // Disable during any upload
+                    edge="end"
+                    onClick={() => handleUploadIconClick(bannerInputRef)}
                   >
                     {isUploadingBanner ? <CircularProgress size={20} /> : <PhotoCameraIcon />}
                   </IconButton>
                 </InputAdornment>
               ),
             }}
+            disabled={isUploading} // Disable during any upload
+            fullWidth
+            label="Banner URL"
+            name="banner"
+            onChange={handleChange}
+            type="url"
+            value={profile.banner || ""}
           />
           <input
-            ref={bannerInputRef}
-            type="file"
             accept="image/*"
             hidden
             onChange={(e) => handleFileChange(e, "banner")}
+            ref={bannerInputRef}
+            type="file"
           />
 
           {/* Other Fields */}
           <TextField
+            disabled={isUploading}
+            fullWidth
             label="Website URL"
             name="website"
-            value={profile.website || ""}
             onChange={handleChange}
-            fullWidth
             type="url"
-            disabled={isUploading}
+            value={profile.website || ""}
           />
           <TextField
+            disabled={isUploading}
+            fullWidth
             label="Nostr Address (NIP-05)"
             name="nip05"
-            value={profile.nip05 || ""}
             onChange={handleChange}
-            fullWidth
-            disabled={isUploading}
+            value={profile.nip05 || ""}
           />
           <TextField
+            disabled={isUploading}
+            fullWidth
             label="Lightning Address (LUD-16)"
             name="lud16"
-            value={profile.lud16 || ""}
             onChange={handleChange}
-            fullWidth
-            disabled={isUploading}
+            value={profile.lud16 || ""}
           />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={isSaving || isUploading}>
+        <Button disabled={isSaving || isUploading} onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={handleSave} variant="contained" disabled={isSaving || isUploading}>
+        <Button disabled={isSaving || isUploading} onClick={handleSave} variant="contained">
           {isSaving ? <CircularProgress size={24} /> : "Save Profile"}
         </Button>
       </DialogActions>

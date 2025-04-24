@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { NDKEvent, NDKUserProfile } from "@nostr-dev-kit/ndk";
-import { useNdk } from "../contexts/NdkContext";
-import { Link as RouterLink } from "react-router-dom"; // Use alias
-import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
-import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button"; // Use MUI Button
+import Typography from "@mui/material/Typography";
+import { NDKEvent, NDKUserProfile } from "@nostr-dev-kit/ndk";
+import React, { useCallback, useEffect, useState } from "react";
+import { Link as RouterLink } from "react-router-dom"; // Use alias
+import { useNdk } from "../contexts/NdkContext";
 
 interface CommentProps {
   event: NDKEvent;
@@ -14,7 +14,7 @@ interface CommentProps {
 
 export const Comment: React.FC<CommentProps> = ({ event, onReply }) => {
   const { signer } = useNdk();
-  const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(null);
+  const [authorProfile, setAuthorProfile] = useState<null | NDKUserProfile>(null);
 
   useEffect(() => {
     if (event.author) {
@@ -37,20 +37,20 @@ export const Comment: React.FC<CommentProps> = ({ event, onReply }) => {
     // Main container Box for the whole comment
     <Box
       sx={{
-        borderTop: "1px solid",
-        borderColor: "divider", // Use theme divider color
-        padding: "8px 0 8px 2px", // Adjust padding
-        marginTop: 1, // Use theme spacing unit
-        display: "flex",
         alignItems: "flex-start",
+        borderColor: "divider", // Use theme divider color
+        borderTop: "1px solid",
+        display: "flex",
         gap: 1.5, // Add gap using theme spacing
+        marginTop: 1, // Use theme spacing unit
+        padding: "8px 0 8px 2px", // Adjust padding
       }}
     >
       {/* Avatar Section */}
       <RouterLink to={`/profile/${event.author.npub}`}>
         <Avatar
           src={authorPicture || undefined} // Pass undefined if null
-          sx={{ width: 30, height: 30 }}
+          sx={{ height: 30, width: 30 }}
         >
           {!authorPicture ? authorDisplayName.charAt(0).toUpperCase() : null}
         </Avatar>
@@ -58,16 +58,16 @@ export const Comment: React.FC<CommentProps> = ({ event, onReply }) => {
       {/* Content Section */}
       <Box sx={{ flexGrow: 1 }}>
         {/* Author Name and Time */}
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+        <Box sx={{ alignItems: "baseline", display: "flex", gap: 1 }}>
           <RouterLink
+            style={{ color: "inherit", textDecoration: "none" }}
             to={`/profile/${event.author.npub}`}
-            style={{ textDecoration: "none", color: "inherit" }}
           >
-            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+            <Typography sx={{ fontWeight: "bold" }} variant="body2">
               {authorDisplayName}
             </Typography>
           </RouterLink>
-          <Typography variant="caption" color="text.secondary">
+          <Typography color="text.secondary" variant="caption">
             {new Date(event.created_at! * 1000).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -76,8 +76,8 @@ export const Comment: React.FC<CommentProps> = ({ event, onReply }) => {
         </Box>
         {/* Comment Text */}
         <Typography
-          variant="body2"
           sx={{ my: 0.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+          variant="body2"
         >
           {" "}
           {/* Allow line breaks */}
@@ -86,13 +86,13 @@ export const Comment: React.FC<CommentProps> = ({ event, onReply }) => {
         {/* Reply Button */}
         {signer && (
           <Button
-            size="small"
             onClick={handleReplyClick}
+            size="small"
             sx={{
               fontSize: "0.75rem",
+              minWidth: "auto", // Allow smaller button
               p: "2px 4px", // Fine-tune padding
               textTransform: "none", // Prevent uppercase
-              minWidth: "auto", // Allow smaller button
             }}
           >
             Reply

@@ -1,5 +1,39 @@
 // src/components/ImagePost.tsx
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import BoltIcon from "@mui/icons-material/Bolt";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import FlagIcon from "@mui/icons-material/Flag";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
+import RepeatIcon from "@mui/icons-material/Repeat";
+import ShareIcon from "@mui/icons-material/Share";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import VolumeOffIcon from "@mui/icons-material/VolumeOff";
+import VolumeUpIcon from "@mui/icons-material/VolumeUp";
+import {
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  CardHeader,
+  CardMedia,
+  CircularProgress,
+  Collapse, // Import Collapse for animation
+  IconButton,
+  Link,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Skeleton, // Import Skeleton
+  TextField,
+  Typography,
+} from "@mui/material";
 import {
   NDKEvent,
   NDKFilter,
@@ -10,46 +44,12 @@ import {
 } from "@nostr-dev-kit/ndk";
 import { decode } from "light-bolt11-decoder";
 import { nip19 } from "nostr-tools";
-import { Link as RouterLink } from "react-router-dom";
-import {
-  Button,
-  Card,
-  CardHeader,
-  CardMedia,
-  CardContent,
-  CardActions,
-  Avatar,
-  Typography,
-  Box,
-  IconButton,
-  Link,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  CircularProgress,
-  Skeleton, // Import Skeleton
-  TextField,
-  Collapse, // Import Collapse for animation
-} from "@mui/material";
-import { useNdk } from "../contexts/NdkContext";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import RepeatIcon from "@mui/icons-material/Repeat";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
-import BoltIcon from "@mui/icons-material/Bolt";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import ShareIcon from "@mui/icons-material/Share";
-import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
-import VolumeOffIcon from "@mui/icons-material/VolumeOff";
-import VolumeUpIcon from "@mui/icons-material/VolumeUp";
-import FlagIcon from "@mui/icons-material/Flag";
-import { ReportPostDialog } from "./ReportPostDialog";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { Link as RouterLink } from "react-router-dom";
+import { useNdk } from "../contexts/NdkContext";
 import { MarkdownContent } from "./MarkdownContent";
+import { ReportPostDialog } from "./ReportPostDialog";
 
 // Interface must be defined BEFORE the component uses it
 interface ImagePostProps {
@@ -103,9 +103,9 @@ const parseImetaTag = (tags: string[][]): Record<string, string | string[]> => {
 };
 const checkSensitiveContent = (
   tags: string[][],
-): { isSensitive: boolean; reason: string | null } => {
+): { isSensitive: boolean; reason: null | string } => {
   let isSensitive = false;
-  let reason: string | null = null;
+  let reason: null | string = null;
   for (const tag of tags) {
     if (tag[0] === "content-warning") {
       isSensitive = true;
@@ -124,18 +124,18 @@ const checkSensitiveContent = (
 export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   console.log("Rendering ImagePost for event:", event.id); // Keep log concise
 
-  const { ndk, user: loggedInUser, signer } = useNdk();
+  const { ndk, signer, user: loggedInUser } = useNdk();
   // const navigate = useNavigate();
-  const [authorUser, setAuthorUser] = useState<NDKUser | null>(null);
-  const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(null);
+  const [authorUser, setAuthorUser] = useState<null | NDKUser>(null);
+  const [authorProfile, setAuthorProfile] = useState<null | NDKUserProfile>(null);
   const [isLoadingAuthor, setIsLoadingAuthor] = useState<boolean>(true); // Initialize true
   const [isBlurred, setIsBlurred] = useState<boolean>(false);
-  const [warningReason, setWarningReason] = useState<string | null>(null);
+  const [warningReason, setWarningReason] = useState<null | string>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
-  const [isFollowingAuthor, setIsFollowingAuthor] = useState<boolean | null>(null);
-  const [isMutingAuthor, setIsMutingAuthor] = useState<boolean | null>(null);
+  const [isFollowingAuthor, setIsFollowingAuthor] = useState<null | boolean>(null);
+  const [isMutingAuthor, setIsMutingAuthor] = useState<null | boolean>(null);
   const [isProcessingFollow, setIsProcessingFollow] = useState(false);
   const [isProcessingMute, setIsProcessingMute] = useState(false);
   const [neventId, setNeventId] = useState<string>("");
@@ -215,9 +215,9 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   useEffect(() => {
     try {
       const encoded = nip19.neventEncode({
+        author: event.pubkey,
         id: event.id,
         relays: event.relay ? [event.relay.url] : undefined,
-        author: event.pubkey,
       });
       setNeventId(encoded);
     } catch (e) {
@@ -240,8 +240,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     const checkStatus = async () => {
       try {
         const contactFilter: NDKFilter = {
-          kinds: [CONTACT_LIST_KIND],
           authors: [loggedInUser.pubkey],
+          kinds: [CONTACT_LIST_KIND],
           limit: 1,
         };
         const contactListEvent = await ndk.fetchEvent(contactFilter, {
@@ -254,8 +254,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
           setIsFollowingAuthor(foundFollow);
         }
         const muteFilter: NDKFilter = {
-          kinds: [MUTE_LIST_KIND],
           authors: [loggedInUser.pubkey],
+          kinds: [MUTE_LIST_KIND],
           limit: 1,
         };
         const muteListEvent = await ndk.fetchEvent(muteFilter, {
@@ -391,8 +391,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     setIsLoadingComments(true);
     try {
       const commentsFilter: NDKFilter = {
-        kinds: [1111],
         "#e": [event.id],
+        kinds: [1111],
       };
       const fetchedComments = await ndk.fetchEvents(commentsFilter, {
         cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
@@ -404,8 +404,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       const authorPubkeys = commentsArray.map((comment) => comment.pubkey);
       if (authorPubkeys.length > 0) {
         const profileFilter: NDKFilter = {
-          kinds: [0],
           authors: authorPubkeys,
+          kinds: [0],
         };
         await ndk.fetchEvents(profileFilter, {
           cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
@@ -598,8 +598,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     if (navigator.share && neventId) {
       try {
         await navigator.share({
-          title: shareTitle,
           text: shareText,
+          title: shareTitle,
           url: shareUrl,
         });
         toast.success("Shared successfully!");
@@ -639,8 +639,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     });
     try {
       const filter: NDKFilter = {
-        kinds: [CONTACT_LIST_KIND],
         authors: [loggedInUser.pubkey],
+        kinds: [CONTACT_LIST_KIND],
         limit: 1,
       };
       const currentContactListEvent = await ndk.fetchEvent(filter, {
@@ -710,8 +710,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     });
     try {
       const filter: NDKFilter = {
-        kinds: [MUTE_LIST_KIND],
         authors: [loggedInUser.pubkey],
+        kinds: [MUTE_LIST_KIND],
         limit: 1,
       };
       const currentMuteListEvent = await ndk.fetchEvent(filter, {
@@ -834,13 +834,13 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   if (isLoadingAuthor) {
     console.log(`Rendering Skeleton for event ${event.id} because isLoadingAuthor is true`);
     return (
-      <Card elevation={2} sx={{ mb: { xs: 2, sm: 3 } }}>
+      <Card elevation={2} sx={{ mb: { sm: 3, xs: 2 } }}>
         <CardHeader
-          avatar={<Skeleton animation="wave" variant="circular" width={40} height={40} />}
-          title={<Skeleton animation="wave" height={10} width="40%" style={{ marginBottom: 6 }} />}
+          avatar={<Skeleton animation="wave" height={40} variant="circular" width={40} />}
           subheader={<Skeleton animation="wave" height={10} width="20%" />}
+          title={<Skeleton animation="wave" height={10} style={{ marginBottom: 6 }} width="40%" />}
         />
-        <Skeleton sx={{ height: 300 }} animation="wave" variant="rectangular" />
+        <Skeleton animation="wave" sx={{ height: 300 }} variant="rectangular" />
         <CardContent>
           <Skeleton animation="wave" height={10} style={{ marginBottom: 6 }} />
           <Skeleton animation="wave" height={10} width="80%" />
@@ -868,45 +868,34 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     <Card
       elevation={2}
       sx={{
-        mb: { xs: 2, sm: 3 },
+        mb: { sm: 3, xs: 2 },
         // Removed maxWidth, mx, overflow - Let container handle sizing
       }}
     >
       <CardHeader
-        avatar={
-          <Avatar
-            component={RouterLink}
-            to={`/profile/${authorUser.npub}`}
-            src={authorAvatarUrl}
-            aria-label="author avatar"
-          >
-            {" "}
-            {!authorAvatarUrl && authorDisplayName.charAt(0).toUpperCase()}{" "}
-          </Avatar>
-        }
         action={
           (loggedInUser || neventId) && (
             <>
               {" "}
               <IconButton
-                aria-label="settings"
-                onClick={handleMenuOpen}
-                id={`post-actions-button-${event.id}`}
                 aria-controls={isMenuOpen ? `post-action-menu-${event.id}` : undefined}
-                aria-haspopup="true"
                 aria-expanded={isMenuOpen ? "true" : undefined}
+                aria-haspopup="true"
+                aria-label="settings"
+                id={`post-actions-button-${event.id}`}
+                onClick={handleMenuOpen}
               >
                 {" "}
                 <MoreVertIcon />{" "}
               </IconButton>{" "}
               <Menu
-                id={`post-action-menu-${event.id}`}
-                anchorEl={anchorEl}
-                open={isMenuOpen}
-                onClose={handleMenuClose}
                 MenuListProps={{
                   "aria-labelledby": `post-actions-button-${event.id}`,
                 }}
+                anchorEl={anchorEl}
+                id={`post-action-menu-${event.id}`}
+                onClose={handleMenuClose}
+                open={isMenuOpen}
               >
                 {" "}
                 {neventId && (
@@ -929,14 +918,14 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                 )}{" "}
                 {loggedInUser && !isOwnPost && (
                   <MenuItem
-                    onClick={handleFollowToggle}
                     disabled={isFollowingAuthor === null || isProcessingFollow}
+                    onClick={handleFollowToggle}
                   >
                     {" "}
                     <ListItemIcon>
                       {" "}
                       {isProcessingFollow ? (
-                        <CircularProgress size={20} color="inherit" />
+                        <CircularProgress color="inherit" size={20} />
                       ) : isFollowingAuthor ? (
                         <PersonRemoveIcon fontSize="small" />
                       ) : (
@@ -950,14 +939,14 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                 )}{" "}
                 {loggedInUser && !isOwnPost && (
                   <MenuItem
-                    onClick={handleMuteToggle}
                     disabled={isMutingAuthor === null || isProcessingMute}
+                    onClick={handleMuteToggle}
                   >
                     {" "}
                     <ListItemIcon>
                       {" "}
                       {isProcessingMute ? (
-                        <CircularProgress size={20} color="inherit" />
+                        <CircularProgress color="inherit" size={20} />
                       ) : isMutingAuthor ? (
                         <VolumeUpIcon fontSize="small" />
                       ) : (
@@ -970,7 +959,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                   </MenuItem>
                 )}{" "}
                 {loggedInUser && !isOwnPost && (
-                  <MenuItem onClick={handleReportClick} disabled={isSubmittingReport}>
+                  <MenuItem disabled={isSubmittingReport} onClick={handleReportClick}>
                     {" "}
                     <ListItemIcon>
                       {" "}
@@ -983,46 +972,57 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
             </>
           )
         }
+        avatar={
+          <Avatar
+            aria-label="author avatar"
+            component={RouterLink}
+            src={authorAvatarUrl}
+            to={`/profile/${authorUser.npub}`}
+          >
+            {" "}
+            {!authorAvatarUrl && authorDisplayName.charAt(0).toUpperCase()}{" "}
+          </Avatar>
+        }
+        subheader={new Date(event.created_at! * 1000).toLocaleString()}
         title={
           <Link
+            color="inherit"
             component={RouterLink}
             to={`/profile/${authorUser.npub}`}
             underline="hover"
-            color="inherit"
           >
             {" "}
             {authorDisplayName}{" "}
           </Link>
         }
-        subheader={new Date(event.created_at! * 1000).toLocaleString()}
       />
       <Box
+        onClick={handleImageClick}
         sx={{
-          position: "relative",
           cursor: isBlurred ? "pointer" : "default",
-          width: "100%",
-          overflow: "hidden",
           display: "flex",
           flexDirection: "column",
           gap: 2, // spacing between multiple images
           mt: 2,
+          overflow: "hidden",
+          position: "relative",
+          width: "100%",
         }}
-        onClick={handleImageClick}
       >
         {validImageUrls.map((url, index) => (
           <CardMedia
-            key={index}
+            alt={altText}
             component="img"
             image={url}
-            alt={altText}
+            key={index}
             sx={{
-              width: "100%",
+              borderRadius: 1,
+              display: "block",
+              filter: isBlurred ? "blur(25px)" : "none",
               maxHeight: "80vh",
               objectFit: "contain",
-              display: "block",
-              borderRadius: 1,
-              filter: isBlurred ? "blur(25px)" : "none",
               transition: "filter 0.3s ease-in-out",
+              width: "100%",
             }}
           />
         ))}
@@ -1030,24 +1030,24 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         {isBlurred && (
           <Box
             sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
+              alignItems: "center",
               bgcolor: "rgba(0, 0, 0, 0.5)",
+              bottom: 0,
+              color: "white",
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
               justifyContent: "center",
-              color: "white",
-              textAlign: "center",
+              left: 0,
               p: 2,
+              position: "absolute",
+              right: 0,
+              textAlign: "center",
+              top: 0,
               zIndex: 1,
             }}
           >
             <VisibilityOffIcon sx={{ fontSize: 40, mb: 1 }} />
-            <Typography variant="body1" gutterBottom>
+            <Typography gutterBottom variant="body1">
               {warningReason || "Content Warning"}
             </Typography>
             <Typography variant="caption">View content</Typography>
@@ -1056,15 +1056,17 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       </Box>
 
       {event.content && (
-        <CardContent sx={{ pt: 1, pb: "8px !important" }}>
-          <Typography variant="body2" color="text.secondary">
+        <CardContent sx={{ pb: "8px !important", pt: 1 }}>
+          <Typography color="text.secondary" variant="body2">
             <MarkdownContent content={event.content || ""} />
           </Typography>
         </CardContent>
       )}
 
-      <CardActions disableSpacing sx={{ pt: 0, justifyContent: "space-around" }}>
+      <CardActions disableSpacing sx={{ justifyContent: "space-around", pt: 0 }}>
         <Button
+          disabled={!loggedInUser || isProcessingLike}
+          onClick={handleLike}
           size="small"
           startIcon={
             isProcessingLike ? (
@@ -1075,8 +1077,6 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
               <FavoriteBorderIcon />
             )
           }
-          onClick={handleLike}
-          disabled={!loggedInUser || isProcessingLike}
           sx={{ minWidth: 60 }}
         >
           {" "}
@@ -1089,6 +1089,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
           )}{" "}
         </Button>
         <Button
+          disabled={!loggedInUser || isProcessingBoost}
+          onClick={handleBoost}
           size="small"
           startIcon={
             isProcessingBoost ? (
@@ -1097,8 +1099,6 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
               <RepeatIcon color={hasBoosted ? "primary" : "inherit"} />
             )
           }
-          onClick={handleBoost}
-          disabled={!loggedInUser || isProcessingBoost}
           sx={{ minWidth: 61 }}
         >
           {" "}
@@ -1111,9 +1111,9 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
           )}{" "}
         </Button>
         <Button
+          onClick={handleReply}
           size="small"
           startIcon={<ChatBubbleOutlineIcon />}
-          onClick={handleReply}
           sx={{ minWidth: 62 }}
         >
           {" "}
@@ -1126,6 +1126,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
           )}{" "}
         </Button>
         <Button
+          disabled={!loggedInUser || isProcessingZap || !authorProfile?.lud16}
+          onClick={handleZap}
           size="small"
           startIcon={
             isProcessingZap ? (
@@ -1134,8 +1136,6 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
               <BoltIcon sx={{ color: "#FFC107" }} />
             )
           }
-          onClick={handleZap}
-          disabled={!loggedInUser || isProcessingZap || !authorProfile?.lud16}
           sx={{ minWidth: 63 }}
           title={!authorProfile?.lud16 ? "Author has no Lightning Address" : undefined}
         >
@@ -1152,8 +1152,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
       {/* Comments Section */}
       <Collapse in={showComments} timeout="auto" unmountOnExit>
-        <CardContent sx={{ pt: 0, pb: "8px !important" }}>
-          <Typography variant="h6" gutterBottom>
+        <CardContent sx={{ pb: "8px !important", pt: 0 }}>
+          <Typography gutterBottom variant="h6">
             Comments
           </Typography>
           {isLoadingComments ? (
@@ -1163,26 +1163,26 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
           ) : comments.length > 0 ? (
             <Box>
               {comments.map((comment) => (
-                <CommentItem key={comment.id} commentEvent={comment} ndk={ndk} />
+                <CommentItem commentEvent={comment} key={comment.id} ndk={ndk} />
               ))}
             </Box>
           ) : (
-            <Typography variant="body2" color="text.secondary">
+            <Typography color="text.secondary" variant="body2">
               No comments yet.
             </Typography>
           )}
           {loggedInUser && (
-            <Box sx={{ mt: 2, display: "flex", alignItems: "center" }}>
+            <Box sx={{ alignItems: "center", display: "flex", mt: 2 }}>
               <TextField
-                label="Add a comment"
-                variant="outlined"
-                size="small"
                 fullWidth
-                value={newCommentText}
+                label="Add a comment"
                 onChange={(e) => setNewCommentText(e.target.value)}
+                size="small"
                 sx={{ mr: 1 }}
+                value={newCommentText}
+                variant="outlined"
               />
-              <Button variant="contained" onClick={submitComment} disabled={!newCommentText.trim()}>
+              <Button disabled={!newCommentText.trim()} onClick={submitComment} variant="contained">
                 Post
               </Button>
             </Box>
@@ -1192,10 +1192,10 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
       {loggedInUser && (
         <ReportPostDialog
-          open={isReportDialogOpen}
+          event={event}
           onClose={handleCloseReportDialog}
           onSubmit={handleReportSubmit}
-          event={event}
+          open={isReportDialogOpen}
         />
       )}
     </Card>
@@ -1208,7 +1208,7 @@ interface CommentItemProps {
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) => {
-  const [authorProfile, setAuthorProfile] = useState<NDKUserProfile | null>(null);
+  const [authorProfile, setAuthorProfile] = useState<null | NDKUserProfile>(null);
   const authorUser = useMemo(
     () => ndk.getUser({ pubkey: commentEvent.pubkey }),
     [ndk, commentEvent.pubkey],
@@ -1219,7 +1219,7 @@ const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) => {
     if (authorUser) {
       authorUser
         .fetchProfile({ cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST })
-        .then((profile: NDKUserProfile | null) => {
+        .then((profile: null | NDKUserProfile) => {
           if (isMounted) {
             setAuthorProfile(profile);
           }
@@ -1240,14 +1240,14 @@ const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) => {
   return (
     <Box
       sx={{
-        mb: 1,
-        pb: 1,
+        alignItems: "flex-start",
         borderBottom: "1px solid #eee",
         display: "flex",
-        alignItems: "flex-start",
+        mb: 1,
+        pb: 1,
       }}
     >
-      <Avatar src={authorAvatarUrl} sx={{ width: 24, height: 24, mr: 1 }}>
+      <Avatar src={authorAvatarUrl} sx={{ height: 24, mr: 1, width: 24 }}>
         {!authorAvatarUrl && authorDisplayName.charAt(0).toUpperCase()}
       </Avatar>
       <Box sx={{ flexGrow: 1 }}>

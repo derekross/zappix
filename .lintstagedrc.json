@@ -1,0 +1,15 @@
+{
+  "**/*.css": ["npm run lint-staged:prettier"],
+  "**/*.{json,md,yml}": ["npm run lint-staged:prettier"],
+  "**/*.{ts,tsx}": [
+    "npm run lint-staged:sortier",
+    "npm run lint-staged:prettier",
+    "npm run lint-staged:eslint"
+  ],
+  "*.js": [
+    "npm run lint-staged:sortier",
+    "npm run lint-staged:prettier",
+    "npm run lint-staged:eslint"
+  ],
+  "package.json": "npm run lint-staged:sortier"
+}

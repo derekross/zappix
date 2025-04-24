@@ -1,26 +1,26 @@
 // src/pages/ProfilePage.tsx
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
-import { nip19 } from "nostr-tools";
-import { useNdk } from "../contexts/NdkContext";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Skeleton from "@mui/material/Skeleton";
+import Typography from "@mui/material/Typography";
 import {
   NDKEvent,
   NDKFilter,
   NDKKind,
+  NDKSubscriptionCacheUsage,
   NDKUser,
   NDKUserProfile,
-  NDKSubscriptionCacheUsage,
 } from "@nostr-dev-kit/ndk";
-import { ImagePost } from "../components/ImagePost";
-import { ProfileHeader } from "../components/ProfileHeader";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import CircularProgress from "@mui/material/CircularProgress";
-import Button from "@mui/material/Button";
-import Alert from "@mui/material/Alert";
-import Skeleton from "@mui/material/Skeleton";
+import { nip19 } from "nostr-tools";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { useParams } from "react-router-dom";
+import { ImagePost } from "../components/ImagePost";
 import { ProfileEditForm } from "../components/ProfileEditForm";
+import { ProfileHeader } from "../components/ProfileHeader";
+import { useNdk } from "../contexts/NdkContext";
 
 const POSTS_PER_PAGE = 10;
 const IMAGE_POST_KIND: NDKKind = 20;
@@ -29,12 +29,12 @@ const CONTACT_LIST_KIND: NDKKind = 3;
 // const MUTE_LIST_KIND: NDKKind = 10000;
 
 export const ProfilePage: React.FC = () => {
-  const { ndk, user: loggedInUser, signer, loggedInUserProfile } = useNdk();
+  const { loggedInUserProfile, ndk, signer, user: loggedInUser } = useNdk();
   const { npub } = useParams<{ npub: string }>();
 
   // Profile User State
-  const [profileUser, setProfileUser] = useState<NDKUser | null>(null);
-  const [profileDetails, setProfileDetails] = useState<NDKUserProfile | null>(null);
+  const [profileUser, setProfileUser] = useState<null | NDKUser>(null);
+  const [profileDetails, setProfileDetails] = useState<null | NDKUserProfile>(null);
   const [isOwnProfile, setIsOwnProfile] = useState<boolean>(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
@@ -46,7 +46,7 @@ export const ProfilePage: React.FC = () => {
   const [userPosts, setUserPosts] = useState<NDKEvent[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [isPostsReachingEnd, setIsPostsReachingEnd] = useState(false);
-  const [lastPostTime, setLastPostTime] = useState<number | undefined>(undefined);
+  const [lastPostTime, setLastPostTime] = useState<undefined | number>(undefined);
   const initialFetchDoneRef = useRef<Record<string, boolean>>({});
 
   // Edit Modal State
@@ -70,7 +70,7 @@ export const ProfilePage: React.FC = () => {
 
     if (ndk && currentNpub) {
       try {
-        const { type, data: pubkey } = nip19.decode(currentNpub);
+        const { data: pubkey, type } = nip19.decode(currentNpub);
         if (type === "npub" && typeof pubkey === "string") {
           const userInstance = ndk.getUser({ pubkey });
           setProfileUser(userInstance);
@@ -121,8 +121,8 @@ export const ProfilePage: React.FC = () => {
     setIsLoadingFollowStatus(true);
     const authorPubkey = profileUser.pubkey;
     const filter: NDKFilter = {
-      kinds: [CONTACT_LIST_KIND],
       authors: [loggedInUser.pubkey],
+      kinds: [CONTACT_LIST_KIND],
       limit: 1,
     };
     ndk
@@ -148,8 +148,8 @@ export const ProfilePage: React.FC = () => {
       setIsLoadingPosts(true);
 
       const filter: NDKFilter = {
-        kinds: [IMAGE_POST_KIND],
         authors: [profileUser.pubkey],
+        kinds: [IMAGE_POST_KIND],
         limit: POSTS_PER_PAGE,
       };
       if (typeof until === "number") {
@@ -219,8 +219,8 @@ export const ProfilePage: React.FC = () => {
     setIsLoadingFollowStatus(true);
     try {
       const filter: NDKFilter = {
-        kinds: [CONTACT_LIST_KIND],
         authors: [loggedInUser.pubkey],
+        kinds: [CONTACT_LIST_KIND],
         limit: 1,
       };
       const currentContactListEvent = await ndk.fetchEvent(filter, {
@@ -278,8 +278,8 @@ export const ProfilePage: React.FC = () => {
   if (isLoadingProfile && !profileDetails && !isOwnProfile) {
     return (
       <Box>
-        <Skeleton variant="rectangular" height={150} sx={{ mb: 2 }} />
-        <Skeleton variant="text" width="60%" height={40} />
+        <Skeleton height={150} sx={{ mb: 2 }} variant="rectangular" />
+        <Skeleton height={40} variant="text" width="60%" />
         <Skeleton variant="text" width="80%" />
         <Skeleton variant="text" width="70%" />
       </Box>
@@ -294,13 +294,13 @@ export const ProfilePage: React.FC = () => {
     <Box>
       {profileUser && (
         <ProfileHeader
-          profileDetails={profileDetails}
-          profileUser={profileUser}
-          isOwnProfile={isOwnProfile}
           isFollowing={isFollowing}
           isLoadingFollowStatus={isLoadingFollowStatus}
-          onFollowToggle={handleFollowToggle}
+          isOwnProfile={isOwnProfile}
           onEditProfile={handleEditProfile}
+          onFollowToggle={handleFollowToggle}
+          profileDetails={profileDetails}
+          profileUser={profileUser}
         />
       )}
 
@@ -313,13 +313,13 @@ export const ProfilePage: React.FC = () => {
       {userPosts.length === 0 && !isLoadingPosts && initialFetchDoneRef.current[npub || ""] && (
         <Typography
           sx={{
-            textAlign: "center",
-            p: 3,
             color: "text.secondary",
-            wordBreak: "break-word",
-            overflowWrap: "break-word",
-            whiteSpace: "normal", // <--- ensures wrapping
             maxWidth: "100%", // <--- prevents overflow
+            overflowWrap: "break-word",
+            p: 3,
+            textAlign: "center",
+            whiteSpace: "normal", // <--- ensures wrapping
+            wordBreak: "break-word",
           }}
         >
           User has no matching image posts.
@@ -328,26 +328,26 @@ export const ProfilePage: React.FC = () => {
 
       <Box
         sx={{
+          boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
-          gap: { xs: 2, sm: 3 },
-          mt: 2,
-          width: "100%",
+          gap: { sm: 3, xs: 2 },
           maxWidth: "100%",
+          mt: 2,
           overflowX: "hidden",
-          boxSizing: "border-box",
+          width: "100%",
         }}
       >
         {userPosts.map((event) => (
-          <ImagePost key={event.id} event={event} />
+          <ImagePost event={event} key={event.id} />
         ))}
       </Box>
 
       {/* Load More Button */}
       {userPosts.length > 0 && !isPostsReachingEnd && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-          <Button variant="contained" onClick={loadMorePosts} disabled={isLoadingPosts}>
-            {isLoadingPosts ? <CircularProgress size={24} color="inherit" /> : "Load More Posts"}
+          <Button disabled={isLoadingPosts} onClick={loadMorePosts} variant="contained">
+            {isLoadingPosts ? <CircularProgress color="inherit" size={24} /> : "Load More Posts"}
           </Button>
         </Box>
       )}
@@ -361,15 +361,15 @@ export const ProfilePage: React.FC = () => {
       {/* Edit Modal */}
       {isOwnProfile && profileDetails && (
         <ProfileEditForm
-          open={isEditModalOpen}
+          currentUserProfile={profileDetails}
           onClose={handleCloseEditModal}
           onSave={handleProfileSave}
-          currentUserProfile={profileDetails}
+          open={isEditModalOpen}
         />
       )}
       {isOwnProfile && !profileDetails && !isLoadingProfile && (
-        <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
-          <Button variant="outlined" onClick={handleEditProfile}>
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+          <Button onClick={handleEditProfile} variant="outlined">
             Edit Your Profile
           </Button>
         </Box>

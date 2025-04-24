@@ -1,40 +1,40 @@
-// src/components/ProfileHeader.tsx
-import React from "react";
-import { NDKUser, NDKUserProfile } from "@nostr-dev-kit/ndk";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Avatar from "@mui/material/Avatar";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import IconButton from "@mui/material/IconButton";
-import CircularProgress from "@mui/material/CircularProgress";
+import AlternateEmailIcon from "@mui/icons-material/AlternateEmail"; // Import At/Email icon
+import BoltIcon from "@mui/icons-material/Bolt";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import LinkIcon from "@mui/icons-material/Link";
-import BoltIcon from "@mui/icons-material/Bolt";
 import VpnKeyIcon from "@mui/icons-material/VpnKey"; // Import Key icon
-import AlternateEmailIcon from "@mui/icons-material/AlternateEmail"; // Import At/Email icon
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { NDKUser, NDKUserProfile } from "@nostr-dev-kit/ndk";
+// src/components/ProfileHeader.tsx
+import React from "react";
 import toast from "react-hot-toast";
 
 interface ProfileHeaderProps {
-  profileUser: NDKUser;
-  profileDetails: NDKUserProfile | null;
-  isOwnProfile: boolean;
   isFollowing: boolean;
   isLoadingFollowStatus: boolean;
-  onFollowToggle: () => void;
+  isOwnProfile: boolean;
+  profileDetails: null | NDKUserProfile;
+  profileUser: NDKUser;
   onEditProfile: () => void;
+  onFollowToggle: () => void;
 }
 
 // Helper component for consistent identifier display
 const InfoItem: React.FC<{
-  icon: React.ReactNode;
-  label: string | undefined;
-  copyValue: string | undefined;
   copyLabel: string;
-}> = ({ icon, label, copyValue, copyLabel }) => {
+  copyValue: undefined | string;
+  icon: React.ReactNode;
+  label: undefined | string;
+}> = ({ copyLabel, copyValue, icon, label }) => {
   if (!label) return null;
 
-  const handleCopy = (text: string | undefined, lbl: string) => {
+  const handleCopy = (text: undefined | string, lbl: string) => {
     if (!text) return;
     navigator.clipboard
       .writeText(text)
@@ -45,10 +45,10 @@ const InfoItem: React.FC<{
   return (
     <Box
       sx={{
-        display: "flex",
         alignItems: "center",
-        gap: 0.5,
+        display: "flex",
         flexWrap: "wrap",
+        gap: 0.5,
         mt: 0.5,
       }}
     >
@@ -61,19 +61,19 @@ const InfoItem: React.FC<{
         label={label}
         size="small"
         sx={{
-          bgcolor: "action.selected",
-          maxWidth: "100%",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
           "& .MuiChip-label": {
             overflow: "hidden",
             textOverflow: "ellipsis",
           },
+          bgcolor: "action.selected",
+          maxWidth: "100%",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
       />
       <IconButton
-        size="small"
         onClick={() => handleCopy(copyValue, copyLabel)}
+        size="small"
         title={`Copy ${copyLabel}`}
       >
         <ContentCopyIcon fontSize="inherit" />
@@ -83,13 +83,13 @@ const InfoItem: React.FC<{
 };
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
-  profileUser,
-  profileDetails,
-  isOwnProfile,
   isFollowing,
   isLoadingFollowStatus,
-  onFollowToggle,
+  isOwnProfile,
   onEditProfile,
+  onFollowToggle,
+  profileDetails,
+  profileUser,
 }) => {
   const displayNpub = profileUser.npub;
   const shortNpub = `${displayNpub.substring(0, 10)}...${displayNpub.substring(
@@ -110,12 +110,12 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       {/* Banner Image */}
       <Box
         sx={{
-          height: 150,
-          bgcolor: "action.hover",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
           backgroundImage: bannerUrl ? `url(${bannerUrl})` : "none",
+          backgroundPosition: "center",
+          backgroundSize: "cover",
+          bgcolor: "action.hover",
           borderRadius: 1,
+          height: 150,
           mb: -8, // Overlap avatar/details onto banner
         }}
       />
@@ -123,28 +123,28 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       {/* Main Profile Info Area */}
       <Box
         sx={{
-          p: { xs: 2, sm: 3 },
-          position: "relative",
           bgcolor: "transparent",
+          p: { sm: 3, xs: 2 },
+          position: "relative",
         }}
       >
         <Box
           sx={{
+            alignItems: "flex-end",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-end",
           }}
         >
           {/* Avatar */}
           <Avatar
-            src={avatarUrl}
             alt={displayName || "Avatar"}
+            src={avatarUrl}
             sx={{
-              width: 100,
-              height: 100,
-              mt: -6,
               border: "4px solid",
               borderColor: "background.paper",
+              height: 100,
+              mt: -6,
+              width: 100,
             }}
           >
             {!avatarUrl && (displayName?.charAt(0)?.toUpperCase() || "N")}
@@ -153,18 +153,18 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           {/* Action Button */}
           <Box sx={{ mb: 1 }}>
             {isOwnProfile ? (
-              <Button variant="contained" onClick={onEditProfile}>
+              <Button onClick={onEditProfile} variant="contained">
                 Edit Profile
               </Button>
             ) : (
               <Button
-                variant="contained"
-                onClick={onFollowToggle}
-                disabled={isLoadingFollowStatus}
                 color={isFollowing ? "secondary" : "primary"}
+                disabled={isLoadingFollowStatus}
+                onClick={onFollowToggle}
+                variant="contained"
               >
                 {isLoadingFollowStatus ? (
-                  <CircularProgress size={20} color="inherit" />
+                  <CircularProgress color="inherit" size={20} />
                 ) : isFollowing ? (
                   "Unfollow"
                 ) : (
@@ -177,40 +177,40 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
         {/* Names & Identifiers */}
         <Box sx={{ mt: 1 }}>
-          <Typography variant="h5" fontWeight="bold">
+          <Typography fontWeight="bold" variant="h5">
             {displayName || "-"}
           </Typography>
           {/* Display @name only if it's different from displayName */}
           {profileDetails?.name && profileDetails.name !== displayName && (
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 0.5 }}>
+            <Typography color="text.secondary" sx={{ mb: 0.5 }} variant="body1">
               @{profileDetails.name}
             </Typography>
           )}
 
           {/* Use InfoItem helper for consistency */}
           <InfoItem
+            copyLabel="Nostr Address (NIP-05)"
+            copyValue={nip05}
             icon={<AlternateEmailIcon />}
             label={nip05}
-            copyValue={nip05}
-            copyLabel="Nostr Address (NIP-05)"
           />
           <InfoItem
+            copyLabel="NPub"
+            copyValue={displayNpub} // Copy full npub
             icon={<VpnKeyIcon />}
             label={shortNpub}
-            copyValue={displayNpub} // Copy full npub
-            copyLabel="NPub"
           />
           <InfoItem
+            copyLabel="Lightning Address (LUD-16)"
+            copyValue={lud16}
             icon={<BoltIcon />}
             label={lud16}
-            copyValue={lud16}
-            copyLabel="Lightning Address (LUD-16)"
           />
         </Box>
 
         {/* About Section */}
         {profileDetails?.about && (
-          <Typography variant="body1" sx={{ mt: 2, whiteSpace: "pre-wrap" }}>
+          <Typography sx={{ mt: 2, whiteSpace: "pre-wrap" }} variant="body1">
             {profileDetails.about}
           </Typography>
         )}
@@ -219,14 +219,14 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         {website && (
           <Box sx={{ mt: 2 }}>
             <Chip
-              icon={<LinkIcon fontSize="small" />}
-              label={website.replace(/^https?:\/\/(www.)?/, "").replace(/\/$/, "")}
+              clickable
               component="a"
               href={website}
-              target="_blank"
+              icon={<LinkIcon fontSize="small" />}
+              label={website.replace(/^https?:\/\/(www.)?/, "").replace(/\/$/, "")}
               rel="noopener noreferrer" // Added for security
-              clickable
               size="small"
+              target="_blank"
             />
           </Box>
         )}

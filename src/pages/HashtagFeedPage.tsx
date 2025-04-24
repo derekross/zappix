@@ -1,15 +1,15 @@
 // src/pages/HashtagFeedPage.tsx
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
-import { useNdk } from "../contexts/NdkContext";
-import { NDKEvent, NDKFilter, NDKKind, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
-import { ImagePost } from "../components/ImagePost";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import CircularProgress from "@mui/material/CircularProgress";
-import Button from "@mui/material/Button";
 import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
+import { NDKEvent, NDKFilter, NDKKind, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { useParams } from "react-router-dom";
+import { ImagePost } from "../components/ImagePost";
+import { useNdk } from "../contexts/NdkContext";
 
 // Reverted to include Kind 1, 20 (repost), and 30315 (potential image kind)
 const FEED_KINDS = [NDKKind.Text, NDKKind.Repost, 30315 as NDKKind];
@@ -21,7 +21,7 @@ export const HashtagFeedPage: React.FC = () => {
   const [posts, setPosts] = useState<NDKEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isReachingEnd, setIsReachingEnd] = useState(false);
-  const [lastEventTime, setLastEventTime] = useState<number | undefined>(undefined);
+  const [lastEventTime, setLastEventTime] = useState<undefined | number>(undefined);
   const processingRef = useRef(false);
 
   const cleanHashtag = hashtag?.startsWith("#") ? hashtag.substring(1) : hashtag;
@@ -38,8 +38,8 @@ export const HashtagFeedPage: React.FC = () => {
       setIsLoading(true);
 
       const filter: NDKFilter = {
-        kinds: FEED_KINDS, // Fetch multiple kinds
         "#t": [cleanHashtag],
+        kinds: FEED_KINDS, // Fetch multiple kinds
         limit: POSTS_PER_PAGE,
       };
       if (until) {
@@ -100,7 +100,7 @@ export const HashtagFeedPage: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom sx={{ wordBreak: "break-all" }}>
+      <Typography gutterBottom sx={{ wordBreak: "break-all" }} variant="h4">
         #{cleanHashtag}
       </Typography>
       {posts.length === 0 && isLoading && (
@@ -110,18 +110,18 @@ export const HashtagFeedPage: React.FC = () => {
       )}
       {posts.length === 0 && !isLoading && isReachingEnd && (
         // Reverted empty text
-        <Typography sx={{ textAlign: "center", p: 3 }}>
+        <Typography sx={{ p: 3, textAlign: "center" }}>
           No posts found for #{cleanHashtag}.
         </Typography>
       )}
-      <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 2, sm: 3 } }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: { sm: 3, xs: 2 } }}>
         {posts.map((event) => (
-          <ImagePost key={event.id} event={event} />
+          <ImagePost event={event} key={event.id} />
         ))}
       </Box>
       {posts.length > 0 && !isLoading && !isReachingEnd && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-          <Button variant="contained" onClick={loadMore} disabled={isLoading}>
+          <Button disabled={isLoading} onClick={loadMore} variant="contained">
             Load More
           </Button>
         </Box>
@@ -132,7 +132,7 @@ export const HashtagFeedPage: React.FC = () => {
         </Box>
       )}
       {isReachingEnd && posts.length > 0 && (
-        <Typography sx={{ textAlign: "center", mt: 4, color: "text.secondary" }}>
+        <Typography sx={{ color: "text.secondary", mt: 4, textAlign: "center" }}>
           End of feed for #{cleanHashtag}.
         </Typography>
       )}

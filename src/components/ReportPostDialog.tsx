@@ -1,44 +1,44 @@
-// src/components/ReportPostDialog.tsx
-import React, { useState, useEffect } from "react";
-import { NDKEvent } from "@nostr-dev-kit/ndk";
+import Button from "@mui/material/Button";
+// FIX: Import CircularProgress
+import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormLabel from "@mui/material/FormLabel";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import FormControl from "@mui/material/FormControl";
-import FormLabel from "@mui/material/FormLabel";
 import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-// FIX: Import CircularProgress
-import CircularProgress from "@mui/material/CircularProgress";
+import { NDKEvent } from "@nostr-dev-kit/ndk";
+// src/components/ReportPostDialog.tsx
+import React, { useEffect, useState } from "react";
 
 interface ReportPostDialogProps {
+  event: NDKEvent;
   open: boolean;
   onClose: () => void;
   onSubmit: (reportType: string, reasonText: string) => void; // Passes selection back
-  event: NDKEvent;
 }
 
 // NIP-56 Recommended Report Types
 const reportTypes = [
-  { value: "nudity", label: "Nudity or sexual content" },
-  { value: "profanity", label: "Profanity or hate speech" },
-  { value: "illegal", label: "Illegal content or activity" },
-  { value: "spam", label: "Spam" },
-  { value: "impersonation", label: "Impersonation" },
-  { value: "other", label: "Other (please specify below)" },
+  { label: "Nudity or sexual content", value: "nudity" },
+  { label: "Profanity or hate speech", value: "profanity" },
+  { label: "Illegal content or activity", value: "illegal" },
+  { label: "Spam", value: "spam" },
+  { label: "Impersonation", value: "impersonation" },
+  { label: "Other (please specify below)", value: "other" },
 ];
 
 export const ReportPostDialog: React.FC<ReportPostDialogProps> = ({
-  open,
+  event,
   onClose,
   onSubmit,
-  event,
+  open,
 }) => {
   const [selectedType, setSelectedType] = useState<string>("");
   const [otherReason, setOtherReason] = useState<string>("");
@@ -89,11 +89,11 @@ export const ReportPostDialog: React.FC<ReportPostDialogProps> = ({
     event.author.npub.substring(0, 10) + "...";
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog fullWidth maxWidth="xs" onClose={onClose} open={open}>
       <DialogTitle>Report Post</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography color="text.secondary" variant="body2">
             Why are you reporting this post by {authorName}?
           </Typography>
           <FormControl component="fieldset" required>
@@ -101,15 +101,15 @@ export const ReportPostDialog: React.FC<ReportPostDialogProps> = ({
             <RadioGroup
               aria-label="report-reason"
               name="reportReason"
-              value={selectedType}
               onChange={handleTypeChange}
+              value={selectedType}
             >
               {reportTypes.map((type) => (
                 <FormControlLabel
-                  key={type.value}
-                  value={type.value}
                   control={<Radio size="small" />}
+                  key={type.value}
                   label={type.label}
+                  value={type.value}
                 />
               ))}
             </RadioGroup>
@@ -117,31 +117,31 @@ export const ReportPostDialog: React.FC<ReportPostDialogProps> = ({
 
           {selectedType === "other" && (
             <TextField
-              label="Please specify reason"
-              variant="outlined"
               fullWidth
+              label="Please specify reason"
               multiline
-              rows={2}
-              value={otherReason}
               onChange={handleOtherReasonChange}
               required
+              rows={2}
+              value={otherReason}
+              variant="outlined"
             />
           )}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={isSubmitting}>
+        <Button disabled={isSubmitting} onClick={onClose}>
           Cancel
         </Button>
         <Button
-          onClick={handleSubmitClick}
-          variant="contained"
           disabled={
             isSubmitting || !selectedType || (selectedType === "other" && !otherReason.trim())
           }
+          onClick={handleSubmitClick}
+          variant="contained"
         >
           {/* Use the imported CircularProgress */}
-          {isSubmitting ? <CircularProgress size={24} color="inherit" /> : "Submit Report"}
+          {isSubmitting ? <CircularProgress color="inherit" size={24} /> : "Submit Report"}
         </Button>
       </DialogActions>
     </Dialog>

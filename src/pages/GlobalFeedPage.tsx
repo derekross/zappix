@@ -1,20 +1,20 @@
 // /home/raven/zappix/src/pages/GlobalFeedPage.tsx
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useNdk } from "../contexts/NdkContext";
-import { useLocation, useNavigate } from "react-router-dom";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+import Typography from "@mui/material/Typography";
 import {
   NDKEvent,
   NDKFilter,
-  NDKSubscription,
   NDKKind,
+  NDKSubscription,
   NDKSubscriptionCacheUsage,
 } from "@nostr-dev-kit/ndk";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ImagePost } from "../components/ImagePost";
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
+import { useNdk } from "../contexts/NdkContext";
 import useIntersectionObserver from "../hooks/useIntersectionObserver";
 
 const IMAGE_POST_KIND: NDKKind = 20; // Use NDKKind type
@@ -28,10 +28,10 @@ export const GlobalFeedPage: React.FC = () => {
   const [notes, setNotes] = useState<NDKEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [lastEventTimestamp, setLastEventTimestamp] = useState<number | undefined>(undefined);
+  const [lastEventTimestamp, setLastEventTimestamp] = useState<undefined | number>(undefined);
   const [mutedPubkeys, setMutedPubkeys] = useState<Set<string>>(new Set()); // State for muted pubkeys
-  const subscriptionRef = useRef<NDKSubscription | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const subscriptionRef = useRef<null | NDKSubscription>(null);
+  const loadMoreRef = useRef<null | HTMLDivElement>(null);
 
   // Fetch initial mute list
   useEffect(() => {
@@ -45,8 +45,8 @@ export const GlobalFeedPage: React.FC = () => {
       try {
         const muteListEvent = await ndk.fetchEvent(
           {
-            kinds: [NDKKind.MuteList],
             authors: [user.pubkey],
+            kinds: [NDKKind.MuteList],
             limit: 1, // Fetch only the latest
           },
           { cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST }, // Use cache first
@@ -195,9 +195,9 @@ export const GlobalFeedPage: React.FC = () => {
 
   // Setup Intersection Observer for infinite scrolling
   useIntersectionObserver({
-    target: loadMoreRef,
-    onIntersect: loadMore,
     enabled: !isLoading && !isFetchingMore && lastEventTimestamp !== undefined,
+    onIntersect: loadMore,
+    target: loadMoreRef,
   });
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
@@ -207,43 +207,43 @@ export const GlobalFeedPage: React.FC = () => {
   return (
     <>
       {/* Feed Selection Tabs */}
-      <Box sx={{ width: "100%", borderBottom: 1, borderColor: "divider", mb: 2 }}>
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2, width: "100%" }}>
         <Tabs
-          value={location.pathname} // Use location to determine active tab
-          onChange={handleTabChange}
           aria-label="feed selection tabs"
+          onChange={handleTabChange}
+          value={location.pathname} // Use location to determine active tab
           variant="fullWidth"
         >
           <Tab
             label="Global"
-            value="/"
             sx={{
+              fontSize: { sm: "0.875rem", xs: "0.75rem" },
               minWidth: "auto",
-              px: { xs: 1, sm: 2 },
-              fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              px: { sm: 2, xs: 1 },
             }}
+            value="/"
           />
           {user && (
             <Tab
               label="Following"
-              value="/following"
               sx={{
+                fontSize: { sm: "0.875rem", xs: "0.75rem" },
                 minWidth: "auto",
-                px: { xs: 1, sm: 2 },
-                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                px: { sm: 2, xs: 1 },
               }}
+              value="/following"
             />
           )}{" "}
           {/* Conditional Following Tab */}
           {user && (
             <Tab
               label="Local"
-              value="/local"
               sx={{
+                fontSize: { sm: "0.875rem", xs: "0.75rem" },
                 minWidth: "auto",
-                px: { xs: 1, sm: 2 },
-                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                px: { sm: 2, xs: 1 },
               }}
+              value="/local"
             />
           )}{" "}
           {/* Conditional Local Tab */}
@@ -255,7 +255,7 @@ export const GlobalFeedPage: React.FC = () => {
         sx={{
           display: "flex",
           flexDirection: "column",
-          gap: { xs: 2, sm: 3 },
+          gap: { sm: 3, xs: 2 },
           mt: 2,
         }}
       >
@@ -268,11 +268,11 @@ export const GlobalFeedPage: React.FC = () => {
           <Typography
             noWrap={false}
             sx={{
-              textAlign: "center",
-              p: 3,
               color: "text.secondary",
-              wordBreak: "break-word",
               overflowWrap: "break-word",
+              p: 3,
+              textAlign: "center",
+              wordBreak: "break-word",
             }}
           >
             No image posts found in the feed.
@@ -280,7 +280,7 @@ export const GlobalFeedPage: React.FC = () => {
         )}
         {notes.map((note) => (
           // Each ImagePost is now implicitly spaced by the parent Box's gap
-          <ImagePost key={note.id} event={note} />
+          <ImagePost event={note} key={note.id} />
         ))}
         {/* Intersection observer target */}
         <div ref={loadMoreRef} style={{ height: "10px", width: "100%" }} />

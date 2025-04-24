@@ -1,43 +1,43 @@
-// src/contexts/NdkContext.tsx - Delay profile fetch until after NIP-65 check
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
+import { PaletteMode } from "@mui/material"; // Keep PaletteMode if used by Theme context elsewhere
 // FIX 1 & 2: Removed unused NDKKind, NostrEvent
 import NDK, {
-  NDKNip07Signer,
-  NDKPrivateKeySigner,
-  NDKUser,
   NDKEvent,
   NDKFilter,
+  NDKNip07Signer,
+  NDKPrivateKeySigner,
   NDKSigner,
   NDKSubscriptionCacheUsage,
+  NDKUser,
   NDKUserProfile,
 } from "@nostr-dev-kit/ndk";
+// src/contexts/NdkContext.tsx - Delay profile fetch until after NIP-65 check
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { PaletteMode } from "@mui/material"; // Keep PaletteMode if used by Theme context elsewhere
 
 const LS_THEME_MODE_KEY = "zappixThemeMode";
 
 interface NdkContextProps {
-  ndk: NDK | null;
-  user: NDKUser | null;
-  signer: NDKSigner | null;
-  loggedInUserProfile: NDKUserProfile | null;
+  defaultRelays: string[];
+  explicitRelayUrls: string[];
+  isPublishingNip65: boolean;
+  loggedInUserProfile: null | NDKUserProfile;
+  ndk: null | NDK;
+  nip65Event: null | NDKEvent;
+  readRelays: string[];
+  relaySource: "default" | "loading" | "logged_out" | "nip65";
+  signer: null | NDKSigner;
+  themeMode: PaletteMode;
+  user: null | NDKUser;
+  writeRelays: string[];
+  fetchNip65Relays: (userToFetch: NDKUser) => Promise<void>;
   loginWithNip07: () => Promise<void>;
   loginWithNsec: (nsec: string) => Promise<void>;
   logout: () => void;
-  readRelays: string[];
-  writeRelays: string[];
-  explicitRelayUrls: string[];
-  defaultRelays: string[];
-  relaySource: "nip65" | "default" | "loading" | "logged_out";
-  nip65Event: NDKEvent | null;
-  isPublishingNip65: boolean;
   publishNip65Relays: (readList: string[], writeList: string[]) => Promise<boolean>;
-  fetchNip65Relays: (userToFetch: NDKUser) => Promise<void>;
-  themeMode: PaletteMode;
   toggleThemeMode: () => void;
 }
 
-const NdkContext = createContext<NdkContextProps | undefined>(undefined);
+const NdkContext = createContext<undefined | NdkContextProps>(undefined);
 
 const defaultRelays = [
   "wss://relay.damus.io",
@@ -55,17 +55,17 @@ const LOCAL_STORAGE_KEYS = {
 };
 
 export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [ndk, setNdk] = useState<NDK | null>(null);
-  const [signer, setSigner] = useState<NDKSigner | null>(null);
-  const [user, setUser] = useState<NDKUser | null>(null);
-  const [loggedInUserProfile, setLoggedInUserProfile] = useState<NDKUserProfile | null>(null);
+  const [ndk, setNdk] = useState<null | NDK>(null);
+  const [signer, setSigner] = useState<null | NDKSigner>(null);
+  const [user, setUser] = useState<null | NDKUser>(null);
+  const [loggedInUserProfile, setLoggedInUserProfile] = useState<null | NDKUserProfile>(null);
   const [readRelays, setReadRelays] = useState<string[]>(defaultRelays);
   const [writeRelays, setWriteRelays] = useState<string[]>(defaultRelays);
   const [explicitRelayUrls, setExplicitRelayUrls] = useState<string[]>(defaultRelays);
-  const [relaySource, setRelaySource] = useState<"nip65" | "default" | "loading" | "logged_out">(
+  const [relaySource, setRelaySource] = useState<"default" | "loading" | "logged_out" | "nip65">(
     "logged_out",
   );
-  const [nip65Event, setNip65Event] = useState<NDKEvent | null>(null);
+  const [nip65Event, setNip65Event] = useState<null | NDKEvent>(null);
   const [isPublishingNip65, setIsPublishingNip65] = useState(false);
   const [themeMode, setThemeMode] = useState<PaletteMode>(() => {
     const storedMode = localStorage.getItem(LS_THEME_MODE_KEY);
@@ -137,8 +137,8 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         // Use literal kind number as NDKKind was removed
         const filter: NDKFilter = {
-          kinds: [10002],
           authors: [userToFetch.pubkey],
+          kinds: [10002],
           limit: 1,
         };
         // FIX 5: Use CACHE_FIRST workaround for NDKSubscriptionCacheUsage
@@ -382,24 +382,24 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Context Value (memoized)
   const contextValue = useMemo(
     () => ({
-      ndk,
-      user,
-      signer,
+      defaultRelays,
+      explicitRelayUrls,
+      fetchNip65Relays,
+      isPublishingNip65,
       loggedInUserProfile,
       loginWithNip07,
       loginWithNsec,
       logout,
-      readRelays,
-      writeRelays,
-      explicitRelayUrls,
-      defaultRelays,
-      relaySource,
+      ndk,
       nip65Event,
-      isPublishingNip65,
       publishNip65Relays,
-      fetchNip65Relays,
+      readRelays,
+      relaySource,
+      signer,
       themeMode,
       toggleThemeMode,
+      user,
+      writeRelays,
     }),
     [
       ndk,
