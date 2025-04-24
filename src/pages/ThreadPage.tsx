@@ -1,38 +1,38 @@
-// src/pages/ThreadPage.tsx
-import React, { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import { useNdk } from "../contexts/NdkContext";
+import Alert from "@mui/material/Alert";
+// import { CommentComponent } from '../components/CommentComponent'; // Import your comment component
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider"; // Import Divider
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 // FIX: Remove nip19 from NDK import
 import { NDKEvent, NDKFilter, NDKKind } from "@nostr-dev-kit/ndk";
 // FIX: Add correct import for nip19
 import { nip19 } from "nostr-tools";
-import { ImagePost } from "../components/ImagePost"; // Assuming root might be ImagePost
-// import { CommentComponent } from '../components/CommentComponent'; // Import your comment component
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
-import Alert from "@mui/material/Alert";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
-import Divider from "@mui/material/Divider"; // Import Divider
+// src/pages/ThreadPage.tsx
+import React, { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useParams } from "react-router-dom";
+import { ImagePost } from "../components/ImagePost"; // Assuming root might be ImagePost
+import { useNdk } from "../contexts/NdkContext";
 
 const IMAGE_POST_KIND: NDKKind = 20;
 const COMMENT_KIND: NDKKind = 1111; // Using Kind 1111 as per previous request
 
 export const ThreadPage: React.FC = () => {
   const { nevent } = useParams<{ nevent: string }>();
-  const { ndk, user: loggedInUser, signer, readRelays } = useNdk(); // Added readRelays
-  const [rootEvent, setRootEvent] = useState<NDKEvent | null>(null);
+  const { ndk, readRelays, signer, user: loggedInUser } = useNdk(); // Added readRelays
+  const [rootEvent, setRootEvent] = useState<null | NDKEvent>(null);
   const [comments, setComments] = useState<NDKEvent[]>([]);
   const [isLoadingRoot, setIsLoadingRoot] = useState(true);
   const [isLoadingComments, setIsLoadingComments] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
   // Store decoded pointer info
-  const [rootEventId, setRootEventId] = useState<string | null>(null);
-  const [rootEventKind, setRootEventKind] = useState<NDKKind | null>(null);
-  const [rootEventPubkey, setRootEventPubkey] = useState<string | null>(null);
+  const [rootEventId, setRootEventId] = useState<null | string>(null);
+  const [rootEventKind, setRootEventKind] = useState<null | NDKKind>(null);
+  const [rootEventPubkey, setRootEventPubkey] = useState<null | string>(null);
   const [rootRelays, setRootRelays] = useState<string[]>([]); // Store relays from nevent if needed
 
   // Decode nevent and fetch root event
@@ -94,9 +94,9 @@ export const ThreadPage: React.FC = () => {
     if (ndk && rootEventId) {
       setIsLoadingComments(true);
       const commentFilter: NDKFilter = {
-        kinds: [COMMENT_KIND], // Fetch Kind 1111
         // NIP-22: Filter by uppercase E tag pointing to root event ID
         "#E": [rootEventId],
+        kinds: [COMMENT_KIND], // Fetch Kind 1111
       };
       console.log("Fetching comments with filter:", commentFilter);
       ndk
@@ -218,9 +218,9 @@ export const ThreadPage: React.FC = () => {
           {rootEvent.kind === IMAGE_POST_KIND ? (
             <ImagePost event={rootEvent} />
           ) : (
-            <Box sx={{ p: 2, border: "1px dashed grey", mb: 2 }}>
+            <Box sx={{ border: "1px dashed grey", mb: 2, p: 2 }}>
               <Typography variant="h6">Unsupported Root Event (Kind: {rootEvent.kind})</Typography>
-              <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              <Typography sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }} variant="body2">
                 {rootEvent.content}
               </Typography>
               {/* Render tags or other info if desired */}
@@ -228,7 +228,7 @@ export const ThreadPage: React.FC = () => {
           )}
 
           <Divider sx={{ my: 3 }} />
-          <Typography variant="h6" gutterBottom>
+          <Typography gutterBottom variant="h6">
             Comments ({comments.length})
           </Typography>
 
@@ -251,26 +251,26 @@ export const ThreadPage: React.FC = () => {
                 sx={{
                   borderBottom: "1px solid",
                   borderColor: "divider",
-                  pb: 1,
                   mb: 1,
+                  pb: 1,
                 }}
               >
-                <Typography variant="caption" component="div" sx={{ fontWeight: "bold" }}>
+                <Typography component="div" sx={{ fontWeight: "bold" }} variant="caption">
                   {comment.author.profile?.displayName ||
                     comment.author.profile?.name ||
                     comment.author.npub.substring(0, 10)}
                   ...
-                  <Typography variant="caption" sx={{ color: "text.secondary", ml: 1 }}>
+                  <Typography sx={{ color: "text.secondary", ml: 1 }} variant="caption">
                     {new Date(comment.created_at! * 1000).toLocaleString()}
                   </Typography>
                 </Typography>
                 <Typography
-                  variant="body2"
                   sx={{
+                    mt: 0.5,
                     whiteSpace: "pre-wrap",
                     wordBreak: "break-word",
-                    mt: 0.5,
                   }}
+                  variant="body2"
                 >
                   {comment.content}
                 </Typography>
@@ -283,29 +283,29 @@ export const ThreadPage: React.FC = () => {
           {loggedInUser && rootEvent && (
             <Box
               component="form"
-              sx={{ mt: 3 }}
               onSubmit={(e) => {
                 e.preventDefault();
                 handlePostComment();
               }}
+              sx={{ mt: 3 }}
             >
               <TextField
-                fullWidth
-                multiline
-                minRows={2} // Use minRows instead of fixed rows
-                label="Write a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
                 disabled={isPostingComment}
+                fullWidth
+                label="Write a comment..."
+                minRows={2} // Use minRows instead of fixed rows
+                multiline
+                onChange={(e) => setNewComment(e.target.value)}
+                value={newComment}
                 variant="outlined" // Use outlined or filled
               />
               <Button
+                disabled={isPostingComment || !newComment.trim()}
+                sx={{ mt: 1 }}
                 type="submit"
                 variant="contained"
-                sx={{ mt: 1 }}
-                disabled={isPostingComment || !newComment.trim()}
               >
-                {isPostingComment ? <CircularProgress size={24} color="inherit" /> : "Post Comment"}
+                {isPostingComment ? <CircularProgress color="inherit" size={24} /> : "Post Comment"}
               </Button>
             </Box>
           )}

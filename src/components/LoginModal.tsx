@@ -1,33 +1,33 @@
-// src/components/LoginModal.tsx
-// FIX: Add useEffect back to the import
-import { useState, ChangeEvent, useCallback, useEffect } from "react";
-import { useNdk } from "../contexts/NdkContext";
+import CloseIcon from "@mui/icons-material/Close";
+import ExtensionIcon from "@mui/icons-material/Extension";
+import PasswordIcon from "@mui/icons-material/Password";
+import Alert from "@mui/material/Alert";
 // MUI Imports
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
-import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
-import PasswordIcon from "@mui/icons-material/Password";
-import ExtensionIcon from "@mui/icons-material/Extension";
-import Modal from "@mui/material/Modal";
 import IconButton from "@mui/material/IconButton";
-import CloseIcon from "@mui/icons-material/Close";
-import toast from "react-hot-toast";
+import Modal from "@mui/material/Modal";
 import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+// src/components/LoginModal.tsx
+// FIX: Add useEffect back to the import
+import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { useNdk } from "../contexts/NdkContext";
 
 interface LoginModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-export function LoginModal({ open, onClose }: LoginModalProps) {
+export function LoginModal({ onClose, open }: LoginModalProps) {
   const { loginWithNip07, loginWithNsec } = useNdk();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<null | string>(null);
   const [nsecInput, setNsecInput] = useState<string>("");
-  const [loginMethodLoading, setLoginMethodLoading] = useState<"nip07" | "nsec" | null>(null);
+  const [loginMethodLoading, setLoginMethodLoading] = useState<null | "nip07" | "nsec">(null);
 
   const handleNip07Login = useCallback(async () => {
     setError(null);
@@ -78,59 +78,59 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
   }, [open]);
 
   return (
-    <Modal open={open} onClose={onClose} aria-labelledby="login-modal-title">
+    <Modal aria-labelledby="login-modal-title" onClose={onClose} open={open}>
       <Box
         sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: { xs: "90%", sm: 450 },
           bgcolor: "background.paper",
           border: "1px solid #ccc",
-          boxShadow: 24,
-          p: { xs: 2, sm: 3 },
           borderRadius: 2,
+          boxShadow: 24,
+          left: "50%",
+          p: { sm: 3, xs: 2 },
+          position: "absolute",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          width: { sm: 450, xs: "90%" },
         }}
       >
         <Box
           sx={{
+            alignItems: "center",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
             mb: 2,
           }}
         >
-          <Typography id="login-modal-title" variant="h6" component="h2">
+          <Typography component="h2" id="login-modal-title" variant="h6">
             {" "}
             Login Options{" "}
           </Typography>
-          <IconButton onClick={onClose} size="small" aria-label="close login modal">
+          <IconButton aria-label="close login modal" onClick={onClose} size="small">
             {" "}
             <CloseIcon />{" "}
           </IconButton>
         </Box>
         <Box sx={{ mb: 2 }}>
           <Button
+            disabled={!!loginMethodLoading}
             fullWidth
-            variant="contained"
+            onClick={handleNip07Login}
             startIcon={
               loginMethodLoading === "nip07" ? (
-                <CircularProgress size={20} color="inherit" />
+                <CircularProgress color="inherit" size={20} />
               ) : (
                 <ExtensionIcon />
               )
             }
-            onClick={handleNip07Login}
-            disabled={!!loginMethodLoading}
+            variant="contained"
           >
             {" "}
             Login with Extension (Recommended){" "}
           </Button>
           <Typography
-            variant="caption"
             display="block"
-            sx={{ mt: 1, textAlign: "center", color: "text.secondary" }}
+            sx={{ color: "text.secondary", mt: 1, textAlign: "center" }}
+            variant="caption"
           >
             {" "}
             Uses Alby, nos2x, etc.{" "}
@@ -138,40 +138,40 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
         </Box>
         <Divider sx={{ my: 2 }}>OR</Divider>
         <Box sx={{ mt: 2 }}>
-          <Typography variant="body2" gutterBottom>
+          <Typography gutterBottom variant="body2">
             Login with Secret Key (nsec):
           </Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems="stretch">
+          <Stack alignItems="stretch" direction={{ sm: "row", xs: "column" }} spacing={1}>
             <TextField
-              id="nsecInput"
-              type="password"
-              label="NSEC Key"
-              size="small"
-              value={nsecInput}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setNsecInput(e.target.value)}
-              placeholder="nsec1..."
-              sx={{ flexGrow: 1 }}
               disabled={!!loginMethodLoading}
               error={!!error && !error.includes("NIP-07")}
+              id="nsecInput"
+              label="NSEC Key"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setNsecInput(e.target.value)}
+              placeholder="nsec1..."
+              size="small"
+              sx={{ flexGrow: 1 }}
+              type="password"
+              value={nsecInput}
             />
             <Button
-              variant="outlined"
+              disabled={!!loginMethodLoading || !nsecInput.startsWith("nsec1")}
+              onClick={handleNsecLogin}
               startIcon={
                 loginMethodLoading === "nsec" ? (
-                  <CircularProgress size={20} color="inherit" />
+                  <CircularProgress color="inherit" size={20} />
                 ) : (
                   <PasswordIcon />
                 )
               }
-              onClick={handleNsecLogin}
-              disabled={!!loginMethodLoading || !nsecInput.startsWith("nsec1")}
               sx={{ flexShrink: 0 }}
+              variant="outlined"
             >
               {" "}
               Login{" "}
             </Button>
           </Stack>
-          <Typography variant="caption" display="block" sx={{ mt: 1, color: "error.main" }}>
+          <Typography display="block" sx={{ color: "error.main", mt: 1 }} variant="caption">
             {" "}
             ⚠️ Warning: Less secure. Use extensions if possible.{" "}
           </Typography>

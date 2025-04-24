@@ -1,8 +1,8 @@
-// src/components/UserFeed.tsx
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useNdk } from "../contexts/NdkContext";
 // FIX: Remove unused NDKSubscriptionCacheUsage
 import { NDKEvent, NDKFilter, NDKKind, NDKUser } from "@nostr-dev-kit/ndk";
+// src/components/UserFeed.tsx
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNdk } from "../contexts/NdkContext";
 import { ImagePost } from "./ImagePost"; // Reuse the ImagePost component
 
 const USER_FEED_FETCH_LIMIT = 10; // Fetch fewer per batch for user feed?
@@ -16,15 +16,15 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
   const [feedEvents, setFeedEvents] = useState<NDKEvent[]>([]);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [oldestEventTimestamp, setOldestEventTimestamp] = useState<number | undefined>(undefined);
+  const [error, setError] = useState<null | string>(null);
+  const [oldestEventTimestamp, setOldestEventTimestamp] = useState<undefined | number>(undefined);
   const [canLoadMore, setCanLoadMore] = useState(true);
   const receivedEventIds = useRef(new Set<string>());
 
   // Helper to process events
   const processFeedEvents = useCallback(
     (events: NDKEvent[]) => {
-      let oldestTs: number | undefined = oldestEventTimestamp;
+      let oldestTs: undefined | number = oldestEventTimestamp;
       let addedNew = false;
       const newUniqueEvents: NDKEvent[] = [];
       events.forEach((event) => {
@@ -74,8 +74,8 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
     setCanLoadMore(true);
 
     const initialFilter: NDKFilter = {
-      kinds: [20 as NDKKind], // Kind 20 for images
       authors: [user.pubkey],
+      kinds: [20 as NDKKind], // Kind 20 for images
       limit: USER_FEED_FETCH_LIMIT,
     };
 
@@ -117,8 +117,8 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
     setError(null);
 
     const olderFilter: NDKFilter = {
-      kinds: [20 as NDKKind],
       authors: [user.pubkey],
+      kinds: [20 as NDKKind],
       limit: USER_FEED_FETCH_LIMIT,
       // Fetch events strictly older than the oldest we have
       until: oldestEventTimestamp,
@@ -145,7 +145,7 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
 
   // Memoize rendered posts
   const renderedPosts = useMemo(() => {
-    return feedEvents.map((event) => <ImagePost key={event.id} event={event} />);
+    return feedEvents.map((event) => <ImagePost event={event} key={event.id} />);
   }, [feedEvents]);
 
   // --- Rendering ---
@@ -169,14 +169,14 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
       {/* Show load more error only if some posts already loaded */}
       {renderedPosts}
       {canLoadMore && (
-        <div style={{ textAlign: "center", margin: "20px" }}>
-          <button onClick={loadMore} disabled={isLoadingMore || isLoadingInitial}>
+        <div style={{ margin: "20px", textAlign: "center" }}>
+          <button disabled={isLoadingMore || isLoadingInitial} onClick={loadMore}>
             {isLoadingMore ? "Loading..." : "Load More Posts"}
           </button>
         </div>
       )}
       {!canLoadMore && feedEvents.length > 0 && (
-        <p style={{ textAlign: "center", color: "#888", margin: "20px" }}>- End of User's Feed -</p>
+        <p style={{ color: "#888", margin: "20px", textAlign: "center" }}>- End of User's Feed -</p>
       )}
     </div>
   );

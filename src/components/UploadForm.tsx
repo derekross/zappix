@@ -1,53 +1,53 @@
+import Alert from "@mui/material/Alert";
+// MUI Imports
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import CircularProgress from "@mui/material/CircularProgress";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select, { SelectChangeEvent } from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import NDK, { NDKEvent, NDKKind, NDKSigner } from "@nostr-dev-kit/ndk";
+import { encode as blurhashEncode } from "blurhash";
+import { sha256 } from "js-sha256";
+import ngeohash from "ngeohash";
 // src/components/UploadForm.tsx
 import React, {
-  useState,
   useCallback,
   // FIX: Removed unused ChangeEvent
   useEffect,
   useRef,
+  useState,
 } from "react";
-import { useNdk } from "../contexts/NdkContext";
-import NDK, { NDKEvent, NDKKind, NDKSigner } from "@nostr-dev-kit/ndk";
-import { sha256 } from "js-sha256";
-import { encode as blurhashEncode } from "blurhash";
-import ngeohash from "ngeohash";
 import toast from "react-hot-toast";
-// MUI Imports
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
-import Select, { SelectChangeEvent } from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import InputLabel from "@mui/material/InputLabel";
-import FormControl from "@mui/material/FormControl";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
-import Typography from "@mui/material/Typography";
-import CircularProgress from "@mui/material/CircularProgress";
-import Alert from "@mui/material/Alert";
+import { useNdk } from "../contexts/NdkContext";
 
 interface BlossomServer {
-  name: string;
   apiUrl: string;
+  name: string;
 }
 const BLOSSOM_SERVERS: BlossomServer[] = [
-  { name: "blossom.band", apiUrl: "https://blossom.band" },
-  { name: "blossom.primal.net", apiUrl: "https://blossom.primal.net" },
-  { name: "nostr.download", apiUrl: "https://nostr.download" },
+  { apiUrl: "https://blossom.band", name: "blossom.band" },
+  { apiUrl: "https://blossom.primal.net", name: "blossom.primal.net" },
+  { apiUrl: "https://nostr.download", name: "nostr.download" },
 ];
 const LOCAL_STORAGE_BLOSSOM_SERVER_URL_KEY = "nostrImageAppBlossomServerUrl";
 
 interface ProcessedImageData {
   blob: Blob;
-  hash: string;
   blurhash: string;
-  dimensions: { width: number; height: number };
+  dimensions: { height: number; width: number };
+  hash: string;
 }
 
 interface UploadFormProps {
   initialFile: File;
-  onUploadSuccess?: () => void;
   onCancel: () => void;
+  onUploadSuccess?: () => void;
 }
 
 const uploadFileToBlossom = async (
@@ -56,7 +56,7 @@ const uploadFileToBlossom = async (
   uploadBlob: Blob,
   serverApiUrl: string,
   fileHash: string,
-): Promise<{ url: string; hash: string; mimeType: string }> => {
+): Promise<{ hash: string; mimeType: string; url: string }> => {
   const controlEvent = new NDKEvent(ndk!);
   controlEvent.kind = 24242 as NDKKind;
   controlEvent.created_at = Math.floor(Date.now() / 1000);
@@ -84,9 +84,9 @@ const uploadFileToBlossom = async (
   console.log(`Attempting PUT to ${putUrl} with auth header...`);
   try {
     const response = await fetch(putUrl, {
-      method: "PUT",
-      headers: { Authorization: authHeader, "Content-Type": uploadBlob.type },
       body: uploadBlob,
+      headers: { Authorization: authHeader, "Content-Type": uploadBlob.type },
+      method: "PUT",
     });
     if (!response.ok) {
       let errorBody = "";
@@ -121,7 +121,7 @@ const uploadFileToBlossom = async (
       responseUrl = `${serverApiUrl.replace(/\/$/, "")}/${fileHashFromTag}`;
       responseHash = fileHashFromTag;
     }
-    return { url: responseUrl, hash: responseHash, mimeType: uploadBlob.type };
+    return { hash: responseHash, mimeType: uploadBlob.type, url: responseUrl };
   } catch (error: any) {
     console.error("uploadFileToBlossom fetch/processing error:", error);
     throw new Error(`${error.message || "Upload PUT request failed"}`);
@@ -130,21 +130,21 @@ const uploadFileToBlossom = async (
 
 export const UploadForm: React.FC<UploadFormProps> = ({
   initialFile,
-  onUploadSuccess,
   onCancel,
+  onUploadSuccess,
 }) => {
   const { ndk, signer, user } = useNdk();
-  const [processedData, setProcessedData] = useState<ProcessedImageData | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [processedData, setProcessedData] = useState<null | ProcessedImageData>(null);
+  const [previewUrl, setPreviewUrl] = useState<null | string>(null);
   const [description, setDescription] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [addLocation, setAddLocation] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState<{
+  const [currentLocation, setCurrentLocation] = useState<null | {
+    geohash: string;
     lat: number;
     lon: number;
-    geohash: string;
-  } | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
+  }>(null);
+  const [locationError, setLocationError] = useState<null | string>(null);
   const [addContentWarning, setAddContentWarning] = useState(false);
   const [contentWarningReason, setContentWarningReason] = useState("");
   const [selectedServerApiUrl, setSelectedServerApiUrl] = useState<string>(
@@ -203,7 +203,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
           (p) => {
             const { latitude: lt, longitude: ln } = p.coords;
             const g = generateGeohash(lt, ln);
-            if (g) setCurrentLocation({ lat: lt, lon: ln, geohash: g });
+            if (g) setCurrentLocation({ geohash: g, lat: lt, lon: ln });
             else setAddLocation(false);
             setLocationError(null);
           },
@@ -256,9 +256,9 @@ export const UploadForm: React.FC<UploadFormProps> = ({
                   const hash = await calculateSha256(blob);
                   resolve({
                     blob,
-                    hash,
                     blurhash: calculatedBlurhash,
-                    dimensions: { width: canvas.width, height: canvas.height },
+                    dimensions: { height: canvas.height, width: canvas.width },
+                    hash,
                   });
                 } catch (hashError: any) {
                   reject(new Error(`Hashing failed: ${hashError.message}`));
@@ -349,9 +349,9 @@ export const UploadForm: React.FC<UploadFormProps> = ({
       const processToastId = toast.loading(`Starting upload to ${server.name}...`);
       const {
         blob: processedBlob,
-        hash: fileHash,
         blurhash: calculatedBlurhash,
         dimensions: calculatedDimensions,
+        hash: fileHash,
       } = processedData;
       try {
         setIsUploading(true);
@@ -365,7 +365,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({
         );
         setIsUploading(false);
         setIsPublishing(true);
-        const { url: imageUrl, hash: imageHashRes, mimeType } = uploadResult;
+        const { hash: imageHashRes, mimeType, url: imageUrl } = uploadResult;
         toast.loading("Publishing post...", { id: processToastId });
         const kind20Event = new NDKEvent(ndk!);
         kind20Event.kind = 20 as NDKKind;
@@ -411,8 +411,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({
       } catch (err: any) {
         console.error("Submit Error:", err);
         toast.error(`Error: ${err.message || "Unknown error"}`, {
-          id: processToastId,
           duration: 5000,
+          id: processToastId,
         });
       } finally {
         setIsUploading(false);
@@ -448,10 +448,10 @@ export const UploadForm: React.FC<UploadFormProps> = ({
     return (
       <Box
         sx={{
-          p: 2,
+          alignItems: "center",
           display: "flex",
           justifyContent: "center",
-          alignItems: "center",
+          p: 2,
         }}
       >
         <CircularProgress />
@@ -481,12 +481,12 @@ export const UploadForm: React.FC<UploadFormProps> = ({
       {previewUrl && (
         <Box sx={{ mb: 2, textAlign: "center" }}>
           <img
-            src={previewUrl}
             alt="Selected preview"
+            src={previewUrl}
             style={{
-              maxWidth: "200px",
-              maxHeight: "200px",
               border: "1px solid #ccc",
+              maxHeight: "200px",
+              maxWidth: "200px",
               objectFit: "contain",
             }}
           />
@@ -494,40 +494,40 @@ export const UploadForm: React.FC<UploadFormProps> = ({
       )}
 
       <TextField
+        disabled={isProcessingOverall}
+        fullWidth
         id="description"
         label="Description / Alt Text *"
-        multiline
-        rows={3}
-        fullWidth
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        disabled={isProcessingOverall}
-        required
         margin="normal"
+        multiline
+        onChange={(e) => setDescription(e.target.value)}
+        required
+        rows={3}
+        value={description}
       />
       <TextField
+        disabled={isProcessingOverall}
+        fullWidth
+        helperText="e.g., nostr awesome pics"
         id="hashtags"
         label="Hashtags (space separated)"
-        fullWidth
-        value={hashtags}
-        onChange={(e) => setHashtags(e.target.value)}
-        disabled={isProcessingOverall}
         margin="normal"
-        helperText="e.g., nostr awesome pics"
+        onChange={(e) => setHashtags(e.target.value)}
+        value={hashtags}
       />
       <FormControlLabel
         control={
           <Checkbox
             checked={addLocation}
-            onChange={handleLocationToggle}
             disabled={isProcessingOverall}
+            onChange={handleLocationToggle}
           />
         }
         label="Add Location (Geohash)"
         sx={{ display: "block", mt: 1 }}
       />
       {addLocation && currentLocation && (
-        <Typography variant="caption" color="text.secondary" sx={{ ml: 4 }}>
+        <Typography color="text.secondary" sx={{ ml: 4 }} variant="caption">
           📍 Acquired: {currentLocation.geohash}
         </Typography>
       )}
@@ -540,8 +540,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({
         control={
           <Checkbox
             checked={addContentWarning}
-            onChange={(e) => setAddContentWarning(e.target.checked)}
             disabled={isProcessingOverall}
+            onChange={(e) => setAddContentWarning(e.target.checked)}
           />
         }
         label="Add Content Warning"
@@ -549,25 +549,25 @@ export const UploadForm: React.FC<UploadFormProps> = ({
       />
       {addContentWarning && (
         <TextField
+          disabled={isProcessingOverall}
+          fullWidth
           id="contentWarningReason"
           label="Content Warning Reason *"
-          fullWidth
-          value={contentWarningReason}
-          onChange={(e) => setContentWarningReason(e.target.value)}
-          disabled={isProcessingOverall}
-          required={addContentWarning}
           margin="normal"
+          onChange={(e) => setContentWarningReason(e.target.value)}
+          required={addContentWarning}
           size="small"
+          value={contentWarningReason}
         />
       )}
-      <FormControl fullWidth margin="normal" disabled={isProcessingOverall}>
+      <FormControl disabled={isProcessingOverall} fullWidth margin="normal">
         <InputLabel id="server-select-label">Blossom Server</InputLabel>
         <Select
-          labelId="server-select-label"
           id="serverSelect"
-          value={selectedServerApiUrl}
           label="Blossom Server"
+          labelId="server-select-label"
           onChange={handleServerSelectChangeMUI}
+          value={selectedServerApiUrl}
         >
           {BLOSSOM_SERVERS.map((server) => (
             <MenuItem key={server.apiUrl} value={server.apiUrl}>
@@ -578,35 +578,35 @@ export const UploadForm: React.FC<UploadFormProps> = ({
         </Select>
         <Box
           sx={{
+            alignItems: "center",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
             mt: 1,
           }}
         >
-          <Typography variant="caption" color="text.secondary">
+          <Typography color="text.secondary" variant="caption">
             {" "}
             Current default:{" "}
             {BLOSSOM_SERVERS.find(
               (s) => s.apiUrl === localStorage.getItem(LOCAL_STORAGE_BLOSSOM_SERVER_URL_KEY),
             )?.name || "None Set"}{" "}
           </Typography>
-          <Button size="small" onClick={handleSetDefault} disabled={isProcessingOverall}>
+          <Button disabled={isProcessingOverall} onClick={handleSetDefault} size="small">
             Set as Default
           </Button>
         </Box>
       </FormControl>
-      <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end", gap: 1 }}>
-        <Button onClick={onCancel} disabled={isProcessingOverall} variant="outlined">
+      <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end", mt: 3 }}>
+        <Button disabled={isProcessingOverall} onClick={onCancel} variant="outlined">
           Cancel
         </Button>
         <Button
-          type="submit"
-          variant="contained"
           disabled={isProcessingOverall || !processedData}
           startIcon={
-            isUploading || isPublishing ? <CircularProgress size={20} color="inherit" /> : null
+            isUploading || isPublishing ? <CircularProgress color="inherit" size={20} /> : null
           }
+          type="submit"
+          variant="contained"
         >
           {buttonText}
         </Button>

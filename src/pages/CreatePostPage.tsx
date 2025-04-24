@@ -1,31 +1,31 @@
-// src/pages/CreatePostPage.tsx
-import React, {
-  useState,
-  useEffect,
-  ChangeEvent,
-  FormEvent,
-  //useCallback,
-  //useMemo,
-} from "react";
 import {
+  Alert,
   Box,
-  Typography,
-  Container,
-  TextField,
   Button,
-  Switch,
-  FormControlLabel,
   Card,
   CardMedia,
   CircularProgress,
-  Alert,
+  Container,
+  FormControlLabel,
+  Switch,
+  TextField,
+  Typography,
 } from "@mui/material";
-import { useNdk } from "../contexts/NdkContext";
-import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
 // We will need ngeohash later if geolocation is enabled
 // import ngeohash from 'ngeohash';
 import { NDKEvent } from "@nostr-dev-kit/ndk"; // Import NDKEvent
+// src/pages/CreatePostPage.tsx
+import React, {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useState,
+  //useCallback,
+  //useMemo,
+} from "react";
+import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import { useNdk } from "../contexts/NdkContext";
 
 // Helper function to convert ArrayBuffer to Hex String
 const bufferToHex = (buffer: ArrayBuffer): string => {
@@ -35,7 +35,7 @@ const bufferToHex = (buffer: ArrayBuffer): string => {
 };
 
 export const CreatePostPage: React.FC = () => {
-  const { ndk, user, signer } = useNdk();
+  const { ndk, signer, user } = useNdk();
   const navigate = useNavigate();
 
   // Form State
@@ -51,7 +51,7 @@ export const CreatePostPage: React.FC = () => {
   // Interaction State
   const [isLoading, setIsLoading] = useState(false); // General loading for hashing/submitting
   const [isUploading, setIsUploading] = useState(false); // Specific loading for upload process
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<null | string>(null);
   const [blossomServerUrl, setBlossomServerUrl] = useState<string>("https://blossom.band"); // Default
 
   // Get Blossom server URL from settings on mount
@@ -146,12 +146,12 @@ export const CreatePostPage: React.FC = () => {
     const uploadToastId = toast.loading("Preparing uploads...");
 
     const uploadedImageData: {
-      url: string;
-      type: string;
+      dim?: string;
+      ox?: string;
       sha256: string;
       size: string;
-      ox?: string;
-      dim?: string;
+      type: string;
+      url: string;
     }[] = [];
     const uploadErrors: string[] = [];
 
@@ -201,13 +201,13 @@ export const CreatePostPage: React.FC = () => {
           : blossomServerUrl + "/upload";
         console.log(`Performing HEAD request for ${file.name}...`);
         const headResponse = await fetch(uploadUrl, {
-          method: "HEAD",
           headers: {
             Authorization: authHeader,
-            "X-Content-Type": file.type,
             "X-Content-Length": file.size.toString(),
+            "X-Content-Type": file.type,
             "X-SHA-256": fileHash,
           },
+          method: "HEAD",
         });
         if (!headResponse.ok) {
           let reason =
@@ -222,13 +222,13 @@ export const CreatePostPage: React.FC = () => {
         console.log(`Uploading ${file.name} via PUT...`);
         const fileBuffer = await file.arrayBuffer();
         const putResponse = await fetch(uploadUrl, {
-          method: "PUT",
+          body: fileBuffer,
           headers: {
             Authorization: authHeader,
-            "Content-Type": file.type,
             "Content-Length": file.size.toString(),
+            "Content-Type": file.type,
           },
-          body: fileBuffer,
+          method: "PUT",
         });
         if (!putResponse.ok) {
           let errorMsg = `Upload failed for ${file.name} (${putResponse.status})`;
@@ -251,12 +251,12 @@ export const CreatePostPage: React.FC = () => {
           console.warn(`Server/Client hash mismatch for ${file.name}. Using client hash.`);
         }
         uploadedImageData.push({
-          url: uploadResult.url,
-          type: uploadResult.type,
+          dim: uploadResult.dim,
+          ox: uploadResult.ox,
           sha256: fileHash,
           size: uploadResult.size ? uploadResult.size.toString() : file.size.toString(),
-          ox: uploadResult.ox,
-          dim: uploadResult.dim,
+          type: uploadResult.type,
+          url: uploadResult.url,
         });
       }
 
@@ -267,7 +267,7 @@ export const CreatePostPage: React.FC = () => {
       toast.loading("Creating post...", { id: uploadToastId });
 
       // 6. Get Geolocation if enabled (TODO)
-      let geohashTag: string[] | null = null;
+      let geohashTag: null | string[] = null;
       if (isGeoEnabled) {
         console.warn("Geolocation fetching not yet implemented.");
       }
@@ -354,13 +354,13 @@ export const CreatePostPage: React.FC = () => {
   // --- End handleSubmit ---
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="sm" sx={{ mb: 4, mt: 4 }}>
       <Box
         component="form"
         onSubmit={handleSubmit}
-        sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+        sx={{ alignItems: "center", display: "flex", flexDirection: "column" }}
       >
-        <Typography component="h1" variant="h5" gutterBottom>
+        <Typography component="h1" gutterBottom variant="h5">
           Create New Post
         </Typography>
 
@@ -371,25 +371,25 @@ export const CreatePostPage: React.FC = () => {
               display: "flex",
               flexWrap: "wrap",
               gap: 2,
+              justifyContent: "center",
               mb: 2,
               width: "100%",
-              justifyContent: "center",
             }}
           >
             {previewUrls.map((url, index) => (
               <Card
                 key={index}
                 sx={{
-                  width: 100,
                   height: 100,
                   position: "relative",
+                  width: 100,
                 }}
               >
                 <CardMedia
+                  alt={`Image preview ${index + 1}`}
                   component="img"
                   image={url}
-                  alt={`Image preview ${index + 1}`}
-                  sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  sx={{ height: "100%", objectFit: "cover", width: "100%" }}
                 />
                 {/* Optionally add a remove button for each preview */}
               </Card>
@@ -399,44 +399,44 @@ export const CreatePostPage: React.FC = () => {
 
         {/* Image Upload Button */}
         <Button
-          variant="contained"
           component="label"
           disabled={isLoading || isUploading}
           sx={{ mb: 2 }}
+          variant="contained"
         >
           {previewUrls.length > 0 ? "Change/Add Images" : "Select Images"}
           <input
-            type="file"
-            hidden
             accept="image/*"
-            onChange={handleFileChange}
+            hidden
             multiple // Allow multiple file selection
+            onChange={handleFileChange}
+            type="file"
           />
         </Button>
 
         {/* Description */}
         <TextField
-          label="Description (Alt Text)"
-          variant="outlined"
+          disabled={isUploading}
           fullWidth
+          label="Description (Alt Text)"
           multiline
-          rows={3}
-          value={description}
           onChange={(e) => setDescription(e.target.value)}
           required // Alt text is important
-          disabled={isUploading}
+          rows={3}
           sx={{ mb: 2 }}
+          value={description}
+          variant="outlined"
         />
 
         {/* Hashtags */}
         <TextField
-          label="Hashtags (space or comma separated)"
-          variant="outlined"
-          fullWidth
-          value={hashtags}
-          onChange={(e) => setHashtags(e.target.value)}
           disabled={isUploading}
+          fullWidth
+          label="Hashtags (space or comma separated)"
+          onChange={(e) => setHashtags(e.target.value)}
           sx={{ mb: 2 }}
+          value={hashtags}
+          variant="outlined"
         />
 
         {/* Geolocation Toggle */}
@@ -444,8 +444,8 @@ export const CreatePostPage: React.FC = () => {
           control={
             <Switch
               checked={isGeoEnabled}
-              onChange={(e) => setIsGeoEnabled(e.target.checked)}
               disabled={isUploading}
+              onChange={(e) => setIsGeoEnabled(e.target.checked)}
             />
           }
           label="Add Geolocation (Requires browser permission)"
@@ -457,8 +457,8 @@ export const CreatePostPage: React.FC = () => {
           control={
             <Switch
               checked={isContentWarningEnabled}
-              onChange={(e) => setIsContentWarningEnabled(e.target.checked)}
               disabled={isUploading}
+              onChange={(e) => setIsContentWarningEnabled(e.target.checked)}
             />
           }
           label="Add Content Warning"
@@ -468,28 +468,26 @@ export const CreatePostPage: React.FC = () => {
         {/* Content Warning Reason */}
         {isContentWarningEnabled && (
           <TextField
-            label="Content Warning Reason (optional)"
-            variant="outlined"
-            fullWidth
-            size="small"
-            value={contentWarningReason}
-            onChange={(e) => setContentWarningReason(e.target.value)}
             disabled={isUploading}
+            fullWidth
+            label="Content Warning Reason (optional)"
+            onChange={(e) => setContentWarningReason(e.target.value)}
+            size="small"
             sx={{ mb: 2, mt: 1 }}
+            value={contentWarningReason}
+            variant="outlined"
           />
         )}
 
         {/* Error Message */}
         {uploadError && (
-          <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
+          <Alert severity="error" sx={{ mb: 2, width: "100%" }}>
             {uploadError}
           </Alert>
         )}
 
         {/* Submit Button */}
         <Button
-          type="submit"
-          variant="contained"
           color="primary"
           disabled={
             isLoading ||
@@ -499,8 +497,10 @@ export const CreatePostPage: React.FC = () => {
           }
           fullWidth
           sx={{ mb: 2 }}
+          type="submit"
+          variant="contained"
         >
-          {isUploading ? <CircularProgress size={24} color="inherit" /> : "Create Post"}
+          {isUploading ? <CircularProgress color="inherit" size={24} /> : "Create Post"}
         </Button>
       </Box>
     </Container>

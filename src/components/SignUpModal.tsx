@@ -1,28 +1,28 @@
-// src/components/SignUpModal.tsx
-// FIX 1: Removed unused React import
-import { useState, useEffect, useCallback } from "react";
-// Only import getPublicKey and nip19 from nostr-tools
-import { getPublicKey, nip19 } from "nostr-tools";
-import { useNdk } from "../contexts/NdkContext";
+import CloseIcon from "@mui/icons-material/Close";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import Alert from "@mui/material/Alert";
 // MUI Imports
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import Modal from "@mui/material/Modal";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import Alert from "@mui/material/Alert";
-import Modal from "@mui/material/Modal";
-import IconButton from "@mui/material/IconButton";
-import CloseIcon from "@mui/icons-material/Close";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import CircularProgress from "@mui/material/CircularProgress";
+// Only import getPublicKey and nip19 from nostr-tools
+import { getPublicKey, nip19 } from "nostr-tools";
+// src/components/SignUpModal.tsx
+// FIX 1: Removed unused React import
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useNdk } from "../contexts/NdkContext";
 
 interface SignUpModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-export function SignUpModal({ open, onClose }: SignUpModalProps) {
+export function SignUpModal({ onClose, open }: SignUpModalProps) {
   const { loginWithNsec } = useNdk();
   const [nsec, setNsec] = useState("");
   const [npub, setNpub] = useState("");
@@ -104,31 +104,31 @@ export function SignUpModal({ open, onClose }: SignUpModalProps) {
   }, [loginWithNsec, onClose, nsec]);
 
   return (
-    <Modal open={open} onClose={onClose} aria-labelledby="signup-modal-title">
+    <Modal aria-labelledby="signup-modal-title" onClose={onClose} open={open}>
       <Box
         sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: { xs: "90%", sm: 500 },
           bgcolor: "background.paper",
           border: "1px solid #ccc",
-          boxShadow: 24,
-          p: { xs: 2, sm: 3 },
           borderRadius: 2,
+          boxShadow: 24,
+          left: "50%",
           outline: "none",
+          p: { sm: 3, xs: 2 },
+          position: "absolute",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          width: { sm: 500, xs: "90%" },
         }}
       >
         <Box
           sx={{
+            alignItems: "center",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
             mb: 2,
           }}
         >
-          <Typography id="signup-modal-title" variant="h6" component="h2">
+          <Typography component="h2" id="signup-modal-title" variant="h6">
             {" "}
             Generate New Keys{" "}
           </Typography>
@@ -140,9 +140,9 @@ export function SignUpModal({ open, onClose }: SignUpModalProps) {
         {isGenerating && (
           <Box
             sx={{
+              alignItems: "center",
               display: "flex",
               justifyContent: "center",
-              alignItems: "center",
               p: 3,
             }}
           >
@@ -153,7 +153,7 @@ export function SignUpModal({ open, onClose }: SignUpModalProps) {
 
         {!isGenerating && !generated && (
           // Show button only if explicitly not generated and not generating
-          <Button onClick={generateKeys} variant="contained" disabled={isGenerating}>
+          <Button disabled={isGenerating} onClick={generateKeys} variant="contained">
             Generate Keys
           </Button>
         )}
@@ -165,66 +165,66 @@ export function SignUpModal({ open, onClose }: SignUpModalProps) {
               you lose it, you lose access to your account. **Do not share it with anyone.**
             </Alert>
             <TextField
-              label="Public Key (npub)"
-              value={npub}
-              fullWidth
-              margin="normal"
-              variant="outlined"
-              size="small"
               InputProps={{
-                readOnly: true,
                 endAdornment: (
                   <IconButton
-                    onClick={() => copyToClipboard(npub, "Public Key")}
                     edge="end"
+                    onClick={() => copyToClipboard(npub, "Public Key")}
                     title="Copy Public Key"
                   >
                     <ContentCopyIcon fontSize="small" />
                   </IconButton>
                 ),
+                readOnly: true,
               }}
+              fullWidth
               helperText="Share this publicly. Others use it to find you."
+              label="Public Key (npub)"
+              margin="normal"
+              size="small"
+              value={npub}
+              variant="outlined"
             />
             <TextField
-              label="Secret Key (nsec)"
-              type="password" // Mask the key
-              value={nsec}
-              fullWidth
-              margin="normal"
-              variant="outlined"
-              size="small"
               InputProps={{
-                readOnly: true,
                 endAdornment: (
                   <IconButton
-                    onClick={() => copyToClipboard(nsec, "Secret Key")}
                     edge="end"
+                    onClick={() => copyToClipboard(nsec, "Secret Key")}
                     title="Copy Secret Key"
                   >
                     <ContentCopyIcon fontSize="small" />
                   </IconButton>
                 ),
+                readOnly: true,
               }}
+              fullWidth
               helperText="KEEP THIS SECRET! Needed to log in."
+              label="Secret Key (nsec)"
+              margin="normal"
+              size="small"
               sx={{ mb: 2 }}
+              type="password" // Mask the key
+              value={nsec}
+              variant="outlined"
             />
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+            <Box sx={{ display: "flex", gap: 1, justifyContent: "space-between" }}>
               <Button
-                onClick={handleLoginWithGeneratedKey}
-                variant="contained"
                 color="primary"
                 disabled={isLoggingIn || isGenerating}
+                onClick={handleLoginWithGeneratedKey}
+                variant="contained"
               >
                 {isLoggingIn ? (
-                  <CircularProgress size={24} color="inherit" />
+                  <CircularProgress color="inherit" size={24} />
                 ) : (
                   "Login with this New Key"
                 )}
               </Button>
               <Button
+                disabled={isLoggingIn || isGenerating}
                 onClick={generateKeys}
                 variant="outlined"
-                disabled={isLoggingIn || isGenerating}
               >
                 Regenerate
               </Button>

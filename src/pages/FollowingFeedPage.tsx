@@ -1,22 +1,22 @@
-// /home/raven/zappix/src/pages/FollowingFeedPage.tsx
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useNdk } from "../contexts/NdkContext";
-import { useLocation, useNavigate } from "react-router-dom"; // Added imports
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Tab from "@mui/material/Tab"; // Add Tab import
+import Tabs from "@mui/material/Tabs"; // Add Tabs import
+import Typography from "@mui/material/Typography";
 import {
   NDKEvent,
   NDKFilter,
-  NDKSubscription,
   NDKKind,
+  NDKSubscription,
   NDKSubscriptionCacheUsage,
 } from "@nostr-dev-kit/ndk";
-import { ImagePost } from "../components/ImagePost";
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
-import Alert from "@mui/material/Alert";
-import Tabs from "@mui/material/Tabs"; // Add Tabs import
-import Tab from "@mui/material/Tab"; // Add Tab import
+// /home/raven/zappix/src/pages/FollowingFeedPage.tsx
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { useLocation, useNavigate } from "react-router-dom"; // Added imports
+import { ImagePost } from "../components/ImagePost";
+import { useNdk } from "../contexts/NdkContext";
 import useIntersectionObserver from "../hooks/useIntersectionObserver";
 
 const IMAGE_POST_KIND: NDKKind = 20;
@@ -31,12 +31,12 @@ export const FollowingFeedPage: React.FC = () => {
   const [notes, setNotes] = useState<NDKEvent[]>([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [lastEventTimestamp, setLastEventTimestamp] = useState<number | undefined>(undefined);
-  const [followedPubkeys, setFollowedPubkeys] = useState<string[] | null>(null); // null = not loaded yet
-  const [error, setError] = useState<string | null>(null);
+  const [lastEventTimestamp, setLastEventTimestamp] = useState<undefined | number>(undefined);
+  const [followedPubkeys, setFollowedPubkeys] = useState<null | string[]>(null); // null = not loaded yet
+  const [error, setError] = useState<null | string>(null);
   const [canLoadMore, setCanLoadMore] = useState<boolean>(true);
-  const subscriptionRef = useRef<NDKSubscription | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const subscriptionRef = useRef<null | NDKSubscription>(null);
+  const loadMoreRef = useRef<null | HTMLDivElement>(null);
   const isMounted = useRef(false);
   const receivedEventIds = useRef(new Set<string>());
 
@@ -62,8 +62,8 @@ export const FollowingFeedPage: React.FC = () => {
     const fetchFollows = async () => {
       try {
         const filter: NDKFilter = {
-          kinds: [CONTACT_LIST_KIND],
           authors: [user.pubkey],
+          kinds: [CONTACT_LIST_KIND],
           limit: 1,
         };
         const contactListEvent = await ndk.fetchEvent(filter, {
@@ -110,8 +110,8 @@ export const FollowingFeedPage: React.FC = () => {
     receivedEventIds.current.clear();
 
     const filter: NDKFilter = {
-      kinds: [IMAGE_POST_KIND], // Fetch kind 20 posts from followed authors
       authors: followedPubkeys,
+      kinds: [IMAGE_POST_KIND], // Fetch kind 20 posts from followed authors
       limit: BATCH_SIZE,
     };
     const sub = ndk.subscribe(filter, { closeOnEose: true });
@@ -172,8 +172,8 @@ export const FollowingFeedPage: React.FC = () => {
     setError(null);
 
     const filter: NDKFilter = {
-      kinds: [IMAGE_POST_KIND as NDKKind],
       authors: followedPubkeys,
+      kinds: [IMAGE_POST_KIND as NDKKind],
       limit: BATCH_SIZE,
       until: lastEventTimestamp,
     };
@@ -226,8 +226,6 @@ export const FollowingFeedPage: React.FC = () => {
 
   // --- Effect 4: Setup Intersection Observer ---
   useIntersectionObserver({
-    target: loadMoreRef,
-    onIntersect: loadMoreFollowing,
     enabled:
       !isLoadingFeed &&
       !isFetchingMore &&
@@ -235,6 +233,8 @@ export const FollowingFeedPage: React.FC = () => {
       lastEventTimestamp !== undefined &&
       followedPubkeys !== null &&
       followedPubkeys.length > 0,
+    onIntersect: loadMoreFollowing,
+    target: loadMoreRef,
   });
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
@@ -245,42 +245,42 @@ export const FollowingFeedPage: React.FC = () => {
   return (
     <>
       {/* Feed Selection Tabs */}
-      <Box sx={{ width: "100%", borderBottom: 1, borderColor: "divider", mb: 2 }}>
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2, width: "100%" }}>
         <Tabs
-          value={location.pathname} // Use location to determine active tab
-          onChange={handleTabChange}
           aria-label="feed selection tabs"
+          onChange={handleTabChange}
+          value={location.pathname} // Use location to determine active tab
           variant="fullWidth"
         >
           <Tab
             label="Global"
-            value="/"
             sx={{
+              fontSize: { sm: "0.875rem", xs: "0.75rem" },
               minWidth: "auto",
-              px: { xs: 1, sm: 2 },
-              fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              px: { sm: 2, xs: 1 },
             }}
+            value="/"
           />
           {user && (
             <Tab
               label="Following"
-              value="/following"
               sx={{
+                fontSize: { sm: "0.875rem", xs: "0.75rem" },
                 minWidth: "auto",
-                px: { xs: 1, sm: 2 },
-                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                px: { sm: 2, xs: 1 },
               }}
+              value="/following"
             />
           )}
           {user && (
             <Tab
               label="Local"
-              value="/local"
               sx={{
+                fontSize: { sm: "0.875rem", xs: "0.75rem" },
                 minWidth: "auto",
-                px: { xs: 1, sm: 2 },
-                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                px: { sm: 2, xs: 1 },
               }}
+              value="/local"
             />
           )}
         </Tabs>
@@ -291,7 +291,7 @@ export const FollowingFeedPage: React.FC = () => {
         sx={{
           display: "flex",
           flexDirection: "column",
-          gap: { xs: 2, sm: 3 },
+          gap: { sm: 3, xs: 2 },
           mt: 2,
         }}
       >
@@ -311,7 +311,7 @@ export const FollowingFeedPage: React.FC = () => {
         )}
 
         {!user && !isLoadingFeed && (
-          <Typography sx={{ textAlign: "center", p: 3, color: "text.secondary" }}>
+          <Typography sx={{ color: "text.secondary", p: 3, textAlign: "center" }}>
             Please log in to see your following feed.
           </Typography>
         )}
@@ -319,11 +319,11 @@ export const FollowingFeedPage: React.FC = () => {
           <Typography
             noWrap={false}
             sx={{
-              textAlign: "center",
-              p: 3,
               color: "text.secondary",
-              wordBreak: "break-word",
               overflowWrap: "break-word",
+              p: 3,
+              textAlign: "center",
+              wordBreak: "break-word",
             }}
           >
             You aren't following anyone yet. Find users to follow!
@@ -334,7 +334,7 @@ export const FollowingFeedPage: React.FC = () => {
           user &&
           notes.map((note) => (
             // Render ImagePost directly, relying on its internal styles
-            <ImagePost key={note.id} event={note} />
+            <ImagePost event={note} key={note.id} />
           ))}
 
         {user &&
@@ -343,7 +343,7 @@ export const FollowingFeedPage: React.FC = () => {
           followedPubkeys &&
           followedPubkeys.length > 0 &&
           notes.length === 0 && (
-            <Typography sx={{ textAlign: "center", p: 3, color: "text.secondary" }}>
+            <Typography sx={{ color: "text.secondary", p: 3, textAlign: "center" }}>
               No image posts found from the people you follow yet.
             </Typography>
           )}

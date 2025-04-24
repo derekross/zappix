@@ -1,11 +1,11 @@
-// src/components/MarkdownContent.tsx
-import React, { useState, useEffect } from "react"; // Added hooks
-import ReactMarkdown, { Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Link, Typography, Skeleton, Tooltip } from "@mui/material"; // Added Skeleton, Tooltip
-import { Link as RouterLink } from "react-router-dom"; // v6
+import { Link, Skeleton, Tooltip, Typography } from "@mui/material"; // Added Skeleton, Tooltip
+import { NDKSubscriptionCacheUsage, NDKUserProfile } from "@nostr-dev-kit/ndk"; // Import NDK types
 import { nip19 } from "nostr-tools"; // Import nip19
-import { NDKUserProfile, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk"; // Import NDK types
+// src/components/MarkdownContent.tsx
+import React, { useEffect, useState } from "react"; // Added hooks
+import ReactMarkdown, { Components } from "react-markdown";
+import { Link as RouterLink } from "react-router-dom"; // v6
+import remarkGfm from "remark-gfm";
 import { useNdk } from "../contexts/NdkContext"; // Import useNdk hook
 
 interface MarkdownContentProps {
@@ -19,7 +19,7 @@ interface NostrMentionProps {
 
 const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
   const { ndk } = useNdk();
-  const [, setProfile] = useState<NDKUserProfile | null>(null);
+  const [, setProfile] = useState<null | NDKUserProfile>(null);
   const [displayName, setDisplayName] = useState<string>("");
   const [npub, setNpub] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -28,7 +28,7 @@ const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
 
   useEffect(() => {
     let decodedType = "";
-    let decodedData: string | object = ""; // Can be string (pubkey/id) or object (nprofile/nevent)
+    let decodedData: object | string = ""; // Can be string (pubkey/id) or object (nprofile/nevent)
 
     try {
       // Remove "nostr:" prefix if present
@@ -100,15 +100,15 @@ const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
 
   if (isLoading) {
     return (
-      <Skeleton variant="text" width={80} sx={{ display: "inline-block", ml: 0.5, mr: 0.5 }} />
+      <Skeleton sx={{ display: "inline-block", ml: 0.5, mr: 0.5 }} variant="text" width={80} />
     );
   }
 
   if (isValidNostrUri && targetPath !== "#") {
     // Use Tooltip to show full npub/note ID on hover
     return (
-      <Tooltip title={npub || uri} placement="top">
-        <Link component={RouterLink} to={targetPath} sx={{ fontWeight: "medium" }}>
+      <Tooltip placement="top" title={npub || uri}>
+        <Link component={RouterLink} sx={{ fontWeight: "medium" }} to={targetPath}>
           @{displayName}
         </Link>
       </Tooltip>
@@ -128,7 +128,7 @@ type CustomAnchorRenderer = React.FC<
 export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => {
   const { ndk } = useNdk(); // NDK needed for NostrMention
 
-  const LinkRenderer: CustomAnchorRenderer = ({ node, children, href, ...props }) => {
+  const LinkRenderer: CustomAnchorRenderer = ({ children, href, node, ...props }) => {
     const targetHref = href || "";
 
     // Check for nostr: URI first
@@ -155,7 +155,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
     // External links
     else {
       return (
-        <Link href={targetHref} target="_blank" rel="noopener noreferrer" title={props.title}>
+        <Link href={targetHref} rel="noopener noreferrer" target="_blank" title={props.title}>
           {children}
         </Link>
       );
@@ -170,15 +170,15 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
   // Prevent rendering if NDK is not yet available, as NostrMention needs it
   if (!ndk) {
     return (
-      <Typography component="div" variant="body1" sx={{ wordBreak: "break-word" }}>
+      <Typography component="div" sx={{ wordBreak: "break-word" }} variant="body1">
         {content}
       </Typography>
     ); // Render plain text or skeleton
   }
 
   return (
-    <Typography component="div" variant="body1" sx={{ wordBreak: "break-word" }}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+    <Typography component="div" sx={{ wordBreak: "break-word" }} variant="body1">
+      <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
         {content}
       </ReactMarkdown>
     </Typography>

@@ -1,20 +1,10 @@
-import { ThemeOptions } from "@mui/material/styles";
-import { deepPurple, pink } from "@mui/material/colors";
 import { PaletteMode } from "@mui/material";
+import { deepPurple, pink } from "@mui/material/colors";
+import { ThemeOptions } from "@mui/material/styles";
 
 // Function to create the theme based on the mode
 export const createAppTheme = (mode: PaletteMode): ThemeOptions => ({
   palette: {
-    mode, // Set the mode ('light' or 'dark')
-    primary: {
-      // Use purple as primary
-      main: deepPurple[500],
-      light: deepPurple[300],
-      dark: deepPurple[700],
-    },
-    secondary: {
-      main: pink[500], // Keep pink as secondary or choose another
-    },
     background:
       mode === "dark"
         ? {
@@ -27,6 +17,16 @@ export const createAppTheme = (mode: PaletteMode): ThemeOptions => ({
             default: "#fafafa", // Slightly off-white
             paper: "#ffffff",
           },
+    mode, // Set the mode ('light' or 'dark')
+    primary: {
+      // Use purple as primary
+      dark: deepPurple[700],
+      light: deepPurple[300],
+      main: deepPurple[500],
+    },
+    secondary: {
+      main: pink[500], // Keep pink as secondary or choose another
+    },
   },
   typography: {
     // Define any typography customizations here

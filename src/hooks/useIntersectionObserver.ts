@@ -1,22 +1,22 @@
 // src/hooks/useIntersectionObserver.ts
-import { useEffect, RefObject } from "react";
+import { RefObject, useEffect } from "react";
 
 interface UseIntersectionObserverOptions {
-  target: RefObject<Element | null>;
-  onIntersect: () => void;
   enabled?: boolean;
-  threshold?: number | number[];
-  root?: Element | null;
+  root?: null | Element;
   rootMargin?: string;
+  target: RefObject<null | Element>;
+  threshold?: number | number[];
+  onIntersect: () => void;
 }
 
 function useIntersectionObserver({
-  target,
-  onIntersect,
   enabled = true,
-  threshold = 0.1,
+  onIntersect,
   root = null,
   rootMargin = "0px",
+  target,
+  threshold = 0.1,
 }: UseIntersectionObserverOptions): void {
   useEffect(() => {
     if (!enabled) {

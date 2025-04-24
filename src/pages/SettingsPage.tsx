@@ -1,51 +1,51 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useNdk } from "../contexts/NdkContext";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import RestoreIcon from "@mui/icons-material/Restore";
+import SaveIcon from "@mui/icons-material/Save";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
+import FormControl from "@mui/material/FormControl";
+import Grid from "@mui/material/Grid"; // Standard Grid import
+import IconButton from "@mui/material/IconButton";
+import InputLabel from "@mui/material/InputLabel";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
-import IconButton from "@mui/material/IconButton";
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
-import SaveIcon from "@mui/icons-material/Save";
-import RestoreIcon from "@mui/icons-material/Restore";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import Paper from "@mui/material/Paper";
-import toast from "react-hot-toast";
-import CircularProgress from "@mui/material/CircularProgress";
-import Alert from "@mui/material/Alert";
-import Grid from "@mui/material/Grid"; // Standard Grid import
-import Tooltip from "@mui/material/Tooltip";
-import Divider from "@mui/material/Divider";
-import Select, { SelectChangeEvent } from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
+import Paper from "@mui/material/Paper";
+import Select, { SelectChangeEvent } from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import React, { useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { useNdk } from "../contexts/NdkContext";
 
 const LS_DEFAULT_ZAP_AMOUNT_KEY = "nostrImageAppDefaultZapAmount";
 const LS_BLOSSOM_SERVER_URL_KEY = "nostrImageAppBlossomServerUrl";
 
 // Predefined Blossom Servers
 const PREDEFINED_BLOSSOM_SERVERS: { [key: string]: string } = {
+  custom: "Custom URL",
   "https://blossom.band": "blossom.band (Default)",
   "https://blossom.primal.net": "blossom.primal.net",
   "https://nostr.download": "nostr.download",
-  custom: "Custom URL",
 };
 
 export const SettingsPage: React.FC = () => {
   const {
-    user,
-    readRelays,
-    writeRelays,
     defaultRelays,
-    relaySource,
-    nip65Event,
-    isPublishingNip65,
-    publishNip65Relays,
     fetchNip65Relays,
+    isPublishingNip65,
+    nip65Event,
+    publishNip65Relays,
+    readRelays,
+    relaySource,
+    user,
+    writeRelays,
   } = useNdk();
 
   // Local state for editable relay lists
@@ -187,7 +187,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleSaveBlossomServer = useCallback(() => {
-    let urlToSave: string | null = null;
+    let urlToSave: null | string = null;
 
     if (selectedBlossomOption === "custom") {
       urlToSave = customBlossomUrl.trim();
@@ -224,7 +224,7 @@ export const SettingsPage: React.FC = () => {
     setNewRelayValue: (val: string) => void,
   ) => (
     <Box sx={{ mb: 3 }}>
-      <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: "bold" }}>
+      <Typography gutterBottom sx={{ fontWeight: "bold" }} variant="subtitle1">
         {title}:
       </Typography>
       <List dense disablePadding>
@@ -233,8 +233,8 @@ export const SettingsPage: React.FC = () => {
             key={relay}
             secondaryAction={
               <IconButton
-                edge="end"
                 aria-label={`delete from ${title}`}
+                edge="end"
                 onClick={() => removeHandler(relay)}
                 size="small"
               >
@@ -243,14 +243,14 @@ export const SettingsPage: React.FC = () => {
             }
             sx={{ pl: 1, pr: 4 }}
           >
-            <Typography variant="body2" sx={{ wordBreak: "break-all" }}>
+            <Typography sx={{ wordBreak: "break-all" }} variant="body2">
               {relay}
             </Typography>
           </ListItem>
         ))}
         {(editableList || []).length === 0 && (
           <ListItem sx={{ pl: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography color="text.secondary" variant="body2">
               List is empty.
             </Typography>
           </ListItem>
@@ -260,13 +260,13 @@ export const SettingsPage: React.FC = () => {
         <TextField
           fullWidth
           label={`Add to ${title} (wss://...)`}
-          variant="outlined"
-          value={newRelayValue}
           onChange={(e) => setNewRelayValue(e.target.value)}
           size="small"
+          value={newRelayValue}
+          variant="outlined"
         />
         <Tooltip title={`Add relay to ${title}`}>
-          <IconButton color="primary" onClick={addHandler} aria-label={`add relay to ${title}`}>
+          <IconButton aria-label={`add relay to ${title}`} color="primary" onClick={addHandler}>
             <AddIcon />
           </IconButton>
         </Tooltip>
@@ -275,53 +275,53 @@ export const SettingsPage: React.FC = () => {
   );
 
   return (
-    <Box sx={{ maxWidth: 800, mx: "auto", p: { xs: 1, sm: 2 } }}>
-      <Typography variant="h4" gutterBottom>
+    <Box sx={{ maxWidth: 800, mx: "auto", p: { sm: 2, xs: 1 } }}>
+      <Typography gutterBottom variant="h4">
         Settings
       </Typography>
 
       {/* Default Zap Amount Section */}
-      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper elevation={2} sx={{ mb: 3, p: 2 }}>
+        <Typography gutterBottom variant="h6">
           Default Zap Amount
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography color="text.secondary" sx={{ mb: 2 }} variant="body2">
           Set the default amount (in Sats) used when you click the Zap button.
         </Typography>
         <TextField
+          InputProps={{ inputProps: { min: 1 } }}
+          disabled={!user}
           fullWidth
           label="Default Sats per Zap"
-          variant="outlined"
+          onChange={(e) => setDefaultZapAmount(e.target.value)}
+          size="small"
+          sx={{ mb: 1 }}
           type="number"
           value={defaultZapAmount}
-          onChange={(e) => setDefaultZapAmount(e.target.value)}
-          InputProps={{ inputProps: { min: 1 } }}
-          sx={{ mb: 1 }}
-          size="small"
-          disabled={!user}
+          variant="outlined"
         />
-        <Button variant="contained" onClick={handleSaveDefaultZapAmount}>
+        <Button onClick={handleSaveDefaultZapAmount} variant="contained">
           Save Default Zap Amount
         </Button>
       </Paper>
 
       {/* Blossom Media Server Section */}
-      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper elevation={2} sx={{ mb: 3, p: 2 }}>
+        <Typography gutterBottom variant="h6">
           Media Upload Server (Blossom)
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography color="text.secondary" sx={{ mb: 2 }} variant="body2">
           Choose the Blossom server (NIP-96/NIP-98 compliant) to upload images to.
         </Typography>
         <FormControl fullWidth sx={{ mb: selectedBlossomOption === "custom" ? 1 : 2 }}>
           <InputLabel id="blossom-server-select-label">Blossom Server</InputLabel>
           <Select
-            labelId="blossom-server-select-label"
             id="blossom-server-select"
-            value={selectedBlossomOption}
             label="Blossom Server"
+            labelId="blossom-server-select-label"
             onChange={handleBlossomSelectChange}
             size="small"
+            value={selectedBlossomOption}
           >
             {Object.entries(PREDEFINED_BLOSSOM_SERVERS).map(([value, label]) => (
               <MenuItem key={value} value={value}>
@@ -335,15 +335,15 @@ export const SettingsPage: React.FC = () => {
           <TextField
             fullWidth
             label="Custom Blossom Server URL"
-            variant="outlined"
-            value={customBlossomUrl}
             onChange={(e) => setCustomBlossomUrl(e.target.value)}
             placeholder="https://your-blossom-server.com"
             size="small"
             sx={{ mb: 2 }}
+            value={customBlossomUrl}
+            variant="outlined"
           />
         )}
-        <Button variant="contained" onClick={handleSaveBlossomServer}>
+        <Button onClick={handleSaveBlossomServer} variant="contained">
           Save Blossom Server Setting
         </Button>
       </Paper>
@@ -352,9 +352,9 @@ export const SettingsPage: React.FC = () => {
       <Paper elevation={2} sx={{ p: 2 }}>
         <Box
           sx={{
+            alignItems: "center",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
             mb: 1,
           }}
         >
@@ -371,7 +371,7 @@ export const SettingsPage: React.FC = () => {
         {/* Relay Source Information */}
         <Box sx={{ mb: 2 }}>
           {relaySource === "loading" && (
-            <Alert severity="info" icon={<CircularProgress size={20} />}>
+            <Alert icon={<CircularProgress size={20} />} severity="info">
               Loading relay list...
             </Alert>
           )}
@@ -424,15 +424,10 @@ export const SettingsPage: React.FC = () => {
         {/* Action Buttons */}
         {/* REMOVING 'item' prop AGAIN based on latest error */}
         <Grid container spacing={1}>
-          <Grid xs={12} sm={6}>
+          <Grid sm={6} xs={12}>
             {" "}
             {/* REMOVED item */}
             <Button
-              variant="contained"
-              startIcon={
-                isPublishingNip65 ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />
-              }
-              onClick={handlePublishRelays}
               disabled={
                 !user ||
                 isPublishingNip65 ||
@@ -440,47 +435,52 @@ export const SettingsPage: React.FC = () => {
                 !hasUnpublishedChanges
               }
               fullWidth
+              onClick={handlePublishRelays}
+              startIcon={
+                isPublishingNip65 ? <CircularProgress color="inherit" size={20} /> : <SaveIcon />
+              }
+              variant="contained"
             >
               {isPublishingNip65 ? "Publishing..." : "Save & Publish Lists"}
             </Button>
           </Grid>
-          <Grid xs={6} sm={3}>
+          <Grid sm={3} xs={6}>
             {" "}
             {/* REMOVED item */}
             <Button
-              variant="outlined"
-              startIcon={<RestoreIcon />}
-              onClick={handleRestoreEditableDefaults}
               fullWidth
+              onClick={handleRestoreEditableDefaults}
+              startIcon={<RestoreIcon />}
+              variant="outlined"
             >
               Defaults
             </Button>
           </Grid>
-          <Grid xs={6} sm={3}>
+          <Grid sm={3} xs={6}>
             {" "}
             {/* REMOVED item */}
             <Button
-              variant="outlined"
-              onClick={handleDiscardChanges}
               disabled={!hasUnpublishedChanges}
               fullWidth
+              onClick={handleDiscardChanges}
+              variant="outlined"
             >
               Discard
             </Button>
           </Grid>
         </Grid>
         {!user && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+          <Typography color="text.secondary" sx={{ display: "block", mt: 1 }} variant="caption">
             Log in to save and publish your relay lists.
           </Typography>
         )}
         {user && !hasUnpublishedChanges && relaySource === "nip65" && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+          <Typography color="text.secondary" sx={{ display: "block", mt: 1 }} variant="caption">
             No unpublished changes.
           </Typography>
         )}
         {user && hasUnpublishedChanges && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+          <Typography color="text.secondary" sx={{ display: "block", mt: 1 }} variant="caption">
             You have unpublished changes.
           </Typography>
         )}
