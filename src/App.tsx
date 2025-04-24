@@ -48,7 +48,8 @@ import Brightness7Icon from "@mui/icons-material/Brightness7";
 //import AddIcon from "@mui/icons-material/Add";
 import HomeIcon from "@mui/icons-material/Home";
 import SearchIcon from "@mui/icons-material/Search";
-import BurstModeIcon from "@mui/icons-material/BurstMode"; // Using BurstMode for Flix
+//import BurstModeIcon from "@mui/icons-material/BurstMode"; // Using BurstMode for Flix
+import VideoLibraryIcon from "@mui/icons-material/VideoLibrary";
 import CreateIcon from "@mui/icons-material/Create";
 import PersonIcon from "@mui/icons-material/Person";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -212,7 +213,7 @@ function AppContent() {
                 onClick={() => toast("Flix not implemented")}
               >
                 <ListItemIcon sx={{ minWidth: 36 }}>
-                  <BurstModeIcon />
+                  <VideoLibraryIcon />
                 </ListItemIcon>
                 <ListItemText primary="Flix" />
               </Button>
@@ -383,7 +384,7 @@ function AppContent() {
                 color="inherit"
                 onClick={() => toast("Flix not implemented")}
               >
-                <BurstModeIcon />
+                <VideoLibraryIcon />
               </IconButton>{" "}
               {/* Placeholder action */}
               <IconButton
