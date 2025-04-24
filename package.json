@@ -11,6 +11,7 @@
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.6",
     "blurhash": "^2.0.5",
+    "date-fns": "^4.1.0",
     "js-sha256": "^0.11.0",
     "light-bolt11-decoder": "^3.2.0",
     "ngeohash": "^0.6.3",
