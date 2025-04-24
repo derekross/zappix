@@ -52,9 +52,7 @@ export const CreatePostPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false); // General loading for hashing/submitting
   const [isUploading, setIsUploading] = useState(false); // Specific loading for upload process
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [blossomServerUrl, setBlossomServerUrl] = useState<string>(
-    "https://blossom.band"
-  ); // Default
+  const [blossomServerUrl, setBlossomServerUrl] = useState<string>("https://blossom.band"); // Default
 
   // Get Blossom server URL from settings on mount
   useEffect(() => {
@@ -65,7 +63,7 @@ export const CreatePostPage: React.FC = () => {
         console.log(`Using Blossom server from localStorage: ${storedUrl}`);
       } else {
         console.warn(
-          `Invalid Blossom server URL found in localStorage: ${storedUrl}. Using default.`
+          `Invalid Blossom server URL found in localStorage: ${storedUrl}. Using default.`,
         );
       }
     } else {
@@ -133,10 +131,9 @@ export const CreatePostPage: React.FC = () => {
       fileHashes.length !== selectedFiles.length ||
       fileHashes.some((hash) => !hash)
     ) {
-      toast.error(
-        "Please select one or more valid images (wait for processing).",
-        { id: "submit-error" }
-      );
+      toast.error("Please select one or more valid images (wait for processing).", {
+        id: "submit-error",
+      });
       return;
     }
     if (!signer || !user || !ndk) {
@@ -169,10 +166,9 @@ export const CreatePostPage: React.FC = () => {
           continue; // Skip this file if hashing failed
         }
 
-        toast.loading(
-          `Uploading ${file.name}... (${i + 1}/${selectedFiles.length})`,
-          { id: uploadToastId }
-        );
+        toast.loading(`Uploading ${file.name}... (${i + 1}/${selectedFiles.length})`, {
+          id: uploadToastId,
+        });
 
         const now = Math.floor(Date.now() / 1000);
         const expiration = now + 60 * 60; // 1 hour expiration
@@ -194,9 +190,7 @@ export const CreatePostPage: React.FC = () => {
         console.log(`Signing NIP-98 Auth Event for ${file.name}...`);
         await authEvent.sign(signer);
         if (!authEvent.sig) {
-          throw new Error(
-            `Failed to sign NIP-98 authorization for ${file.name}.`
-          );
+          throw new Error(`Failed to sign NIP-98 authorization for ${file.name}.`);
         }
         const signedAuthEvent = await authEvent.toNostrEvent();
         const authHeader = "Nostr " + btoa(JSON.stringify(signedAuthEvent));
@@ -217,11 +211,9 @@ export const CreatePostPage: React.FC = () => {
         });
         if (!headResponse.ok) {
           let reason =
-            headResponse.headers.get("X-Reason") ||
-            headResponse.statusText ||
-            "Unknown reason";
+            headResponse.headers.get("X-Reason") || headResponse.statusText || "Unknown reason";
           uploadErrors.push(
-            `Upload check failed for ${file.name} (${headResponse.status}): ${reason}`
+            `Upload check failed for ${file.name} (${headResponse.status}): ${reason}`,
           );
           continue;
         }
@@ -242,9 +234,7 @@ export const CreatePostPage: React.FC = () => {
           let errorMsg = `Upload failed for ${file.name} (${putResponse.status})`;
           try {
             const errorBody = await putResponse.json();
-            errorMsg += `: ${
-              errorBody.message || errorBody.error || "Server error"
-            }`;
+            errorMsg += `: ${errorBody.message || errorBody.error || "Server error"}`;
           } catch (e) {
             errorMsg += `: ${putResponse.statusText}`;
           }
@@ -258,17 +248,13 @@ export const CreatePostPage: React.FC = () => {
           continue;
         }
         if (uploadResult.sha256 && uploadResult.sha256 !== fileHash) {
-          console.warn(
-            `Server/Client hash mismatch for ${file.name}. Using client hash.`
-          );
+          console.warn(`Server/Client hash mismatch for ${file.name}. Using client hash.`);
         }
         uploadedImageData.push({
           url: uploadResult.url,
           type: uploadResult.type,
           sha256: fileHash,
-          size: uploadResult.size
-            ? uploadResult.size.toString()
-            : file.size.toString(),
+          size: uploadResult.size ? uploadResult.size.toString() : file.size.toString(),
           ox: uploadResult.ox,
           dim: uploadResult.dim,
         });
@@ -312,8 +298,7 @@ export const CreatePostPage: React.FC = () => {
 
       newEvent.tags.push([
         "alt",
-        description ||
-          `Collection of ${uploadedImageData.length} images posted via Zappix`,
+        description || `Collection of ${uploadedImageData.length} images posted via Zappix`,
       ]);
       if (geohashTag) newEvent.tags.push(geohashTag);
       if (hashtagTags.length > 0) newEvent.tags.push(...hashtagTags);
@@ -327,7 +312,7 @@ export const CreatePostPage: React.FC = () => {
       // 9. Sign and Publish Kind 20 Event
       console.log(
         "Signing and publishing Kind 20 event with multiple images:",
-        newEvent.rawEvent()
+        newEvent.rawEvent(),
       );
       await newEvent.sign(signer);
       const publishedTo = await newEvent.publish();
@@ -340,16 +325,13 @@ export const CreatePostPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Failed to create post:", error);
-      const errorMsg =
-        error.message || "An unknown error occurred during upload/post.";
+      const errorMsg = error.message || "An unknown error occurred during upload/post.";
       setUploadError(errorMsg);
       toast.error(`Failed: ${errorMsg}`, { id: uploadToastId });
     } finally {
       setIsUploading(false);
       if (uploadErrors.length > 0) {
-        const fullErrorMsg = `Upload completed with errors: ${uploadErrors.join(
-          ", "
-        )}`;
+        const fullErrorMsg = `Upload completed with errors: ${uploadErrors.join(", ")}`;
         setUploadError((prev) => {
           // Check if the new message is already part of the previous message
           // to avoid excessive duplication if the same error happens repeatedly
@@ -518,11 +500,7 @@ export const CreatePostPage: React.FC = () => {
           fullWidth
           sx={{ mb: 2 }}
         >
-          {isUploading ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : (
-            "Create Post"
-          )}
+          {isUploading ? <CircularProgress size={24} color="inherit" /> : "Create Post"}
         </Button>
       </Box>
     </Container>

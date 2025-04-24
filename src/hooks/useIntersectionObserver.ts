@@ -27,9 +27,7 @@ function useIntersectionObserver({
     // --- MORE ROBUST CHECK ---
     // 1. Check if the ref object itself was passed correctly
     if (!target) {
-      console.warn(
-        "Intersection Observer: 'target' prop (the ref object) is missing."
-      );
+      console.warn("Intersection Observer: 'target' prop (the ref object) is missing.");
       return; // Cannot proceed without the ref object
     }
 
@@ -59,7 +57,7 @@ function useIntersectionObserver({
         root,
         rootMargin,
         threshold,
-      }
+      },
     );
 
     // Start observing the element (we know 'el' is valid here)

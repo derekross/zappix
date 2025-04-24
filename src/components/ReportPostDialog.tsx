@@ -58,9 +58,7 @@ export const ReportPostDialog: React.FC<ReportPostDialogProps> = ({
     setSelectedType(event.target.value);
   };
 
-  const handleOtherReasonChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleOtherReasonChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setOtherReason(event.target.value);
   };
 
@@ -139,17 +137,11 @@ export const ReportPostDialog: React.FC<ReportPostDialogProps> = ({
           onClick={handleSubmitClick}
           variant="contained"
           disabled={
-            isSubmitting ||
-            !selectedType ||
-            (selectedType === "other" && !otherReason.trim())
+            isSubmitting || !selectedType || (selectedType === "other" && !otherReason.trim())
           }
         >
           {/* Use the imported CircularProgress */}
-          {isSubmitting ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : (
-            "Submit Report"
-          )}
+          {isSubmitting ? <CircularProgress size={24} color="inherit" /> : "Submit Report"}
         </Button>
       </DialogActions>
     </Dialog>

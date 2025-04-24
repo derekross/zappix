@@ -13,6 +13,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <NdkProvider>
       <App />
     </NdkProvider>
-  </BrowserRouter>
+  </BrowserRouter>,
   // </React.StrictMode>,
 );

@@ -27,9 +27,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
   const { loginWithNip07, loginWithNsec } = useNdk();
   const [error, setError] = useState<string | null>(null);
   const [nsecInput, setNsecInput] = useState<string>("");
-  const [loginMethodLoading, setLoginMethodLoading] = useState<
-    "nip07" | "nsec" | null
-  >(null);
+  const [loginMethodLoading, setLoginMethodLoading] = useState<"nip07" | "nsec" | null>(null);
 
   const handleNip07Login = useCallback(async () => {
     setError(null);
@@ -107,11 +105,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
             {" "}
             Login Options{" "}
           </Typography>
-          <IconButton
-            onClick={onClose}
-            size="small"
-            aria-label="close login modal"
-          >
+          <IconButton onClick={onClose} size="small" aria-label="close login modal">
             {" "}
             <CloseIcon />{" "}
           </IconButton>
@@ -147,20 +141,14 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
           <Typography variant="body2" gutterBottom>
             Login with Secret Key (nsec):
           </Typography>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems="stretch"
-          >
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems="stretch">
             <TextField
               id="nsecInput"
               type="password"
               label="NSEC Key"
               size="small"
               value={nsecInput}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setNsecInput(e.target.value)
-              }
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setNsecInput(e.target.value)}
               placeholder="nsec1..."
               sx={{ flexGrow: 1 }}
               disabled={!!loginMethodLoading}
@@ -183,11 +171,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
               Login{" "}
             </Button>
           </Stack>
-          <Typography
-            variant="caption"
-            display="block"
-            sx={{ mt: 1, color: "error.main" }}
-          >
+          <Typography variant="caption" display="block" sx={{ mt: 1, color: "error.main" }}>
             {" "}
             ⚠️ Warning: Less secure. Use extensions if possible.{" "}
           </Typography>

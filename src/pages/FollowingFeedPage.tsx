@@ -31,9 +31,7 @@ export const FollowingFeedPage: React.FC = () => {
   const [notes, setNotes] = useState<NDKEvent[]>([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [lastEventTimestamp, setLastEventTimestamp] = useState<
-    number | undefined
-  >(undefined);
+  const [lastEventTimestamp, setLastEventTimestamp] = useState<number | undefined>(undefined);
   const [followedPubkeys, setFollowedPubkeys] = useState<string[] | null>(null); // null = not loaded yet
   const [error, setError] = useState<string | null>(null);
   const [canLoadMore, setCanLoadMore] = useState<boolean>(true);
@@ -129,9 +127,7 @@ export const FollowingFeedPage: React.FC = () => {
 
     sub.on("eose", () => {
       if (!isMounted.current) return;
-      const sortedBatch = batchEvents.sort(
-        (a, b) => b.created_at! - a.created_at!
-      );
+      const sortedBatch = batchEvents.sort((a, b) => b.created_at! - a.created_at!);
       setNotes(sortedBatch);
       if (sortedBatch.length > 0) {
         setLastEventTimestamp(sortedBatch[sortedBatch.length - 1].created_at);
@@ -198,14 +194,11 @@ export const FollowingFeedPage: React.FC = () => {
             if (!uniqueNotesMap.has(note.id)) uniqueNotesMap.set(note.id, note);
           });
           const sortedUniqueNotes = Array.from(uniqueNotesMap.values()).sort(
-            (a, b) => b.created_at! - a.created_at!
+            (a, b) => b.created_at! - a.created_at!,
           );
-          const newEventsAddedCount =
-            sortedUniqueNotes.length - prevNotes.length;
+          const newEventsAddedCount = sortedUniqueNotes.length - prevNotes.length;
           if (newEventsAddedCount > 0 && sortedUniqueNotes.length > 0) {
-            setLastEventTimestamp(
-              sortedUniqueNotes[sortedUniqueNotes.length - 1].created_at
-            );
+            setLastEventTimestamp(sortedUniqueNotes[sortedUniqueNotes.length - 1].created_at);
           }
           if (fetchedEventsArray.length < BATCH_SIZE) setCanLoadMore(false);
           return sortedUniqueNotes;
@@ -252,9 +245,7 @@ export const FollowingFeedPage: React.FC = () => {
   return (
     <>
       {/* Feed Selection Tabs */}
-      <Box
-        sx={{ width: "100%", borderBottom: 1, borderColor: "divider", mb: 2 }}
-      >
+      <Box sx={{ width: "100%", borderBottom: 1, borderColor: "divider", mb: 2 }}>
         <Tabs
           value={location.pathname} // Use location to determine active tab
           onChange={handleTabChange}
@@ -314,17 +305,13 @@ export const FollowingFeedPage: React.FC = () => {
           <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
             <CircularProgress />
             <Typography sx={{ ml: 2 }}>
-              {followedPubkeys === null
-                ? "Loading contacts..."
-                : "Loading posts..."}
+              {followedPubkeys === null ? "Loading contacts..." : "Loading posts..."}
             </Typography>
           </Box>
         )}
 
         {!user && !isLoadingFeed && (
-          <Typography
-            sx={{ textAlign: "center", p: 3, color: "text.secondary" }}
-          >
+          <Typography sx={{ textAlign: "center", p: 3, color: "text.secondary" }}>
             Please log in to see your following feed.
           </Typography>
         )}
@@ -356,9 +343,7 @@ export const FollowingFeedPage: React.FC = () => {
           followedPubkeys &&
           followedPubkeys.length > 0 &&
           notes.length === 0 && (
-            <Typography
-              sx={{ textAlign: "center", p: 3, color: "text.secondary" }}
-            >
+            <Typography sx={{ textAlign: "center", p: 3, color: "text.secondary" }}>
               No image posts found from the people you follow yet.
             </Typography>
           )}
@@ -372,14 +357,11 @@ export const FollowingFeedPage: React.FC = () => {
           </Box>
         )}
 
-        {!canLoadMore &&
-          !isLoadingFeed &&
-          !isFetchingMore &&
-          notes.length > 0 && (
-            <Typography align="center" color="text.secondary" sx={{ my: 3 }}>
-              - End of Feed -
-            </Typography>
-          )}
+        {!canLoadMore && !isLoadingFeed && !isFetchingMore && notes.length > 0 && (
+          <Typography align="center" color="text.secondary" sx={{ my: 3 }}>
+            - End of Feed -
+          </Typography>
+        )}
       </Box>
     </>
   );

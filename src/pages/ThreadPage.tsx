@@ -102,9 +102,7 @@ export const ThreadPage: React.FC = () => {
       ndk
         .fetchEvents(commentFilter)
         .then((fetchedComments) => {
-          const sorted = Array.from(fetchedComments).sort(
-            (a, b) => a.created_at! - b.created_at!
-          ); // Oldest first
+          const sorted = Array.from(fetchedComments).sort((a, b) => a.created_at! - b.created_at!); // Oldest first
           console.log(`Fetched ${sorted.length} comments.`);
           setComments(sorted);
         })
@@ -177,17 +175,14 @@ export const ThreadPage: React.FC = () => {
         setNewComment(""); // Clear input
         // Optimistically add to state
         setComments((prev) =>
-          [...prev, commentEvent].sort((a, b) => a.created_at! - b.created_at!)
+          [...prev, commentEvent].sort((a, b) => a.created_at! - b.created_at!),
         );
       } else {
         toast.error("Failed to publish comment to any relay.", { id: toastId });
       }
     } catch (error: any) {
       console.error("Error posting comment:", error);
-      toast.error(
-        `Failed to post comment: ${error.message || "Unknown error"}`,
-        { id: toastId }
-      );
+      toast.error(`Failed to post comment: ${error.message || "Unknown error"}`, { id: toastId });
     } finally {
       setIsPostingComment(false);
     }
@@ -224,13 +219,8 @@ export const ThreadPage: React.FC = () => {
             <ImagePost event={rootEvent} />
           ) : (
             <Box sx={{ p: 2, border: "1px dashed grey", mb: 2 }}>
-              <Typography variant="h6">
-                Unsupported Root Event (Kind: {rootEvent.kind})
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-              >
+              <Typography variant="h6">Unsupported Root Event (Kind: {rootEvent.kind})</Typography>
+              <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                 {rootEvent.content}
               </Typography>
               {/* Render tags or other info if desired */}
@@ -249,9 +239,7 @@ export const ThreadPage: React.FC = () => {
           )}
 
           {!isLoadingComments && comments.length === 0 && (
-            <Typography sx={{ color: "text.secondary", my: 2 }}>
-              No comments yet.
-            </Typography>
+            <Typography sx={{ color: "text.secondary", my: 2 }}>No comments yet.</Typography>
           )}
 
           {/* Render Comments */}
@@ -267,19 +255,12 @@ export const ThreadPage: React.FC = () => {
                   mb: 1,
                 }}
               >
-                <Typography
-                  variant="caption"
-                  component="div"
-                  sx={{ fontWeight: "bold" }}
-                >
+                <Typography variant="caption" component="div" sx={{ fontWeight: "bold" }}>
                   {comment.author.profile?.displayName ||
                     comment.author.profile?.name ||
                     comment.author.npub.substring(0, 10)}
                   ...
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "text.secondary", ml: 1 }}
-                  >
+                  <Typography variant="caption" sx={{ color: "text.secondary", ml: 1 }}>
                     {new Date(comment.created_at! * 1000).toLocaleString()}
                   </Typography>
                 </Typography>
@@ -324,11 +305,7 @@ export const ThreadPage: React.FC = () => {
                 sx={{ mt: 1 }}
                 disabled={isPostingComment || !newComment.trim()}
               >
-                {isPostingComment ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  "Post Comment"
-                )}
+                {isPostingComment ? <CircularProgress size={24} color="inherit" /> : "Post Comment"}
               </Button>
             </Box>
           )}

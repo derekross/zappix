@@ -1,11 +1,5 @@
 // src/components/UserFeed.tsx
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNdk } from "../contexts/NdkContext";
 // FIX: Remove unused NDKSubscriptionCacheUsage
 import { NDKEvent, NDKFilter, NDKKind, NDKUser } from "@nostr-dev-kit/ndk";
@@ -23,9 +17,7 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [oldestEventTimestamp, setOldestEventTimestamp] = useState<
-    number | undefined
-  >(undefined);
+  const [oldestEventTimestamp, setOldestEventTimestamp] = useState<number | undefined>(undefined);
   const [canLoadMore, setCanLoadMore] = useState(true);
   const receivedEventIds = useRef(new Set<string>());
 
@@ -40,19 +32,14 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
           receivedEventIds.current.add(event.id);
           newUniqueEvents.push(event);
           addedNew = true;
-          if (
-            event.created_at &&
-            (oldestTs === undefined || event.created_at < oldestTs)
-          ) {
+          if (event.created_at && (oldestTs === undefined || event.created_at < oldestTs)) {
             oldestTs = event.created_at;
           }
         }
       });
       if (addedNew) {
         setFeedEvents((prev) =>
-          [...prev, ...newUniqueEvents].sort(
-            (a, b) => b.created_at! - a.created_at!
-          )
+          [...prev, ...newUniqueEvents].sort((a, b) => b.created_at! - a.created_at!),
         );
         setOldestEventTimestamp(oldestTs);
         // Update canLoadMore based on whether a full batch of *new* events was added
@@ -62,7 +49,7 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
         setCanLoadMore(false);
       }
     },
-    [oldestEventTimestamp]
+    [oldestEventTimestamp],
   );
 
   // Effect to reset feed when the user prop changes
@@ -95,16 +82,12 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
     ndk
       .fetchEvents(initialFilter) // Removed { closeOnEose: true } as it's default for fetchEvents
       .then((events) => {
-        console.log(
-          `UserFeed: Fetched ${events.size} initial events for ${user.pubkey}.`
-        );
+        console.log(`UserFeed: Fetched ${events.size} initial events for ${user.pubkey}.`);
         // Ensure we haven't switched users while fetching
         if (ndk?.getUser({ npub: user.npub })?.pubkey === user.pubkey) {
           processFeedEvents(Array.from(events));
         } else {
-          console.log(
-            "UserFeed: User changed during initial fetch, discarding results."
-          );
+          console.log("UserFeed: User changed during initial fetch, discarding results.");
         }
       })
       .catch((err) => {
@@ -124,17 +107,11 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
 
   // Fetch MORE events
   const loadMore = useCallback(async () => {
-    if (
-      isLoadingMore ||
-      !canLoadMore ||
-      oldestEventTimestamp === undefined ||
-      !user.pubkey ||
-      !ndk
-    )
+    if (isLoadingMore || !canLoadMore || oldestEventTimestamp === undefined || !user.pubkey || !ndk)
       return;
 
     console.log(
-      `UserFeed: Loading more posts for ${user.pubkey} older than ${oldestEventTimestamp}`
+      `UserFeed: Loading more posts for ${user.pubkey} older than ${oldestEventTimestamp}`,
     );
     setIsLoadingMore(true);
     setError(null);
@@ -149,9 +126,7 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
 
     try {
       const eventsSet = await ndk.fetchEvents(olderFilter);
-      console.log(
-        `UserFeed: Fetched ${eventsSet.size} older events for ${user.pubkey}.`
-      );
+      console.log(`UserFeed: Fetched ${eventsSet.size} older events for ${user.pubkey}.`);
       const eventsArray = Array.from(eventsSet);
       // Process even if empty to potentially set canLoadMore=false
       processFeedEvents(eventsArray);
@@ -166,20 +141,11 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [
-    ndk,
-    user.pubkey,
-    isLoadingMore,
-    oldestEventTimestamp,
-    canLoadMore,
-    processFeedEvents,
-  ]);
+  }, [ndk, user.pubkey, isLoadingMore, oldestEventTimestamp, canLoadMore, processFeedEvents]);
 
   // Memoize rendered posts
   const renderedPosts = useMemo(() => {
-    return feedEvents.map((event) => (
-      <ImagePost key={event.id} event={event} />
-    ));
+    return feedEvents.map((event) => <ImagePost key={event.id} event={event} />);
   }, [feedEvents]);
 
   // --- Rendering ---
@@ -204,18 +170,13 @@ export const UserFeed: React.FC<UserFeedProps> = ({ user }) => {
       {renderedPosts}
       {canLoadMore && (
         <div style={{ textAlign: "center", margin: "20px" }}>
-          <button
-            onClick={loadMore}
-            disabled={isLoadingMore || isLoadingInitial}
-          >
+          <button onClick={loadMore} disabled={isLoadingMore || isLoadingInitial}>
             {isLoadingMore ? "Loading..." : "Load More Posts"}
           </button>
         </div>
       )}
       {!canLoadMore && feedEvents.length > 0 && (
-        <p style={{ textAlign: "center", color: "#888", margin: "20px" }}>
-          - End of User's Feed -
-        </p>
+        <p style={{ textAlign: "center", color: "#888", margin: "20px" }}>- End of User's Feed -</p>
       )}
     </div>
   );

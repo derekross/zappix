@@ -6,13 +6,7 @@ import React, {
   //useCallback,
   useMemo,
 } from "react";
-import {
-  Route,
-  Routes,
-  Link as RouterLink,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { Route, Routes, Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles"; // Correct import for ThemeProvider, createTheme
 import CssBaseline from "@mui/material/CssBaseline";
 //import Container from "@mui/material/Container";
@@ -69,8 +63,7 @@ function AppContent() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
-  const [mobileMenuAnchorEl, setMobileMenuAnchorEl] =
-    useState<null | HTMLElement>(null); // State for mobile overflow menu
+  const [mobileMenuAnchorEl, setMobileMenuAnchorEl] = useState<null | HTMLElement>(null); // State for mobile overflow menu
   const location = useLocation();
   const navigate = useNavigate();
   const hasRedirectedRef = useRef(false);
@@ -107,7 +100,7 @@ function AppContent() {
     }
     if (user && location.pathname === "/" && !hasRedirectedRef.current) {
       console.log(
-        "AppContent: User logged in on global feed, performing initial redirect to /following."
+        "AppContent: User logged in on global feed, performing initial redirect to /following.",
       );
       navigate("/following", { replace: true });
       hasRedirectedRef.current = true;
@@ -119,10 +112,7 @@ function AppContent() {
     loggedInUserProfile?.name?.charAt(0)?.toUpperCase() ||
     (user ? "N" : "");
 
-  const dynamicTheme = useMemo(
-    () => createTheme(createAppTheme(themeMode)),
-    [themeMode]
-  );
+  const dynamicTheme = useMemo(() => createTheme(createAppTheme(themeMode)), [themeMode]);
 
   return (
     <ThemeProvider theme={dynamicTheme}>
@@ -249,11 +239,7 @@ function AppContent() {
                   >
                     Login
                   </Button>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() => setSignupOpen(true)}
-                  >
+                  <Button fullWidth variant="contained" onClick={() => setSignupOpen(true)}>
                     Sign Up
                   </Button>
                 </Box>
@@ -266,15 +252,10 @@ function AppContent() {
                   }}
                 >
                   <Tooltip title="Open menu">
-                    <IconButton
-                      onClick={handleOpenUserMenu}
-                      sx={{ p: 0, mb: 1 }}
-                    >
+                    <IconButton onClick={handleOpenUserMenu} sx={{ p: 0, mb: 1 }}>
                       <Avatar
                         alt={
-                          loggedInUserProfile?.displayName ||
-                          loggedInUserProfile?.name ||
-                          "User"
+                          loggedInUserProfile?.displayName || loggedInUserProfile?.name || "User"
                         }
                         src={
                           loggedInUserProfile?.image?.startsWith("http")
@@ -282,25 +263,15 @@ function AppContent() {
                             : undefined
                         }
                       >
-                        {!loggedInUserProfile?.image?.startsWith("http")
-                          ? userInitial
-                          : null}
+                        {!loggedInUserProfile?.image?.startsWith("http") ? userInitial : null}
                       </Avatar>
                     </IconButton>
                   </Tooltip>
-                  <Typography
-                    variant="caption"
-                    sx={{ mb: 1, textAlign: "center" }}
-                  >
-                    {loggedInUserProfile?.displayName ||
-                      user?.npub.substring(0, 8) + "..."}
+                  <Typography variant="caption" sx={{ mb: 1, textAlign: "center" }}>
+                    {loggedInUserProfile?.displayName || user?.npub.substring(0, 8) + "..."}
                   </Typography>
                   <IconButton onClick={toggleThemeMode} color="inherit">
-                    {themeMode === "dark" ? (
-                      <Brightness7Icon />
-                    ) : (
-                      <Brightness4Icon />
-                    )}
+                    {themeMode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
                   </IconButton>
                   {/* User Menu (for profile, settings, logout on desktop) */}
                   <Menu
@@ -318,11 +289,7 @@ function AppContent() {
                     >
                       Profile
                     </MenuItem>
-                    <MenuItem
-                      component={RouterLink}
-                      to="/settings"
-                      onClick={handleCloseUserMenu}
-                    >
+                    <MenuItem component={RouterLink} to="/settings" onClick={handleCloseUserMenu}>
                       Settings
                     </MenuItem>
                     <MenuItem onClick={handleLogout}>Logout</MenuItem>
@@ -373,17 +340,11 @@ function AppContent() {
               >
                 <HomeIcon />
               </IconButton>
-              <IconButton
-                color="inherit"
-                onClick={() => toast("Search not implemented")}
-              >
+              <IconButton color="inherit" onClick={() => toast("Search not implemented")}>
                 <SearchIcon />
               </IconButton>{" "}
               {/* Placeholder action */}
-              <IconButton
-                color="inherit"
-                onClick={() => toast("Flix not implemented")}
-              >
+              <IconButton color="inherit" onClick={() => toast("Flix not implemented")}>
                 <VideoLibraryIcon />
               </IconButton>{" "}
               {/* Placeholder action */}
@@ -396,11 +357,7 @@ function AppContent() {
               </IconButton>
               {user && (
                 <IconButton
-                  color={
-                    location.pathname.startsWith("/profile/")
-                      ? "primary"
-                      : "inherit"
-                  }
+                  color={location.pathname.startsWith("/profile/") ? "primary" : "inherit"}
                   component={RouterLink}
                   to={`/profile/${user.npub}`}
                 >
@@ -463,9 +420,7 @@ function AppContent() {
                       <Brightness4Icon fontSize="small" />
                     )}
                   </ListItemIcon>
-                  <ListItemText>
-                    {themeMode === "dark" ? "Light Mode" : "Dark Mode"}
-                  </ListItemText>
+                  <ListItemText>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</ListItemText>
                 </MenuItem>
                 {user && (
                   <MenuItem onClick={handleLogout}>
