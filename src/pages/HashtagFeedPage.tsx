@@ -1,4 +1,5 @@
 // src/pages/HashtagFeedPage.tsx
+import { ImagePost } from "@/components/image-post";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -6,9 +7,8 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import { NDKEvent, NDKFilter, NDKKind, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import toast from "react-hot-toast";
 import { useParams } from "react-router-dom";
-import { ImagePost } from "../components/ImagePost";
+import { toast } from "sonner";
 import { useNdk } from "../contexts/NdkContext";
 
 // Reverted to include Kind 1, 20 (repost), and 30315 (potential image kind)

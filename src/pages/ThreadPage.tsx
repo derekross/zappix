@@ -1,3 +1,4 @@
+import { ImagePost } from "@/components/image-post";
 import Alert from "@mui/material/Alert";
 // import { CommentComponent } from '../components/CommentComponent'; // Import your comment component
 import Box from "@mui/material/Box";
@@ -12,9 +13,8 @@ import { NDKEvent, NDKFilter, NDKKind } from "@nostr-dev-kit/ndk";
 import { nip19 } from "nostr-tools";
 // src/pages/ThreadPage.tsx
 import React, { useCallback, useEffect, useState } from "react";
-import toast from "react-hot-toast";
 import { useParams } from "react-router-dom";
-import { ImagePost } from "../components/ImagePost"; // Assuming root might be ImagePost
+import { toast } from "sonner";
 import { useNdk } from "../contexts/NdkContext";
 
 const IMAGE_POST_KIND: NDKKind = 20;
