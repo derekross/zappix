@@ -1,6 +1,7 @@
-import { Link, Skeleton, Tooltip } from "@mui/material"; // Added Skeleton, Tooltip
+import { Link, Skeleton, Tooltip, Typography } from "@mui/material"; // Added Skeleton, Tooltip
 import { NDKSubscriptionCacheUsage, NDKUserProfile } from "@nostr-dev-kit/ndk"; // Import NDK types
 import { nip19 } from "nostr-tools"; // Import nip19
+// src/components/MarkdownContent.tsx
 import React, { useEffect, useState } from "react"; // Added hooks
 import ReactMarkdown, { Components } from "react-markdown";
 import { Link as RouterLink } from "react-router-dom"; // v6
@@ -168,14 +169,18 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
 
   // Prevent rendering if NDK is not yet available, as NostrMention needs it
   if (!ndk) {
-    return <div className="break-words">{content}</div>; // Render plain text or skeleton
+    return (
+      <Typography component="div" sx={{ wordBreak: "break-word" }} variant="body1">
+        {content}
+      </Typography>
+    ); // Render plain text or skeleton
   }
 
   return (
-    <div className="break-words [word-break:break-word]">
+    <Typography component="div" sx={{ wordBreak: "break-word" }} variant="body1">
       <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
         {content}
       </ReactMarkdown>
-    </div>
+    </Typography>
   );
 };
