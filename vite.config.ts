@@ -1,16 +1,12 @@
-import * as path from "path";
+// vite.config.ts
 import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
+// https://vitejs.dev/config/
 export default defineConfig({
   optimizeDeps: {
-    exclude: ["nostr-tools"],
+    // Add this section
+    exclude: ["nostr-tools"], // Exclude nostr-tools from pre-bundling
   },
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
+  plugins: [react()],
 });

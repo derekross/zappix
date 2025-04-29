@@ -12,7 +12,7 @@ import NDK, {
 } from "@nostr-dev-kit/ndk";
 // src/contexts/NdkContext.tsx - Delay profile fetch until after NIP-65 check
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 const LS_THEME_MODE_KEY = "zappixThemeMode";
 
