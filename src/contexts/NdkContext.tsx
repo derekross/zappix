@@ -32,6 +32,7 @@ interface NdkContextProps {
   fetchNip65Relays: (userToFetch: NDKUser) => Promise<void>;
   loginWithNip07: () => Promise<void>;
   loginWithNsec: (nsec: string) => Promise<void>;
+  loginWithBunker: (token: string) => Promise<boolean>;
   logout: () => void;
   publishNip65Relays: (readList: string[], writeList: string[]) => Promise<boolean>;
   toggleThemeMode: () => void;
@@ -252,6 +253,41 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [ndk, fetchNip65Relays, logout],
   );
 
+  // Add loginWithBunker function
+  const loginWithBunker = useCallback(
+    async (token: string) => {
+      if (!ndk) throw new Error("NDK not initialized");
+      try {
+        // Create a custom signer for Bunker
+        const bunkerSigner = new NDKPrivateKeySigner(token);
+        setSigner(bunkerSigner);
+
+        // Get user from the signer
+        const localNdkUser = await bunkerSigner.user();
+        if (!localNdkUser?.pubkey) throw new Error("No pubkey from Bunker");
+
+        setUser(localNdkUser);
+
+        // Fetch user profile and NIP-65 relays
+        await Promise.all([
+          localNdkUser.fetchProfile().then(setLoggedInUserProfile),
+          fetchNip65Relays(localNdkUser),
+        ]);
+
+        // Store the connection info
+        localStorage.setItem(LOCAL_STORAGE_KEYS.NPUB, localNdkUser.npub);
+
+        toast.success("Logged in with Bunker");
+        return true;
+      } catch (error) {
+        console.error("Bunker login error:", error);
+        toast.error("Failed to login with Bunker");
+        return false;
+      }
+    },
+    [ndk, fetchNip65Relays],
+  );
+
   useEffect(() => {
     // Get public and secret keys from localstorage.
     const localStoragePub = localStorage.getItem(LOCAL_STORAGE_KEYS.NPUB);
@@ -389,6 +425,7 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       loggedInUserProfile,
       loginWithNip07,
       loginWithNsec,
+      loginWithBunker,
       logout,
       ndk,
       nip65Event,
@@ -408,6 +445,7 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       loggedInUserProfile,
       loginWithNip07,
       loginWithNsec,
+      loginWithBunker,
       logout,
       readRelays,
       writeRelays,
