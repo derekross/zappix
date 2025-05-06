@@ -142,7 +142,6 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const [isLoadingAuthor, setIsLoadingAuthor] = useState<boolean>(true); // Initialize true
   const [isBlurred, setIsBlurred] = useState<boolean>(false);
   const [warningReason, setWarningReason] = useState<null | string>(null);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [isFollowingAuthor, setIsFollowingAuthor] = useState<null | boolean>(null);
   const [isMutingAuthor, setIsMutingAuthor] = useState<null | boolean>(null);
@@ -697,7 +696,9 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     setShowComments((prev) => !prev);
   }, [setShowComments]);
 
-  const handleMenuClose = () => setAnchorEl(null);
+  const handleMenuClose = () => {
+    // No-op since we're using DropdownMenu component
+  };
   const handleCopyNevent = () => {
     if (neventId) {
       navigator.clipboard
@@ -753,7 +754,6 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     const currentlyFollowing = isFollowingAuthor;
     const actionToastId = "follow-toast";
     setIsProcessingFollow(true);
-    handleMenuClose();
     toast.loading(currentlyFollowing ? "Unfollowing..." : "Following...", {
       id: actionToastId,
     });
@@ -766,7 +766,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       const currentContactListEvent = await ndk.fetchEvent(filter, {
         cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
       });
-      let currentTags: string[][] = currentContactListEvent ? currentContactListEvent.tags : [];
+      const currentTags: string[][] = currentContactListEvent ? currentContactListEvent.tags : [];
       let newTags: string[][] = [];
       if (currentlyFollowing) {
         newTags = currentTags.filter((tag) => !(tag[0] === "p" && tag[1] === targetPubkey));
@@ -824,7 +824,6 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     const currentlyMuted = isMutingAuthor;
     const actionToastId = "mute-toast";
     setIsProcessingMute(true);
-    handleMenuClose();
     toast.loading(currentlyMuted ? "Unmuting..." : "Muting...", {
       id: actionToastId,
     });
@@ -837,7 +836,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       const currentMuteListEvent = await ndk.fetchEvent(filter, {
         cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
       });
-      let currentTags: string[][] = currentMuteListEvent ? currentMuteListEvent.tags : [];
+      const currentTags: string[][] = currentMuteListEvent ? currentMuteListEvent.tags : [];
       let newTags: string[][] = [];
       if (currentlyMuted) {
         newTags = currentTags.filter((tag) => !(tag[0] === "p" && tag[1] === targetPubkey));
@@ -966,10 +965,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   // --- Proceed with rendering now that authorUser is available ---
   const authorDisplayName =
     authorProfile?.displayName || authorProfile?.name || authorUser.npub.substring(0, 10) + "...";
-  const authorAvatarUrl = authorProfile?.image?.startsWith("http")
-    ? authorProfile.image
-    : undefined;
-  const isMenuOpen = Boolean(anchorEl);
+  const authorAvatarUrl = authorProfile ? authorProfile.image : undefined;
   const isOwnPost = loggedInUser?.pubkey === event.pubkey;
 
   return (
