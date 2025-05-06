@@ -29,7 +29,7 @@ const NwcSettings: React.FC = () => {
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [defaultZapAmount, setDefaultZapAmount] = React.useState(() => {
     const saved = localStorage.getItem("default_zap_amount");
-    return saved ? parseInt(saved, 10) : 1000; // Default to 1000 sats
+    return saved ? parseInt(saved, 10) : 21; // Default to 1000 sats
   });
 
   // Debug effect to log state changes
