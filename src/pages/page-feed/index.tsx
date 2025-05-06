@@ -1,4 +1,4 @@
-import { Globe, Users } from "lucide-react";
+import { Globe, Hash, Users } from "lucide-react";
 import * as React from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
@@ -7,6 +7,7 @@ export const FeedPage: React.FC = () => {
   const tabs: Array<[icon: React.ReactNode, label: string, path: string]> = [
     [<Globe />, "Global", "/feed/global"],
     [<Users />, "Following", "/feed/following"],
+    [<Hash />, "Hashtag", "/feed/hashtag/"],
   ];
 
   return (

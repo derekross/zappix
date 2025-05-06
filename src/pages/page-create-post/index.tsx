@@ -380,7 +380,7 @@ export const CreatePostPage: React.FC = () => {
 
         <FormInputTextarea
           disabled={isUploading}
-          label="Description (Alt Text)"
+          label="What's Zappening?"
           onChange={(event) => {
             setDescription(event.target.value);
           }}

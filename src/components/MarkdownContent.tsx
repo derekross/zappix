@@ -140,9 +140,12 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
       if (targetHref.startsWith("#")) {
         const tag = targetHref.substring(1);
         return (
-          <Link component={RouterLink} to={`/t/${tag}`}>
+          <RouterLink
+            to={`/feed/hashtag/${tag}`}
+            className="text-brand-purple hover:text-brand-purple/80 dark:text-brand-yellow dark:hover:text-brand-yellow/80"
+          >
             {children}
-          </Link>
+          </RouterLink>
         );
       }
       return (

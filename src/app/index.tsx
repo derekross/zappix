@@ -6,6 +6,7 @@ import { CreatePostPage } from "../pages/page-create-post";
 import { FeedPage } from "../pages/page-feed";
 import { FollowingFeed } from "../pages/page-feed/following-feed";
 import { GlobalFeed } from "../pages/page-feed/global-feed";
+import { HashtagFeed } from "../pages/page-feed/hashtag-feed/index";
 import { ProfilePage } from "../pages/page-profile";
 import { SettingsPage } from "../pages/page-settings";
 import { SiteFooter } from "./site-footer";
@@ -22,6 +23,8 @@ export const App: React.FC = () => {
             <Route element={<FeedPage />} path="feed">
               <Route element={<GlobalFeed />} path="global" />
               <Route element={<FollowingFeed />} path="following" />
+              <Route element={<HashtagFeed />} path="hashtag" />
+              <Route element={<HashtagFeed />} path="hashtag/:hashtag" />
 
               <Route element={<Navigate to="global" />} index />
             </Route>

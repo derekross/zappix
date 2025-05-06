@@ -174,6 +174,13 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const altTextTag = event.tags.find((tag) => tag[0] === "alt");
   const altText = altTextTag?.[1] || event.content || "Nostr image post";
 
+  // Process hashtags in content
+  const processedContent = useMemo(() => {
+    if (!event.content) return "";
+    // Match hashtags that start with # and contain word characters
+    return event.content.replace(/#(\w+)/g, "[$&](/feed/hashtag/$1)");
+  }, [event.content]);
+
   // --- Effects ---
   useEffect(() => {
     const { isSensitive, reason } = checkSensitiveContent(event.tags);
@@ -973,17 +980,10 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
             (loggedInUser || neventId) && (
               <CardAction>
                 <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Button
-                      aria-controls={isMenuOpen ? `post-action-menu-${event.id}` : undefined}
-                      aria-expanded={isMenuOpen ? "true" : undefined}
-                      aria-haspopup="true"
-                      aria-label="settings"
-                      className="!bg-[initial]"
-                      variant="tertiary"
-                    >
-                      <EllipsisVertical className="size-5" />
-                    </Button>
+                  <DropdownMenuTrigger asChild>
+                    <div className="cursor-pointer">
+                      <EllipsisVertical />
+                    </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
                     {neventId && (
@@ -1119,9 +1119,9 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
         {event.content != null && (
           <div className="pt-1 pb-2">
-            <p className="text-gray-700 dark:text-gray-300">
-              <MarkdownContent content={event.content} />
-            </p>
+            <div className="text-gray-700 dark:text-gray-300">
+              <MarkdownContent content={processedContent} />
+            </div>
           </div>
         )}
       </CardContent>
