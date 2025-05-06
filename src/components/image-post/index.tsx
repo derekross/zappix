@@ -29,6 +29,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { toast } from "sonner";
 import { useNdk } from "../../contexts/NdkContext";
+import { useNwc } from "../../contexts/NwcContext";
 import { Collapse } from "../collapse";
 import { Button } from "../ui/button";
 import {
@@ -134,6 +135,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   console.log("Rendering ImagePost for event:", event.id); // Keep log concise
 
   const { ndk, signer, user: loggedInUser } = useNdk();
+  const { nwcClient, isConnected } = useNwc();
   // const navigate = useNavigate();
   const [authorUser, setAuthorUser] = useState<null | NDKUser>(null);
   const [authorProfile, setAuthorProfile] = useState<null | NDKUserProfile>(null);
@@ -157,6 +159,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const [isProcessingLike, setIsProcessingLike] = useState<boolean>(false);
   const [isProcessingBoost, setIsProcessingBoost] = useState<boolean>(false);
   const [isProcessingZap, setIsProcessingZap] = useState<boolean>(false);
+  const [isZapping, setIsZapping] = React.useState(false);
+  const [zapError, setZapError] = React.useState<string | null>(null);
 
   // State for comments
   const [showComments, setShowComments] = useState<boolean>(false);
@@ -566,18 +570,119 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       setIsProcessingBoost(false);
     }
   }, [ndk, signer, loggedInUser, event.id, event.pubkey, hasBoosted, isProcessingBoost]);
-  const handleZap = useCallback(() => {
-    if (!loggedInUser) {
-      toast.error("Please log in to Zap.");
+  const handleZap = async () => {
+    if (!nwcClient || !isConnected) {
+      toast.error("Please connect your wallet first");
       return;
     }
-    if (!authorProfile?.lud16) {
-      toast.error("Author does not have a Lightning Address set up.");
+
+    if (!ndk || !loggedInUser) {
+      toast.error("Please log in to zap");
       return;
     }
-    toast("Zap function not fully implemented!", { icon: "⚡" });
-    setIsProcessingZap(false);
-  }, [loggedInUser, authorProfile]); // Simplified deps for placeholder
+
+    try {
+      // Get the default zap amount from localStorage
+      const savedZapAmount = localStorage.getItem("default_zap_amount");
+      const defaultZapAmount = savedZapAmount ? parseInt(savedZapAmount, 10) : 1000;
+      console.log("Default zap amount:", defaultZapAmount);
+
+      // Get the recipient's LNURL
+      const recipient = ndk.getUser({ pubkey: event.pubkey });
+      const profile = await recipient.fetchProfile();
+      if (!profile?.lud16) {
+        throw new Error("Recipient has no Lightning address");
+      }
+
+      // Create zap request event
+      const zapRequest = new NDKEvent(ndk);
+      zapRequest.kind = 9734; // Zap request kind
+      zapRequest.content = "";
+      zapRequest.tags = [
+        ["p", event.pubkey], // Recipient's pubkey
+        ["e", event.id], // Event being zapped
+        ["relays", event.relay?.url || ""], // Relay where the event was found
+        ["amount", (defaultZapAmount * 1000).toString()], // Amount in millisats
+        ["lnurl", profile.lud16], // LNURL for the recipient
+      ];
+      zapRequest.created_at = Math.floor(Date.now() / 1000);
+
+      // Sign the zap request event
+      await zapRequest.sign();
+      console.log("Signed zap request:", zapRequest.rawEvent());
+
+      // Send the zap request event
+      await zapRequest.publish();
+      console.log("Published zap request event");
+
+      // Format the zap request for NWC
+      const zapRequestEvent = zapRequest.rawEvent();
+      const zapRequestString = JSON.stringify(zapRequestEvent);
+
+      // Convert Lightning address to LNURL
+      const [username, domain] = profile.lud16.split("@");
+      const lnurl = `https://${domain}/.well-known/lnurlp/${username}`;
+
+      // Get the LNURL data
+      const lnurlResponse = await fetch(lnurl);
+      if (!lnurlResponse.ok) {
+        throw new Error("Failed to fetch LNURL data");
+      }
+      const lnurlData = await lnurlResponse.json();
+
+      if (!lnurlData.callback) {
+        throw new Error("Invalid LNURL response: no callback URL");
+      }
+
+      // Get the invoice from the callback
+      const callbackUrl = new URL(lnurlData.callback);
+      callbackUrl.searchParams.append("amount", (defaultZapAmount * 1000).toString());
+      callbackUrl.searchParams.append("nostr", zapRequestString);
+
+      const callbackResponse = await fetch(callbackUrl.toString());
+      if (!callbackResponse.ok) {
+        throw new Error("Failed to get invoice from LNURL callback");
+      }
+      const callbackData = await callbackResponse.json();
+
+      if (!callbackData.pr) {
+        throw new Error("No invoice received from LNURL callback");
+      }
+
+      // Pay the invoice using NWC
+      const paymentResult = await nwcClient.payInvoice({
+        invoice: callbackData.pr,
+      });
+
+      if (!paymentResult || !paymentResult.preimage) {
+        throw new Error("Payment failed or no preimage received");
+      }
+
+      // Create and publish zap receipt event
+      const zapReceipt = new NDKEvent(ndk);
+      zapReceipt.kind = 9735; // Zap receipt kind
+      zapReceipt.content = "";
+      zapReceipt.tags = [
+        ["p", event.pubkey], // Recipient's pubkey
+        ["e", event.id], // Event being zapped
+        ["relays", event.relay?.url || ""], // Relay where the event was found
+        ["bolt11", callbackData.pr], // The invoice that was paid
+        ["preimage", paymentResult.preimage], // The preimage of the payment
+        ["description", zapRequestString], // The original zap request event
+      ];
+      zapReceipt.created_at = Math.floor(Date.now() / 1000);
+
+      // Sign and publish the zap receipt
+      await zapReceipt.sign();
+      await zapReceipt.publish();
+
+      console.log("Payment response:", paymentResult);
+      toast.success("Zap sent successfully!");
+    } catch (error) {
+      console.error("Error sending zap:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to send zap");
+    }
+  };
 
   // Modified handleReply to toggle comments section
   const handleReply = useCallback(() => {
@@ -1113,5 +1218,3 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     </Card>
   );
 };
-
-// Ensure this helper function exists or is imported
