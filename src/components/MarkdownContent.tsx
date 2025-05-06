@@ -124,6 +124,26 @@ type CustomAnchorRenderer = React.FC<
   React.AnchorHTMLAttributes<HTMLAnchorElement> & { node?: any }
 >;
 
+// Custom hashtag link component
+const HashtagLink: React.FC<{ tag: string; children: React.ReactNode }> = ({ tag, children }) => (
+  <RouterLink
+    to={`/feed/hashtag/${tag}`}
+    className="text-brand-purple hover:text-brand-purple/80 dark:text-brand-yellow dark:hover:text-brand-yellow/80 no-underline"
+  >
+    {children}
+  </RouterLink>
+);
+
+// Custom internal link component
+const InternalLink: React.FC<{ to: string; children: React.ReactNode }> = ({ to, children }) => (
+  <RouterLink
+    to={to}
+    className="text-brand-purple hover:text-brand-purple/80 dark:text-brand-yellow dark:hover:text-brand-yellow/80 no-underline"
+  >
+    {children}
+  </RouterLink>
+);
+
 export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => {
   const { ndk } = useNdk(); // NDK needed for NostrMention
 
@@ -139,20 +159,9 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
     else if (targetHref.startsWith("/") || targetHref.startsWith("#")) {
       if (targetHref.startsWith("#")) {
         const tag = targetHref.substring(1);
-        return (
-          <RouterLink
-            to={`/feed/hashtag/${tag}`}
-            className="text-brand-purple hover:text-brand-purple/80 dark:text-brand-yellow dark:hover:text-brand-yellow/80"
-          >
-            {children}
-          </RouterLink>
-        );
+        return <HashtagLink tag={tag}>{children}</HashtagLink>;
       }
-      return (
-        <Link component={RouterLink} to={targetHref}>
-          {children}
-        </Link>
-      );
+      return <InternalLink to={targetHref}>{children}</InternalLink>;
     }
     // External links
     else {
