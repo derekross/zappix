@@ -83,8 +83,8 @@ const NwcSettings: React.FC = () => {
   };
 
   const handleDefaultZapAmountChange = (amount: number) => {
+    localStorage.setItem(LS_DEFAULT_ZAP_AMOUNT_KEY, amount.toString());
     setDefaultZapAmount(amount);
-    localStorage.setItem("default_zap_amount", amount.toString());
     toast.success("Default zap amount saved!");
   };
 

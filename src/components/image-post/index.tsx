@@ -159,8 +159,6 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const [isProcessingLike, setIsProcessingLike] = useState<boolean>(false);
   const [isProcessingBoost, setIsProcessingBoost] = useState<boolean>(false);
   const [isProcessingZap, setIsProcessingZap] = useState<boolean>(false);
-  const [isZapping, setIsZapping] = React.useState(false);
-  const [zapError, setZapError] = React.useState<string | null>(null);
 
   // State for comments
   const [showComments, setShowComments] = useState<boolean>(false);
@@ -581,6 +579,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       return;
     }
 
+    setIsProcessingZap(true);
     try {
       // Get the default zap amount from localStorage
       const savedZapAmount = localStorage.getItem("default_zap_amount");
@@ -681,6 +680,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     } catch (error) {
       console.error("Error sending zap:", error);
       toast.error(error instanceof Error ? error.message : "Failed to send zap");
+    } finally {
+      setIsProcessingZap(false);
     }
   };
 
