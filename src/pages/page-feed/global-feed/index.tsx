@@ -93,9 +93,33 @@ export const GlobalFeed: React.FC = () => {
       limit: BATCH_SIZE,
     };
 
-    const sub = ndk.subscribe(filter, { closeOnEose: true });
+    const sub = ndk.subscribe(filter, {
+      closeOnEose: true,
+      groupable: false, // Don't wait for all relays
+    });
     subscriptionRef.current = sub;
     const batchEvents: NDKEvent[] = [];
+
+    // Set a timeout to close the subscription if it takes too long
+    const timeoutId = setTimeout(() => {
+      if (isMounted.current && isLoadingFeed) {
+        if (batchEvents.length > 0) {
+          const sortedBatch = batchEvents.sort((a, b) => b.created_at! - a.created_at!);
+          setNotes(sortedBatch);
+          if (sortedBatch.length > 0) {
+            setLastEventTimestamp(sortedBatch[sortedBatch.length - 1].created_at);
+          }
+          setCanLoadMore(batchEvents.length >= BATCH_SIZE);
+        } else {
+          setCanLoadMore(false);
+        }
+        setIsLoadingFeed(false);
+        setIsFetchingMore(false);
+        if (subscriptionRef.current) {
+          subscriptionRef.current.stop();
+        }
+      }
+    }, 5000);
 
     sub.on("event", (event: NDKEvent) => {
       if (!isMounted.current) return;
@@ -107,6 +131,7 @@ export const GlobalFeed: React.FC = () => {
 
     sub.on("eose", () => {
       if (!isMounted.current) return;
+      clearTimeout(timeoutId);
       const sortedBatch = batchEvents.sort((a, b) => b.created_at! - a.created_at!);
       setNotes(sortedBatch);
       if (sortedBatch.length > 0) {
@@ -119,6 +144,7 @@ export const GlobalFeed: React.FC = () => {
 
     sub.on("closed", () => {
       if (isMounted.current && isLoadingFeed) {
+        clearTimeout(timeoutId);
         setIsLoadingFeed(false);
         setIsFetchingMore(false);
         if (notes.length === 0) setCanLoadMore(false);
@@ -126,13 +152,14 @@ export const GlobalFeed: React.FC = () => {
     });
 
     return () => {
+      clearTimeout(timeoutId);
       if (subscriptionRef.current) {
         subscriptionRef.current.stop();
         subscriptionRef.current = null;
       }
       isMounted.current = false;
     };
-  }, []);
+  }, [ndk]);
 
   // Effect to filter out muted users' posts when mute list changes
   React.useEffect(() => {
