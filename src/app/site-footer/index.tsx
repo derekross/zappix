@@ -5,6 +5,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Bookmark,
   EllipsisVertical,
   Home,
   LogIn,
@@ -101,6 +102,12 @@ export const SiteFooter: React.FC = () => {
                     <DropdownMenuItem>
                       <Settings />
                       Settings
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link to="bookmarks">
+                    <DropdownMenuItem>
+                      <Bookmark className="mr-2 h-4 w-4" />
+                      Bookmarks
                     </DropdownMenuItem>
                   </Link>
                   <ThemeToggle />

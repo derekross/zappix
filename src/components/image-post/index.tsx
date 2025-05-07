@@ -23,6 +23,8 @@ import {
   Volume2,
   VolumeOff,
   Zap,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -158,12 +160,16 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   const [isProcessingLike, setIsProcessingLike] = useState<boolean>(false);
   const [isProcessingBoost, setIsProcessingBoost] = useState<boolean>(false);
   const [isProcessingZap, setIsProcessingZap] = useState<boolean>(false);
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
+  const [isProcessingBookmark, setIsProcessingBookmark] = useState<boolean>(false);
 
   // State for comments
   const [showComments, setShowComments] = useState<boolean>(false);
   const [comments, setComments] = useState<NDKEvent[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState<boolean>(false);
   const [newCommentText, setNewCommentText] = useState<string>("");
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const metadata = useMemo(() => parseImetaTag(event.tags), [event.tags]);
   const imageUrls = useMemo(
@@ -499,6 +505,31 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     }
   }, [ndk, signer, loggedInUser, newCommentText, event, fetchComments]);
 
+  // Add bookmark effect
+  useEffect(() => {
+    if (!ndk || !loggedInUser || !event.id) return;
+
+    const checkBookmarkStatus = async () => {
+      try {
+        const bookmarkFilter: NDKFilter = {
+          authors: [loggedInUser.pubkey],
+          kinds: [10003],
+          "#t": ["bookmark"],
+          "#k": ["20"],
+          "#e": [event.id],
+        };
+        const bookmarkEvent = await ndk.fetchEvent(bookmarkFilter, {
+          cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
+        });
+        setIsBookmarked(!!bookmarkEvent);
+      } catch (error) {
+        console.error("Error checking bookmark status:", error);
+      }
+    };
+
+    checkBookmarkStatus();
+  }, [ndk, loggedInUser, event.id]);
+
   // --- Action Handlers ---
   const handleLike = useCallback(async () => {
     if (!ndk || !signer || !loggedInUser || isProcessingLike) return;
@@ -699,7 +730,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
   }, [setShowComments]);
 
   const handleMenuClose = () => {
-    // No-op since we're using DropdownMenu component
+    setIsDropdownOpen(false);
   };
   const handleCopyNevent = () => {
     if (neventId) {
@@ -742,6 +773,66 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     }
     handleMenuClose();
   };
+  const handleBookmarkToggle = async () => {
+    if (!ndk || !signer || !loggedInUser || isProcessingBookmark) return;
+    setIsProcessingBookmark(true);
+    const toastId = "bookmark-toast";
+    toast.loading(isBookmarked ? "Removing bookmark..." : "Adding bookmark...", { id: toastId });
+
+    try {
+      const filter: NDKFilter = {
+        authors: [loggedInUser.pubkey],
+        kinds: [10003],
+        "#t": ["bookmark"],
+        "#k": ["20"],
+      };
+      const currentBookmarkList = await ndk.fetchEvent(filter, {
+        cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
+      });
+
+      let currentTags: string[][] = currentBookmarkList ? currentBookmarkList.tags : [];
+      let newTags: string[][] = [];
+
+      if (isBookmarked) {
+        // Remove bookmark
+        newTags = currentTags.filter((tag) => !(tag[0] === "e" && tag[1] === event.id));
+      } else {
+        // Add bookmark
+        if (!currentTags.some((tag) => tag[0] === "e" && tag[1] === event.id)) {
+          newTags = [
+            ...currentTags,
+            ["e", event.id, event.relay?.url || ""],
+            ["k", "20"],
+            ["t", "bookmark"],
+          ];
+        } else {
+          newTags = currentTags;
+        }
+      }
+
+      const newEvent = new NDKEvent(ndk);
+      newEvent.kind = 10003;
+      newEvent.created_at = Math.floor(Date.now() / 1000);
+      newEvent.tags = newTags;
+      newEvent.content = currentBookmarkList?.content || "";
+      await newEvent.sign(signer);
+      const publishedRelays = await newEvent.publish();
+
+      if (publishedRelays.size > 0) {
+        toast.success(isBookmarked ? "Bookmark removed!" : "Bookmark added!", { id: toastId });
+        setIsBookmarked(!isBookmarked);
+      } else {
+        toast.error("Failed to update bookmark list.", { id: toastId });
+        throw new Error("Publish failed");
+      }
+    } catch (error) {
+      toast.error(`Failed to ${isBookmarked ? "remove" : "add"} bookmark.`, { id: toastId });
+      console.error("Bookmark Error:", error);
+    } finally {
+      setIsProcessingBookmark(false);
+    }
+  };
+
   // --- handleFollowToggle, handleMuteToggle, handleReportClick, handleReportSubmit (Unchanged) ---
   const handleFollowToggle = async () => {
     if (
@@ -977,7 +1068,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
           action={
             (loggedInUser || neventId) && (
               <CardAction>
-                <DropdownMenu>
+                <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                   <DropdownMenuTrigger asChild>
                     <div className="cursor-pointer">
                       <EllipsisVertical />
@@ -986,14 +1077,29 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                   <DropdownMenuContent>
                     {neventId && (
                       <DropdownMenuItem onClick={handleCopyNevent}>
-                        <Copy />
+                        <Copy className="text-brand-purple" />
                         Copy Note ID
                       </DropdownMenuItem>
                     )}
                     {neventId && (
                       <DropdownMenuItem onClick={handleShare}>
-                        <Share />
+                        <Share className="text-brand-purple" />
                         Share
+                      </DropdownMenuItem>
+                    )}
+                    {loggedInUser && (
+                      <DropdownMenuItem
+                        disabled={isProcessingBookmark}
+                        onClick={handleBookmarkToggle}
+                      >
+                        {isProcessingBookmark ? (
+                          <Loader />
+                        ) : isBookmarked ? (
+                          <BookmarkCheck className="text-brand-purple" />
+                        ) : (
+                          <Bookmark className="text-brand-purple" />
+                        )}
+                        {isBookmarked ? "Unbookmark" : "Bookmark"}
                       </DropdownMenuItem>
                     )}
                     {loggedInUser && !isOwnPost && (
@@ -1004,9 +1110,9 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                         {isProcessingFollow ? (
                           <Loader />
                         ) : isFollowingAuthor ? (
-                          <UserMinus />
+                          <UserMinus className="text-brand-purple" />
                         ) : (
-                          <UserPlus />
+                          <UserPlus className="text-brand-purple" />
                         )}
                         {isFollowingAuthor ? "Unfollow Author" : "Follow Author"}
                       </DropdownMenuItem>
@@ -1019,16 +1125,20 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                         {isProcessingMute ? (
                           <Loader />
                         ) : isMutingAuthor ? (
-                          <Volume2 />
+                          <Volume2 className="text-brand-purple" />
                         ) : (
-                          <VolumeOff />
+                          <VolumeOff className="text-brand-purple" />
                         )}
                         {isMutingAuthor ? "Unmute Author" : "Mute Author"}
                       </DropdownMenuItem>
                     )}
                     {loggedInUser && !isOwnPost && (
                       <DropdownMenuItem disabled={isSubmittingReport}>
-                        <ReportPostDialog event={event} onSubmit={handleReportSubmit} />
+                        <ReportPostDialog
+                          event={event}
+                          onSubmit={handleReportSubmit}
+                          onClose={handleMenuClose}
+                        />
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>

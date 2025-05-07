@@ -12,7 +12,9 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
+  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
@@ -20,7 +22,8 @@ import { Loader } from "../ui/icons";
 
 interface ReportPostDialogProps {
   event: NDKEvent;
-  onSubmit: (reportType: string, reasonText: string) => void; // Passes selection back
+  onSubmit: (reportType: string, reasonText: string) => void;
+  onClose?: () => void;
 }
 
 // NIP-56 Recommended Report Types
@@ -33,62 +36,75 @@ const reportTypes = [
   { label: "Other (please specify below)", value: "other" },
 ];
 
-export const ReportPostDialog: React.FC<ReportPostDialogProps> = ({ event, onSubmit }) => {
+export const ReportPostDialog: React.FC<ReportPostDialogProps> = ({ event, onSubmit, onClose }) => {
   const [selectedType, setSelectedType] = useState<string>("");
   const [otherReason, setOtherReason] = useState<string>("");
-  // isSubmitting might be controlled by the parent if the onSubmit is async
-  const [isSubmitting] = useState(false); // Assuming parent controls async state for now
+  const [isSubmitting] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    event.stopPropagation();
     setSelectedType(event.target.value);
   };
 
   const handleOtherReasonChange: FormInputTextareaProps["onChange"] = (event) => {
+    event.stopPropagation();
     setOtherReason(event.target.value);
   };
 
-  const handleSubmitClick = () => {
+  const handleSubmitClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!selectedType) {
-      // TODO: Consider showing an inline error or toast
       console.warn("Report type not selected");
       return;
     }
     if (selectedType === "other" && !otherReason.trim()) {
-      // TODO: Consider showing an inline error or toast
       console.warn("Other reason not provided");
       return;
     }
-
-    // Pass data back to parent component for NIP-56 event creation
-    // Parent component will handle the actual submission logic and async state
     onSubmit(selectedType, otherReason.trim());
-
-    // Optionally close immediately or let parent close after successful submission
-    // onClose();
+    setIsOpen(false);
+    onClose?.();
   };
 
-  // Determine author display name
+  const handleContentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      onClose?.();
+    }
+  };
+
   const authorName =
     event.author.profile?.displayName ||
     event.author.profile?.name ||
     event.author.npub.substring(0, 10) + "...";
 
   return (
-    <Dialog
-      onOpenChange={(open) => {
-        if (open) {
-          setSelectedType("");
-          setOtherReason("");
-          // setIsSubmitting(false); // Parent should control this if onSubmit is async
-        }
-      }}
-    >
-      <DialogTrigger className="flex gap-1">
-        <Flag />
-        Report Post
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <button
+          className="flex w-full items-center gap-1 px-2 py-1.5 text-sm"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsOpen(true);
+          }}
+        >
+          <Flag className="text-red-500" />
+          Report Post
+        </button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogTitle>Report Post</DialogTitle>
+      <DialogContent className="sm:max-w-[425px]" onClick={handleContentClick}>
+        <DialogHeader>
+          <DialogTitle>Report Post</DialogTitle>
+          <DialogDescription>
+            Select a reason for reporting this post. Your report will be reviewed by moderators.
+          </DialogDescription>
+        </DialogHeader>
         <div className="flex flex-col gap-2">
           <p>Why are you reporting this post by {authorName}?</p>
           <FormControl component="fieldset" required>
@@ -131,9 +147,12 @@ export const ReportPostDialog: React.FC<ReportPostDialogProps> = ({ event, onSub
             {isSubmitting ? <Loader /> : "Submit Report"}
           </Button>
           <DialogClose asChild>
-            <Button disabled={isSubmitting} variant="secondary">
+            <button
+              className="bg-secondary ring-offset-background hover:bg-secondary/80 focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              onClick={(e) => e.stopPropagation()}
+            >
               Cancel
-            </Button>
+            </button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>

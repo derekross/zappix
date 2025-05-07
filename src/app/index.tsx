@@ -11,6 +11,7 @@ import { ProfilePage } from "../pages/page-profile";
 import { SettingsPage } from "../pages/page-settings";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
+import { BookmarksPage } from "../pages/page-bookmarks";
 
 export const App: React.FC = () => {
   return (
@@ -36,6 +37,8 @@ export const App: React.FC = () => {
             </Route>
 
             <Route element={<SettingsPage />} path="settings" />
+
+            <Route element={<BookmarksPage />} path="bookmarks" />
 
             <Route element={<Navigate to="feed" />} index />
           </Routes>
