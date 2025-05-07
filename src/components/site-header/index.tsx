@@ -1,11 +1,6 @@
 import { Bookmark } from "lucide-react";
 import { Link } from "react-router-dom";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+import { DropdownMenuItem } from "../ui/dropdown-menu";
 
 // ... existing imports ...
 

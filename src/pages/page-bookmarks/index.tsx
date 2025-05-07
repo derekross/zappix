@@ -1,4 +1,4 @@
-import { NDKEvent, NDKFilter, NDKKind, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
+import { NDKEvent, NDKFilter, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import React, { useEffect, useState } from "react";
 import { useNdk } from "../../contexts/NdkContext";
 import { ImagePost } from "../../components/image-post";
