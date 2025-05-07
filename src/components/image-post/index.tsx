@@ -380,7 +380,9 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                 } else if (amountSection?.value && typeof amountSection.value === "string") {
                   try {
                     totalSats += parseInt(amountSection.value, 10) / 1000;
-                  } catch (e) {}
+                  } catch (error) {
+                    console.warn("Failed to parse zap amount:", error);
+                  }
                 }
               }
             }
@@ -724,8 +726,8 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
           url: shareUrl,
         });
         toast.success("Shared successfully!");
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
+      } catch (err: Error | unknown) {
+        if (err instanceof Error && err.name !== "AbortError") {
           console.error("Error sharing:", err);
           toast.error(`Could not share: ${err.message}`);
         }
@@ -1115,7 +1117,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
         {event.content != null && (
           <div className="pt-1 pb-2">
-            <div className="text-gray-700 dark:text-gray-300">
+            <div className="overflow-hidden break-words whitespace-pre-wrap text-gray-700 dark:text-gray-300">
               <MarkdownContent content={processedContent} />
             </div>
           </div>
