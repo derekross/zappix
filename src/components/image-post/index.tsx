@@ -790,7 +790,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
         cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
       });
 
-      let currentTags: string[][] = currentBookmarkList ? currentBookmarkList.tags : [];
+      const currentTags: string[][] = currentBookmarkList ? currentBookmarkList.tags : [];
       let newTags: string[][] = [];
 
       if (isBookmarked) {
@@ -1078,13 +1078,13 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                     {neventId && (
                       <DropdownMenuItem onClick={handleCopyNevent}>
                         <Copy className="text-brand-purple" />
-                        Copy Note ID
+                        <span className="ml-2">Copy Note ID</span>
                       </DropdownMenuItem>
                     )}
                     {neventId && (
                       <DropdownMenuItem onClick={handleShare}>
                         <Share className="text-brand-purple" />
-                        Share
+                        <span className="ml-2">Share</span>
                       </DropdownMenuItem>
                     )}
                     {loggedInUser && (
@@ -1099,7 +1099,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                         ) : (
                           <Bookmark className="text-brand-purple" />
                         )}
-                        {isBookmarked ? "Unbookmark" : "Bookmark"}
+                        <span className="ml-2">{isBookmarked ? "Unbookmark" : "Bookmark"}</span>
                       </DropdownMenuItem>
                     )}
                     {loggedInUser && !isOwnPost && (
@@ -1114,7 +1114,9 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                         ) : (
                           <UserPlus className="text-brand-purple" />
                         )}
-                        {isFollowingAuthor ? "Unfollow Author" : "Follow Author"}
+                        <span className="ml-2">
+                          {isFollowingAuthor ? "Unfollow Author" : "Follow Author"}
+                        </span>
                       </DropdownMenuItem>
                     )}
                     {loggedInUser && !isOwnPost && (
@@ -1129,7 +1131,9 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                         ) : (
                           <VolumeOff className="text-brand-purple" />
                         )}
-                        {isMutingAuthor ? "Unmute Author" : "Mute Author"}
+                        <span className="ml-2">
+                          {isMutingAuthor ? "Unmute Author" : "Mute Author"}
+                        </span>
                       </DropdownMenuItem>
                     )}
                     {loggedInUser && !isOwnPost && (

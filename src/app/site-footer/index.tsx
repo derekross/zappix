@@ -74,8 +74,8 @@ export const SiteFooter: React.FC = () => {
                 <DropdownMenuContent>
                   {user != null && (
                     <DropdownMenuItem onClick={handleLogout}>
-                      <LogOut />
-                      Logout
+                      <LogOut className="h-4 w-4" />
+                      <span className="ml-2">Logout</span>
                     </DropdownMenuItem>
                   )}
                   {user == null && (
@@ -83,16 +83,16 @@ export const SiteFooter: React.FC = () => {
                       <LoginModal
                         trigger={
                           <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                            <LogIn />
-                            Login
+                            <LogIn className="h-4 w-4" />
+                            <span className="ml-2">Login</span>
                           </DropdownMenuItem>
                         }
                       />
                       <SignUpModal
                         trigger={
                           <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                            <PersonStanding />
-                            Sign Up
+                            <PersonStanding className="h-4 w-4" />
+                            <span className="ml-2">Sign Up</span>
                           </DropdownMenuItem>
                         }
                       />
@@ -100,14 +100,14 @@ export const SiteFooter: React.FC = () => {
                   )}
                   <Link to="settings">
                     <DropdownMenuItem>
-                      <Settings />
-                      Settings
+                      <Settings className="h-4 w-4" />
+                      <span className="ml-2">Settings</span>
                     </DropdownMenuItem>
                   </Link>
                   <Link to="bookmarks">
                     <DropdownMenuItem>
-                      <Bookmark className="mr-2 h-4 w-4" />
-                      Bookmarks
+                      <Bookmark className="h-4 w-4" />
+                      <span className="ml-2">Bookmarks</span>
                     </DropdownMenuItem>
                   </Link>
                   <ThemeToggle />

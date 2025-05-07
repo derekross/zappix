@@ -5,9 +5,9 @@ import { DropdownMenuItem } from "../ui/dropdown-menu";
 // ... existing imports ...
 
 // Inside the dropdown menu items, between Logout and Settings
-<DropdownMenuItem asChild>
-  <Link to="/bookmarks">
-    <Bookmark className="mr-2 h-4 w-4" />
-    Bookmarks
-  </Link>
-</DropdownMenuItem>;
+<Link to="/bookmarks">
+  <DropdownMenuItem className="[&_svg]:!m-0 [&_svg]:!mr-0 [&_svg]:!ml-0">
+    <Bookmark className="!m-0 !mr-0 !ml-0 h-4 w-4" />
+    <span className="ml-2">Bookmarks</span>
+  </DropdownMenuItem>
+</Link>;

@@ -1,5 +1,5 @@
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Brightness4, Brightness7, Computer } from "@mui/icons-material";
+import { Laptop, Moon, Sun } from "lucide-react";
 import * as React from "react";
 import { useThemeContext } from "../../contexts/theme";
 
@@ -38,10 +38,10 @@ export const ThemeToggle: React.FC = () => {
 
   return (
     <DropdownMenuItem onClick={handleOnClick}>
-      {(theme === "system" || theme == null) && <Computer fontSize="small" />}
-      {theme === "light" && <Brightness4 fontSize="small" />}
-      {theme === "dark" && <Brightness7 fontSize="small" />}
-      {getLabel()}
+      {(theme === "system" || theme == null) && <Laptop className="h-4 w-4" />}
+      {theme === "light" && <Moon className="h-4 w-4" />}
+      {theme === "dark" && <Sun className="h-4 w-4" />}
+      <span className="ml-2">{getLabel()}</span>
     </DropdownMenuItem>
   );
 };
