@@ -14,6 +14,7 @@ export type LoginModalProps = {
 
 export const LoginModal: React.FC<LoginModalProps> = (props) => {
   const { trigger } = props;
+  const [open, setOpen] = React.useState(false);
 
   const { loginWithNip07, loginWithNsec } = useNdk();
   const [error, setError] = React.useState<null | string>(null);
@@ -27,9 +28,9 @@ export const LoginModal: React.FC<LoginModalProps> = (props) => {
     try {
       await loginWithNip07();
       toast.success("Logged in!", { id: toastId });
-      // onClose();
-    } catch (err: any) {
-      const msg = err.message || "NIP-07 failed";
+      setOpen(false);
+    } catch (err: Error | unknown) {
+      const msg = err instanceof Error ? err.message : "NIP-07 failed";
       setError(msg);
       toast.error(`Login Fail: ${msg}`, { id: toastId });
     } finally {
@@ -49,9 +50,9 @@ export const LoginModal: React.FC<LoginModalProps> = (props) => {
       await loginWithNsec(nsecInput.trim());
       toast.success("Logged in!", { id: toastId });
       setNsecInput("");
-      // onClose();
-    } catch (err: any) {
-      const msg = err.message || "NSEC failed";
+      setOpen(false);
+    } catch (err: Error | unknown) {
+      const msg = err instanceof Error ? err.message : "NSEC failed";
       setError(msg);
       toast.error(`Login Fail: ${msg}`, { id: toastId });
     } finally {
@@ -69,7 +70,7 @@ export const LoginModal: React.FC<LoginModalProps> = (props) => {
   }, [open]);
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>Login</DialogHeader>
