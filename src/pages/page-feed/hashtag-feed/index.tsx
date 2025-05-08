@@ -246,18 +246,18 @@ export const HashtagFeed: React.FC = () => {
     const shownPostIds = new Set<string>();
 
     return (
-      <div className="container mx-auto p-4">
+      <div className="mt-2">
         <h1 className="mb-6 text-2xl font-bold">Popular Hashtags</h1>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {POPULAR_HASHTAGS.map((tag) => (
-            <div key={tag} className="rounded-lg border p-4 shadow-sm">
+            <div key={tag} className="rounded-lg border shadow-sm">
               <Link
                 to={`/feed/hashtag/${tag}`}
-                className="text-brand-purple hover:text-brand-purple/80 dark:text-brand-yellow dark:hover:text-brand-yellow/80 mb-4 block text-xl font-semibold"
+                className="text-brand-purple hover:text-brand-purple/80 dark:text-brand-yellow dark:hover:text-brand-yellow/80 block p-4 text-xl font-semibold"
               >
                 #{tag}
               </Link>
-              <div className="space-y-4">
+              <div className="space-y-4 px-4 pb-4">
                 {notes
                   .filter((note) => {
                     // Check if the note has this hashtag (case-insensitive)
