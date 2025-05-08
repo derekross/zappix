@@ -257,7 +257,7 @@ export const HashtagFeed: React.FC = () => {
               >
                 #{tag}
               </Link>
-              <div className="space-y-4 px-4 pb-4">
+              <div className="space-y-4">
                 {notes
                   .filter((note) => {
                     // Check if the note has this hashtag (case-insensitive)
