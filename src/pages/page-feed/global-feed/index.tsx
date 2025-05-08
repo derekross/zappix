@@ -1,5 +1,5 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ErrorIcon, InfoIcon, Loader, WarningIcon } from "@/components/ui/icons";
+import { ErrorIcon, Loader, WarningIcon } from "@/components/ui/icons";
 import {
   NDKEvent,
   NDKFilter,
@@ -8,7 +8,6 @@ import {
   NDKSubscriptionCacheUsage,
 } from "@nostr-dev-kit/ndk";
 import * as React from "react";
-import { toast } from "sonner";
 import { ImagePost } from "../../../components/image-post";
 import { useNdk } from "../../../contexts/NdkContext";
 import useIntersectionObserver from "../../../hooks/useIntersectionObserver";
@@ -131,14 +130,52 @@ export const GlobalFeed: React.FC = () => {
 
     sub.on("eose", () => {
       if (!isMounted.current) return;
-      clearTimeout(timeoutId);
-      const sortedBatch = batchEvents.sort((a, b) => b.created_at! - a.created_at!);
-      setNotes(sortedBatch);
-      if (sortedBatch.length > 0) {
-        setLastEventTimestamp(sortedBatch[sortedBatch.length - 1].created_at);
+      console.log("EOSE received, batch size:", batchEvents.length);
+      console.log("Current notes before update:", notes.length);
+
+      if (batchEvents.length > 0) {
+        console.log(
+          "Processing batch events:",
+          batchEvents.map((e) => e.id),
+        );
+        setNotes((prevNotes) => {
+          console.log("Previous notes count:", prevNotes.length);
+          const combinedNotes = [...prevNotes, ...batchEvents];
+          console.log("Combined notes count:", combinedNotes.length);
+
+          const uniqueNotesMap = new Map<string, NDKEvent>();
+          combinedNotes.forEach((note) => {
+            if (!uniqueNotesMap.has(note.id)) uniqueNotesMap.set(note.id, note);
+          });
+          const sortedUniqueNotes = Array.from(uniqueNotesMap.values()).sort(
+            (a, b) => b.created_at! - a.created_at!,
+          );
+          console.log("Sorted unique notes count:", sortedUniqueNotes.length);
+
+          const newEventsAddedCount = sortedUniqueNotes.length - prevNotes.length;
+          console.log("Adding new events:", {
+            newEventsAddedCount,
+            totalEvents: sortedUniqueNotes.length,
+            lastEventTimestamp: sortedUniqueNotes[sortedUniqueNotes.length - 1]?.created_at,
+          });
+
+          if (newEventsAddedCount > 0 && sortedUniqueNotes.length > 0) {
+            const newLastTimestamp = sortedUniqueNotes[sortedUniqueNotes.length - 1].created_at;
+            console.log("Setting new lastEventTimestamp:", newLastTimestamp);
+            setLastEventTimestamp(newLastTimestamp);
+          }
+
+          if (batchEvents.length < BATCH_SIZE) {
+            console.log("Setting canLoadMore to false due to batch size < BATCH_SIZE");
+            setCanLoadMore(false);
+          }
+
+          return sortedUniqueNotes;
+        });
+      } else {
+        console.log("No new events received, setting canLoadMore to false");
+        setCanLoadMore(false);
       }
-      setCanLoadMore(batchEvents.length >= BATCH_SIZE);
-      setIsLoadingFeed(false);
       setIsFetchingMore(false);
     });
 
@@ -151,8 +188,36 @@ export const GlobalFeed: React.FC = () => {
       }
     });
 
+    // Add a timeout to handle cases where EOSE doesn't come
+    const timeoutId2 = setTimeout(() => {
+      if (isMounted.current && batchEvents.length > 0) {
+        console.log(
+          "Timeout reached, processing batch events:",
+          batchEvents.map((e) => e.id),
+        );
+        setNotes((prevNotes) => {
+          const combinedNotes = [...prevNotes, ...batchEvents];
+          const uniqueNotesMap = new Map<string, NDKEvent>();
+          combinedNotes.forEach((note) => {
+            if (!uniqueNotesMap.has(note.id)) uniqueNotesMap.set(note.id, note);
+          });
+          const sortedUniqueNotes = Array.from(uniqueNotesMap.values()).sort(
+            (a, b) => b.created_at! - a.created_at!,
+          );
+          if (sortedUniqueNotes.length > 0) {
+            setLastEventTimestamp(sortedUniqueNotes[sortedUniqueNotes.length - 1].created_at);
+          }
+          if (batchEvents.length < BATCH_SIZE) setCanLoadMore(false);
+          return sortedUniqueNotes;
+        });
+        setIsFetchingMore(false);
+      }
+    }, 5000);
+
     return () => {
+      console.log("Cleaning up subscription");
       clearTimeout(timeoutId);
+      clearTimeout(timeoutId2);
       if (subscriptionRef.current) {
         subscriptionRef.current.stop();
         subscriptionRef.current = null;
@@ -169,8 +234,15 @@ export const GlobalFeed: React.FC = () => {
   }, [mutedPubkeys, notes.length]);
 
   const loadMoreGlobal = React.useCallback(async () => {
-    if (isLoadingFeed || isFetchingMore || !canLoadMore || lastEventTimestamp === undefined || !ndk)
+    if (
+      isLoadingFeed ||
+      isFetchingMore ||
+      !ndk ||
+      !canLoadMore ||
+      lastEventTimestamp === undefined
+    ) {
       return;
+    }
 
     setIsFetchingMore(true);
     setError(null);
@@ -181,45 +253,83 @@ export const GlobalFeed: React.FC = () => {
       until: lastEventTimestamp,
     };
 
-    try {
-      const fetchedEventsSet = await ndk.fetchEvents(filter, {
-        cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST,
-        closeOnEose: true,
-      });
-      const fetchedEventsArray = Array.from(fetchedEventsSet).filter(
-        (event) => !mutedPubkeys.has(event.pubkey),
-      );
+    const sub = ndk.subscribe(filter, {
+      closeOnEose: true,
+      groupable: false,
+    });
 
+    const batchEvents: NDKEvent[] = [];
+    let isProcessing = false;
+
+    sub.on("event", (event: NDKEvent) => {
       if (!isMounted.current) return;
+      if (!receivedEventIds.current.has(event.id) && !mutedPubkeys.has(event.pubkey)) {
+        receivedEventIds.current.add(event.id);
+        batchEvents.push(event);
 
-      if (fetchedEventsArray.length > 0) {
-        setNotes((prevNotes) => {
-          const combinedNotes = [...prevNotes, ...fetchedEventsArray];
-          const uniqueNotesMap = new Map<string, NDKEvent>();
-          combinedNotes.forEach((note) => {
-            if (!uniqueNotesMap.has(note.id)) uniqueNotesMap.set(note.id, note);
-          });
-          const sortedUniqueNotes = Array.from(uniqueNotesMap.values()).sort(
-            (a, b) => b.created_at! - a.created_at!,
-          );
-          const newEventsAddedCount = sortedUniqueNotes.length - prevNotes.length;
-          if (newEventsAddedCount > 0 && sortedUniqueNotes.length > 0) {
-            setLastEventTimestamp(sortedUniqueNotes[sortedUniqueNotes.length - 1].created_at);
-          }
-          if (fetchedEventsArray.length < BATCH_SIZE) setCanLoadMore(false);
-          return sortedUniqueNotes;
-        });
-      } else {
-        setCanLoadMore(false);
+        if (batchEvents.length >= BATCH_SIZE && !isProcessing) {
+          isProcessing = true;
+          processBatchEvents();
+        }
       }
-    } catch {
+    });
+
+    const processBatchEvents = () => {
       if (!isMounted.current) return;
-      toast.error("Failed to load older posts.");
-      setCanLoadMore(false);
-    } finally {
-      if (isMounted.current) setIsFetchingMore(false);
-    }
-  }, [ndk, isLoadingFeed, isFetchingMore, canLoadMore, lastEventTimestamp, mutedPubkeys]);
+
+      setNotes((prevNotes) => {
+        const combinedNotes = [...prevNotes, ...batchEvents];
+        const uniqueNotesMap = new Map<string, NDKEvent>();
+        combinedNotes.forEach((note) => {
+          if (!uniqueNotesMap.has(note.id)) uniqueNotesMap.set(note.id, note);
+        });
+        const sortedUniqueNotes = Array.from(uniqueNotesMap.values()).sort(
+          (a, b) => b.created_at! - a.created_at!,
+        );
+
+        if (sortedUniqueNotes.length > 0) {
+          setLastEventTimestamp(sortedUniqueNotes[sortedUniqueNotes.length - 1].created_at);
+        }
+
+        return sortedUniqueNotes;
+      });
+
+      setIsFetchingMore(false);
+      isProcessing = false;
+    };
+
+    sub.on("eose", () => {
+      if (!isMounted.current) return;
+      if (batchEvents.length > 0 && !isProcessing) {
+        isProcessing = true;
+        processBatchEvents();
+      } else {
+        setIsFetchingMore(false);
+      }
+    });
+
+    const timeoutId = setTimeout(() => {
+      if (isMounted.current && batchEvents.length > 0 && !isProcessing) {
+        isProcessing = true;
+        processBatchEvents();
+      } else {
+        setIsFetchingMore(false);
+      }
+    }, 15000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      sub.stop();
+    };
+  }, [
+    ndk,
+    canLoadMore,
+    lastEventTimestamp,
+    isFetchingMore,
+    isLoadingFeed,
+    mutedPubkeys,
+    notes.length,
+  ]);
 
   useIntersectionObserver({
     enabled: !isLoadingFeed && !isFetchingMore && canLoadMore && lastEventTimestamp !== undefined,
@@ -266,13 +376,6 @@ export const GlobalFeed: React.FC = () => {
         <div className="flex justify-center p-2">
           <Loader className="size-12" />
         </div>
-      )}
-
-      {!canLoadMore && !isLoadingFeed && !isFetchingMore && notes.length > 0 && (
-        <Alert>
-          <InfoIcon />
-          <AlertDescription>End of feed.</AlertDescription>
-        </Alert>
       )}
     </div>
   );

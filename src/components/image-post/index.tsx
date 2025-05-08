@@ -1252,7 +1252,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
             ) : (
               <HeartPlus className="text-brand-purple" />
             )}
-            {isLoadingReactions ? <Loader /> : likeCount > 0 ? likeCount : ""}
+            {!isLoadingReactions && likeCount > 0 ? likeCount : ""}
           </Button>
           <Button
             className="flex items-center justify-center gap-1"
@@ -1270,7 +1270,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
                 })}
               />
             )}
-            {isLoadingReactions ? <Loader /> : boostCount > 0 ? boostCount : ""}
+            {!isLoadingReactions && boostCount > 0 ? boostCount : ""}
           </Button>
           <Button
             className="flex items-center justify-center gap-1"
@@ -1278,7 +1278,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
             variant="tertiary"
           >
             <MessageSquare className="text-brand-purple" />
-            {isLoadingReactions ? <Loader /> : replyCount > 0 ? replyCount : ""}
+            {!isLoadingReactions && replyCount > 0 ? replyCount : ""}
           </Button>
           <Button
             className="flex items-center justify-center gap-1"
@@ -1288,7 +1288,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
             variant="tertiary"
           >
             {isProcessingZap ? <Loader /> : <Zap className="text-brand-yellow" />}
-            {isLoadingReactions ? <Loader /> : zapTotalSats > 0 ? formatSats(zapTotalSats) : ""}
+            {!isLoadingReactions && zapTotalSats > 0 ? formatSats(zapTotalSats) : ""}
           </Button>
         </div>
 
