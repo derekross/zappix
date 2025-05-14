@@ -9,6 +9,7 @@ import { FormInputSelect, FormInputSelectProps } from "../../components/form-inp
 import { Button } from "../../components/ui/button";
 import { useNdk } from "../../contexts/NdkContext";
 import { useNwc } from "../../contexts/NwcContext";
+import { HoverCard } from "@/components/ui/hover-card";
 
 const LS_DEFAULT_ZAP_AMOUNT_KEY = "nostrImageAppDefaultZapAmount";
 const LS_BLOSSOM_SERVER_URL_KEY = "nostrImageAppBlossomServerUrl";
@@ -297,8 +298,7 @@ export const SettingsPage: React.FC = () => {
   }, [user, fetchNip65Relays]);
 
   // --- Blossom Server Handlers ---
-  const handleBlossomSelectChange: FormInputSelectProps["onChange"] = (event) => {
-    const value = event.target.value;
+  const handleBlossomSelectChange: FormInputSelectProps["onValueChange"] = (value) => {
     setSelectedBlossomOption(value);
     if (value !== "custom") {
       setCustomBlossomUrl("");
@@ -393,14 +393,15 @@ export const SettingsPage: React.FC = () => {
 
             <FormInputSelect
               label="Blossom Server"
-              onChange={handleBlossomSelectChange}
+              onValueChange={handleBlossomSelectChange}
               options={Object.entries(PREDEFINED_BLOSSOM_SERVERS).map(([value, label]) => ({
                 label,
-                value,
+                item: {
+                  value,
+                },
               }))}
               value={selectedBlossomOption}
             />
-
             {selectedBlossomOption === "custom" && (
               <FormInput
                 label="Custom Blossom Server URL"
@@ -419,12 +420,15 @@ export const SettingsPage: React.FC = () => {
               <h3 className="text-xl">Relay Management (NIP-65)</h3>
               {user && (
                 <div className="group relative">
-                  <Button onClick={handleRefreshRelays} variant="tertiary">
-                    <RotateCw />
-                  </Button>
-                  <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 transform rounded bg-gray-800 px-2 py-1 text-sm whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  <HoverCard
+                    trigger={
+                      <Button onClick={handleRefreshRelays} variant="tertiary">
+                        <RotateCw />
+                      </Button>
+                    }
+                  >
                     Refresh NIP-65 List
-                  </div>
+                  </HoverCard>
                 </div>
               )}
             </div>

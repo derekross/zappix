@@ -1,5 +1,4 @@
 import { Loader } from "@/components/ui/icons";
-import Avatar from "@mui/material/Avatar";
 import { NDKUser, NDKUserProfile } from "@nostr-dev-kit/ndk";
 import cx from "classnames";
 import { Key, Link, Mail, UserMinus, UserPlus, Zap } from "lucide-react";
@@ -7,6 +6,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { EditProfileModal } from "./edit-profile-modal";
+import { Avatar } from "@/components/ui/avatar";
 
 interface ProfileHeaderProps {
   isFollowing: boolean;
@@ -55,16 +55,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       <div className="flex flex-col gap-2 py-2">
         <div className="flex items-end justify-between px-2">
           <Avatar
-            alt={displayName || "Avatar"}
-            className="mt-[-48px] border-2 border-white"
-            src={avatarUrl}
-            sx={{
-              height: 100,
-              width: 100,
+            image={avatarUrl}
+            fallback={displayName?.charAt(0)?.toUpperCase()}
+            avatarRootProps={{
+              className: "size-24 border-2 border-white mt-[-48px]",
             }}
-          >
-            {!avatarUrl && (displayName?.charAt(0)?.toUpperCase() || "N")}
-          </Avatar>
+            avatarImageProps={{
+              alt: displayName ?? "Avatar",
+            }}
+          />
 
           <div className="pb-1">
             {isOwnProfile ? (

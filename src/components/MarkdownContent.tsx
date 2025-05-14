@@ -1,4 +1,4 @@
-import { Link, Skeleton, Tooltip } from "@mui/material"; // Added Skeleton, Tooltip
+import { Link } from "@mui/material"; // Added Skeleton, Tooltip
 import { NDKSubscriptionCacheUsage, NDKUserProfile } from "@nostr-dev-kit/ndk"; // Import NDK types
 import { nip19 } from "nostr-tools"; // Import nip19
 import React, { useEffect, useState } from "react"; // Added hooks
@@ -6,6 +6,8 @@ import ReactMarkdown, { Components } from "react-markdown";
 import { Link as RouterLink } from "react-router-dom"; // v6
 import remarkGfm from "remark-gfm";
 import { useNdk } from "../contexts/NdkContext"; // Import useNdk hook
+import { Skeleton } from "./ui/skeleton";
+import { HoverCard } from "./ui/hover-card";
 
 interface MarkdownContentProps {
   content: string;
@@ -98,19 +100,21 @@ const NostrMention: React.FC<NostrMentionProps> = ({ uri }) => {
   }, [uri, ndk]); // Depend on uri and ndk instance
 
   if (isLoading) {
-    return (
-      <Skeleton sx={{ display: "inline-block", ml: 0.5, mr: 0.5 }} variant="text" width={80} />
-    );
+    return <Skeleton className="h-8 px-0.5" />;
   }
 
   if (isValidNostrUri && targetPath !== "#") {
     // Use Tooltip to show full npub/note ID on hover
     return (
-      <Tooltip placement="top" title={npub || uri}>
-        <Link component={RouterLink} sx={{ fontWeight: "medium" }} to={targetPath}>
-          @{displayName}
-        </Link>
-      </Tooltip>
+      <HoverCard
+        trigger={
+          <Link component={RouterLink} sx={{ fontWeight: "medium" }} to={targetPath}>
+            @{displayName}
+          </Link>
+        }
+      >
+        <p className="text-xs">{npub || uri}</p>
+      </HoverCard>
     );
   }
 

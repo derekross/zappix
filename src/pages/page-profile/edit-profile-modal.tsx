@@ -7,9 +7,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Loader } from "@/components/ui/icons";
-import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import { NDKEvent, NDKUserProfile } from "@nostr-dev-kit/ndk";
-import { UserPen } from "lucide-react";
+import { Camera, UserPen } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { FormInput, FormInputProps } from "../../components/form-input";
@@ -315,7 +314,7 @@ export const EditProfileModal: React.FC<ProfileEditFormProps> = ({
                 onClick={() => handleUploadIconClick(avatarInputRef)}
                 variant="tertiary"
               >
-                {isUploadingAvatar ? <Loader /> : <PhotoCameraIcon className="text-brand-purple" />}
+                {isUploadingAvatar ? <Loader /> : <Camera className="text-primary" />}
               </Button>
             }
             type="url"
@@ -341,7 +340,7 @@ export const EditProfileModal: React.FC<ProfileEditFormProps> = ({
                 onClick={() => handleUploadIconClick(bannerInputRef)}
                 variant="tertiary"
               >
-                {isUploadingBanner ? <Loader /> : <PhotoCameraIcon className="text-brand-purple" />}
+                {isUploadingBanner ? <Loader /> : <Camera className="text-primary" />}
               </Button>
             }
             type="url"
