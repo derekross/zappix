@@ -1,5 +1,3 @@
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { Avatar, Link, Skeleton } from "@mui/material";
 import {
   NDKEvent,
   NDKFilter,
@@ -13,6 +11,7 @@ import { decode } from "light-bolt11-decoder";
 import {
   Copy,
   EllipsisVertical,
+  EyeOff,
   Heart,
   HeartPlus,
   MessageSquare,
@@ -28,7 +27,7 @@ import {
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useNdk } from "../../contexts/NdkContext";
 import { useNwc } from "../../contexts/NwcContext";
@@ -62,6 +61,8 @@ import { CardHeaderContent } from "./card-header-content";
 import { CommentItem } from "./comment-item";
 import { ReportPostDialog } from "./report-post-modal";
 import { formatSats } from "./utils";
+import { Avatar } from "../ui/avatar";
+import { Skeleton } from "../ui/skeleton";
 
 // Interface must be defined BEFORE the component uses it
 interface ImagePostProps {
@@ -1033,17 +1034,24 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
       <Card>
         <CardHeader>
           <CardHeaderContent
-            author={
-              <Skeleton animation="wave" height={10} style={{ marginBottom: 6 }} width="40%" />
-            }
-            avatar={<Skeleton animation="wave" height={40} variant="circular" width={40} />}
-            createdAt={<Skeleton animation="wave" height={10} width="20%" />}
+            author={<Skeleton className="h-6 w-[40%]" />}
+            avatar={<Skeleton className="size-10 rounded-full" />}
+            createdAt={<Skeleton className="h-4 w-[20%]" />}
           />
+          <CardAction>
+            <Skeleton className="h-8 w-6" />
+          </CardAction>
         </CardHeader>
-        <Skeleton animation="wave" sx={{ height: 300 }} variant="rectangular" />
-        <CardContent>
-          <Skeleton animation="wave" height={10} style={{ marginBottom: 6 }} />
-          <Skeleton animation="wave" height={10} width="80%" />
+        <CardContent className="flex flex-col gap-2">
+          <Skeleton className="h-80 w-full" />
+          <Skeleton className="h-4 w-[80%]" />
+          <Skeleton className="h-4 w-[40%]" />
+          <div className="flex justify-between">
+            <Skeleton className="h-8 w-10" />
+            <Skeleton className="h-8 w-10" />
+            <Skeleton className="h-8 w-10" />
+            <Skeleton className="h-8 w-10" />
+          </div>
         </CardContent>
       </Card>
     );
@@ -1065,117 +1073,93 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
     <Card>
       <CardHeader>
         <CardHeaderContent
-          action={
-            (loggedInUser || neventId) && (
-              <CardAction>
-                <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <div className="cursor-pointer">
-                      <EllipsisVertical />
-                    </div>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    {neventId && (
-                      <DropdownMenuItem onClick={handleCopyNevent}>
-                        <Copy className="text-brand-purple" />
-                        <span className="ml-2">Copy Note ID</span>
-                      </DropdownMenuItem>
-                    )}
-                    {neventId && (
-                      <DropdownMenuItem onClick={handleShare}>
-                        <Share className="text-brand-purple" />
-                        <span className="ml-2">Share</span>
-                      </DropdownMenuItem>
-                    )}
-                    {loggedInUser && (
-                      <DropdownMenuItem
-                        disabled={isProcessingBookmark}
-                        onClick={handleBookmarkToggle}
-                      >
-                        {isProcessingBookmark ? (
-                          <Loader />
-                        ) : isBookmarked ? (
-                          <BookmarkCheck className="text-brand-purple" />
-                        ) : (
-                          <Bookmark className="text-brand-purple" />
-                        )}
-                        <span className="ml-2">{isBookmarked ? "Unbookmark" : "Bookmark"}</span>
-                      </DropdownMenuItem>
-                    )}
-                    {loggedInUser && !isOwnPost && (
-                      <DropdownMenuItem
-                        disabled={isFollowingAuthor === null || isProcessingFollow}
-                        onClick={handleFollowToggle}
-                      >
-                        {isProcessingFollow ? (
-                          <Loader />
-                        ) : isFollowingAuthor ? (
-                          <UserMinus className="text-brand-purple" />
-                        ) : (
-                          <UserPlus className="text-brand-purple" />
-                        )}
-                        <span className="ml-2">
-                          {isFollowingAuthor ? "Unfollow Author" : "Follow Author"}
-                        </span>
-                      </DropdownMenuItem>
-                    )}
-                    {loggedInUser && !isOwnPost && (
-                      <DropdownMenuItem
-                        disabled={isMutingAuthor === null || isProcessingMute}
-                        onClick={handleMuteToggle}
-                      >
-                        {isProcessingMute ? (
-                          <Loader />
-                        ) : isMutingAuthor ? (
-                          <Volume2 className="text-brand-purple" />
-                        ) : (
-                          <VolumeOff className="text-brand-purple" />
-                        )}
-                        <span className="ml-2">
-                          {isMutingAuthor ? "Unmute Author" : "Mute Author"}
-                        </span>
-                      </DropdownMenuItem>
-                    )}
-                    {loggedInUser && !isOwnPost && (
-                      <DropdownMenuItem disabled={isSubmittingReport}>
-                        <ReportPostDialog
-                          event={event}
-                          onSubmit={handleReportSubmit}
-                          onClose={handleMenuClose}
-                        />
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardAction>
-            )
-          }
           author={
             <CardTitle>
-              <Link
-                color="inherit"
-                component={RouterLink}
-                to={`/profile/${authorUser.npub}`}
-                underline="hover"
-              >
-                {authorDisplayName}
-              </Link>
+              <Link to={`/profile/${authorUser.npub}`}>{authorDisplayName}</Link>
             </CardTitle>
           }
-          avatar={
-            <Avatar
-              aria-label="author avatar"
-              component={RouterLink}
-              src={authorAvatarUrl}
-              to={`/profile/${authorUser.npub}`}
-            >
-              {!authorAvatarUrl && authorDisplayName.charAt(0).toUpperCase()}
-            </Avatar>
-          }
+          avatar={<Avatar image={authorAvatarUrl} npub={authorUser.npub} />}
           createdAt={
             <CardDescription>{new Date(event.created_at! * 1000).toLocaleString()}</CardDescription>
           }
         />
+        (loggedInUser || neventId) && (
+        <CardAction>
+          <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <div className="cursor-pointer">
+                <EllipsisVertical />
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {neventId && (
+                <DropdownMenuItem onClick={handleCopyNevent}>
+                  <Copy className="text-brand-purple" />
+                  <span className="ml-2">Copy Note ID</span>
+                </DropdownMenuItem>
+              )}
+              {neventId && (
+                <DropdownMenuItem onClick={handleShare}>
+                  <Share className="text-brand-purple" />
+                  <span className="ml-2">Share</span>
+                </DropdownMenuItem>
+              )}
+              {loggedInUser && (
+                <DropdownMenuItem disabled={isProcessingBookmark} onClick={handleBookmarkToggle}>
+                  {isProcessingBookmark ? (
+                    <Loader />
+                  ) : isBookmarked ? (
+                    <BookmarkCheck className="text-brand-purple" />
+                  ) : (
+                    <Bookmark className="text-brand-purple" />
+                  )}
+                  <span className="ml-2">{isBookmarked ? "Unbookmark" : "Bookmark"}</span>
+                </DropdownMenuItem>
+              )}
+              {loggedInUser && !isOwnPost && (
+                <DropdownMenuItem
+                  disabled={isFollowingAuthor === null || isProcessingFollow}
+                  onClick={handleFollowToggle}
+                >
+                  {isProcessingFollow ? (
+                    <Loader />
+                  ) : isFollowingAuthor ? (
+                    <UserMinus className="text-brand-purple" />
+                  ) : (
+                    <UserPlus className="text-brand-purple" />
+                  )}
+                  <span className="ml-2">
+                    {isFollowingAuthor ? "Unfollow Author" : "Follow Author"}
+                  </span>
+                </DropdownMenuItem>
+              )}
+              {loggedInUser && !isOwnPost && (
+                <DropdownMenuItem
+                  disabled={isMutingAuthor === null || isProcessingMute}
+                  onClick={handleMuteToggle}
+                >
+                  {isProcessingMute ? (
+                    <Loader />
+                  ) : isMutingAuthor ? (
+                    <Volume2 className="text-brand-purple" />
+                  ) : (
+                    <VolumeOff className="text-brand-purple" />
+                  )}
+                  <span className="ml-2">{isMutingAuthor ? "Unmute Author" : "Mute Author"}</span>
+                </DropdownMenuItem>
+              )}
+              {loggedInUser && !isOwnPost && (
+                <DropdownMenuItem disabled={isSubmittingReport}>
+                  <ReportPostDialog
+                    event={event}
+                    onSubmit={handleReportSubmit}
+                    onClose={handleMenuClose}
+                  />
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardAction>
       </CardHeader>
 
       <CardContent>
@@ -1222,7 +1206,7 @@ export const ImagePost: React.FC<ImagePostProps> = ({ event }) => {
 
           {isBlurred && (
             <div className="absolute right-0 bottom-0 left-0 flex h-full flex-col items-center justify-center bg-[0,0,0,0.5] p-2 text-center text-white">
-              <VisibilityOffIcon className="mb-1 !text-4xl" />
+              <EyeOff className="mb-1 !text-4xl" />
               <span>{warningReason ?? "Content Warning"}</span>
               <span className="text-sm">View content</span>
             </div>

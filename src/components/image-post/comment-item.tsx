@@ -1,6 +1,6 @@
-import { Avatar } from "@mui/material";
 import { NDKEvent, NDKSubscriptionCacheUsage, NDKUserProfile } from "@nostr-dev-kit/ndk";
 import * as React from "react";
+import { Avatar } from "../ui/avatar";
 
 export type CommentItemProps = {
   commentEvent: NDKEvent;
@@ -39,9 +39,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({ commentEvent, ndk }) =
 
   return (
     <div className="flex-start flex border-b border-gray-400 pb-1 dark:border-gray-600">
-      <Avatar src={authorAvatarUrl} sx={{ height: 24, mr: 1, width: 24 }}>
-        {!authorAvatarUrl && authorDisplayName.charAt(0).toUpperCase()}
-      </Avatar>
+      <Avatar image={authorAvatarUrl} fallback={authorDisplayName?.charAt(0).toUpperCase()} />
       <div className="flex-grow-1">
         <p>
           <span className="text-bold">{authorDisplayName}:</span> {commentEvent.content}

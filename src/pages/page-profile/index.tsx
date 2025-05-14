@@ -1,6 +1,5 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ErrorIcon, Loader, WarningIcon } from "@/components/ui/icons";
-import Skeleton from "@mui/material/Skeleton";
 import {
   NDKEvent,
   NDKFilter,
@@ -18,6 +17,7 @@ import { Button } from "../../components/ui/button";
 import { useNdk } from "../../contexts/NdkContext";
 import { EditProfileModal } from "./edit-profile-modal";
 import { ProfileHeader } from "./profile-header";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const POSTS_PER_PAGE = 10;
 const IMAGE_POST_KIND: NDKKind = 20;
@@ -265,11 +265,11 @@ export const ProfilePage: React.FC = () => {
   // --- Render Logic ---
   if (isLoadingProfile && !profileDetails && !isOwnProfile) {
     return (
-      <div>
-        <Skeleton height={150} sx={{ mb: 2 }} variant="rectangular" />
-        <Skeleton height={40} variant="text" width="60%" />
-        <Skeleton variant="text" width="80%" />
-        <Skeleton variant="text" width="70%" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-36 w-full" />
+        <Skeleton className="size-16 w-[60%]" />
+        <Skeleton className="size-8 w-[80%]" />
+        <Skeleton className="size-8 w-[70%]" />
       </div>
     );
   }

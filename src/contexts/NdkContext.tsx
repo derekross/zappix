@@ -1,4 +1,3 @@
-import { PaletteMode } from "@mui/material"; // Keep PaletteMode if used by Theme context elsewhere
 // FIX 1 & 2: Removed unused NDKKind, NostrEvent
 import NDK, {
   NDKEvent,
@@ -26,7 +25,6 @@ interface NdkContextProps {
   readRelays: string[];
   relaySource: "default" | "loading" | "logged_out" | "nip65";
   signer: null | NDKSigner;
-  themeMode: PaletteMode;
   user: null | NDKUser;
   writeRelays: string[];
   fetchNip65Relays: (userToFetch: NDKUser) => Promise<void>;
@@ -68,10 +66,6 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
   const [nip65Event, setNip65Event] = useState<null | NDKEvent>(null);
   const [isPublishingNip65, setIsPublishingNip65] = useState(false);
-  const [themeMode, setThemeMode] = useState<PaletteMode>(() => {
-    const storedMode = localStorage.getItem(LS_THEME_MODE_KEY);
-    return storedMode === "dark" || storedMode === "light" ? storedMode : "light";
-  });
 
   // NDK Initialization Effect
   useEffect(() => {
@@ -406,15 +400,6 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [ndk, signer, user],
   );
 
-  // Toggle Theme Mode (memoized)
-  const toggleThemeMode = useCallback(() => {
-    setThemeMode((prevMode) => {
-      const newMode = prevMode === "light" ? "dark" : "light";
-      localStorage.setItem(LS_THEME_MODE_KEY, newMode);
-      return newMode;
-    });
-  }, []);
-
   // Context Value (memoized)
   const contextValue = useMemo(
     () => ({
@@ -433,8 +418,6 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       readRelays,
       relaySource,
       signer,
-      themeMode,
-      toggleThemeMode,
       user,
       writeRelays,
     }),
@@ -456,8 +439,6 @@ export const NdkProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isPublishingNip65,
       publishNip65Relays,
       fetchNip65Relays,
-      themeMode,
-      toggleThemeMode,
     ],
   ); // Added defaultRelays to dependency array
 
