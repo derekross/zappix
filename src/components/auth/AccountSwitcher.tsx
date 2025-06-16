@@ -69,7 +69,7 @@ export function AccountSwitcher({ onAddAccountClick, onSettingsClick, onBookmark
             className='flex items-center gap-2 cursor-pointer p-2 rounded-md'
           >
             <User className='w-4 h-4' />
-            <span>Edit Profile</span>
+            <span>Your Profile</span>
           </DropdownMenuItem>
         )}
         {onBookmarksClick && (

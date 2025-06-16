@@ -10,6 +10,7 @@ import { CreatePostDialog } from './CreatePostDialog';
 import { BookmarksPage } from './BookmarksPage';
 import { SettingsPage } from './SettingsPage';
 import { ProfilePage } from './ProfilePage';
+import { EditProfilePage } from './EditProfilePage';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -22,6 +23,7 @@ export function MainLayout() {
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   
   const { user } = useCurrentUser();
   const isMobile = useIsMobile();
@@ -62,7 +64,10 @@ export function MainLayout() {
               </div>
             </header>
             <main className="container py-6 pb-20">
-              <ProfilePage />
+              <ProfilePage onEditClick={() => {
+                setShowProfile(false);
+                setShowEditProfile(true);
+              }} />
             </main>
           </>
         ) : (
@@ -137,11 +142,10 @@ export function MainLayout() {
             {/* Main Content */}
             <main className="ml-64 flex-1 p-6">
               <div className="max-w-4xl mx-auto">
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold">Edit Profile</h2>
-                  <p className="text-muted-foreground">Update your Nostr profile information</p>
-                </div>
-                <ProfilePage />
+                <ProfilePage onEditClick={() => {
+                  setShowProfile(false);
+                  setShowEditProfile(true);
+                }} />
               </div>
             </main>
           </div>
@@ -360,6 +364,119 @@ export function MainLayout() {
                   <p className="text-muted-foreground">Manage your account and preferences</p>
                 </div>
                 <SettingsPage />
+              </div>
+            </main>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  if (showEditProfile) {
+    return (
+      <div className="min-h-screen bg-background">
+        {isMobile ? (
+          // Mobile layout with header
+          <>
+            <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="container flex h-14 items-center justify-between">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => {
+                    setShowEditProfile(false);
+                    setShowProfile(true);
+                    scrollToTop();
+                  }}
+                  className="font-bold text-lg"
+                >
+                  ← Your Profile
+                </Button>
+              </div>
+            </header>
+            <main className="container py-6 pb-20">
+              <EditProfilePage onBackClick={() => {
+                setShowEditProfile(false);
+                setShowProfile(true);
+              }} />
+            </main>
+          </>
+        ) : (
+          // Desktop layout with sidebar
+          <div className="flex">
+            {/* Left Sidebar */}
+            <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="flex h-full flex-col">
+                {/* Logo */}
+                <div className="flex h-14 items-center border-b px-6">
+                  <button 
+                    onClick={() => {
+                      setShowEditProfile(false);
+                      setShowProfile(true);
+                      scrollToTop();
+                    }}
+                    className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
+                  >
+                    <Camera className="h-6 w-6 text-primary" />
+                    <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                      Zappix
+                    </h1>
+                  </button>
+                </div>
+                
+                {/* Navigation */}
+                <nav className="flex-1 space-y-2 p-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setShowEditProfile(false);
+                      setActiveMainTab('home');
+                    }}
+                  >
+                    <Home className="mr-2 h-4 w-4" />
+                    Home
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setShowEditProfile(false);
+                      setActiveMainTab('discover');
+                    }}
+                  >
+                    <Search className="mr-2 h-4 w-4" />
+                    Discover
+                  </Button>
+                </nav>
+                
+                {/* User Area */}
+                <div className="border-t p-4">
+                  {user && (
+                    <Button
+                      onClick={() => setShowCreatePost(true)}
+                      className="w-full mb-4 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Post
+                    </Button>
+                  )}
+                  <LoginArea 
+                    className="w-full" 
+                    onSettingsClick={() => setShowSettings(true)}
+                    onBookmarksClick={() => setShowBookmarks(true)}
+                    onProfileClick={() => setShowProfile(true)}
+                  />
+                </div>
+              </div>
+            </aside>
+            
+            {/* Main Content */}
+            <main className="ml-64 flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                <EditProfilePage onBackClick={() => {
+                  setShowEditProfile(false);
+                  setShowProfile(true);
+                }} />
               </div>
             </main>
           </div>
