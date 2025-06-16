@@ -155,9 +155,10 @@ export function ImagePost({
   };
 
   const handleLocationClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    if (onLocationClick && location) {
-      onLocationClick(location);
+    if (onLocationClick && (location || geohash)) {
+      onLocationClick(location || geohash || "");
     }
   };
 
@@ -293,16 +294,17 @@ export function ImagePost({
           {(location || geohash) && (
             <div className="flex items-center space-x-1 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4" />
-              <span
+              <button
+                type="button"
                 className={cn(
-                  "cursor-pointer hover:text-primary transition-colors",
-                  !onLocationClick &&
-                    "cursor-default hover:text-muted-foreground"
+                  "text-left hover:text-primary transition-colors",
+                  onLocationClick ? "cursor-pointer" : "cursor-default"
                 )}
                 onClick={handleLocationClick}
+                disabled={!onLocationClick}
               >
                 {location || `Geohash: ${geohash}`}
-              </span>
+              </button>
             </div>
           )}
 

@@ -1,6 +1,11 @@
-import { ReactNode, useEffect } from 'react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { AppContext, type AppConfig, type AppContextType, type Theme } from '@/contexts/AppContext';
+import { ReactNode, useEffect } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import {
+  AppContext,
+  type AppConfig,
+  type AppContextType,
+  type Theme,
+} from "@/contexts/AppContext";
 
 interface AppProviderProps {
   children: ReactNode;
@@ -13,15 +18,13 @@ interface AppProviderProps {
 }
 
 export function AppProvider(props: AppProviderProps) {
-  const {
-    children,
-    storageKey,
-    defaultConfig,
-    defaultRelays,
-  } = props;
+  const { children, storageKey, defaultConfig, defaultRelays } = props;
 
   // App configuration state with localStorage persistence
-  const [config, setConfig] = useLocalStorage<AppConfig>(storageKey, defaultConfig);
+  const [config, setConfig] = useLocalStorage<AppConfig>(
+    storageKey,
+    defaultConfig
+  );
 
   // Generic config updater with callback pattern
   const updateConfig = (updater: (currentConfig: AppConfig) => AppConfig) => {
@@ -51,13 +54,13 @@ function useApplyTheme(theme: Theme) {
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove('light', 'dark');
+    root.classList.remove("light", "dark");
 
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+    if (theme === "system") {
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
         .matches
-        ? 'dark'
-        : 'light';
+        ? "dark"
+        : "light";
 
       root.classList.add(systemTheme);
       return;
@@ -68,19 +71,19 @@ function useApplyTheme(theme: Theme) {
 
   // Handle system theme changes when theme is set to "system"
   useEffect(() => {
-    if (theme !== 'system') return;
+    if (theme !== "system") return;
 
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
     const handleChange = () => {
       const root = window.document.documentElement;
-      root.classList.remove('light', 'dark');
-      
-      const systemTheme = mediaQuery.matches ? 'dark' : 'light';
+      root.classList.remove("light", "dark");
+
+      const systemTheme = mediaQuery.matches ? "dark" : "light";
       root.classList.add(systemTheme);
     };
 
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, [theme]);
 }
