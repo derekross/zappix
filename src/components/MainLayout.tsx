@@ -45,8 +45,9 @@ export function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Handle location route
+  // Handle route changes
   useEffect(() => {
+    // Handle location route
     const locationMatch = location.pathname.match(/^\/location\/(.+)$/);
     if (locationMatch) {
       const decodedLocation = decodeURIComponent(locationMatch[1]);
@@ -56,11 +57,50 @@ export function MainLayout({ children }: MainLayoutProps) {
       if (location.state && location.state.from) {
         setPreviousTab(location.state.from);
       }
+      return;
+    }
+
+    // Handle main routes
+    switch (location.pathname) {
+      case "/home":
+        setActiveMainTab("home");
+        setSelectedHashtag(null);
+        setSelectedLocation(null);
+        break;
+      case "/discover":
+        setActiveMainTab("discover");
+        setSelectedHashtag(null);
+        setSelectedLocation(null);
+        break;
     }
   }, [location]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleTabChange = (value: string) => {
+    switch (value) {
+      case "home":
+        navigate("/home");
+        setActiveMainTab("home");
+        setSelectedHashtag(null);
+        setSelectedLocation(null);
+        break;
+      case "discover":
+        navigate("/discover");
+        setActiveMainTab("discover");
+        setSelectedHashtag(null);
+        setSelectedLocation(null);
+        break;
+      case "hashtag-detail":
+      case "location-detail":
+        // Don't change the URL for detail views
+        setActiveMainTab(value);
+        break;
+      default:
+        setActiveMainTab(value);
+    }
   };
 
   const handleHashtagClick = (hashtag: string) => {
@@ -86,23 +126,31 @@ export function MainLayout({ children }: MainLayoutProps) {
   };
 
   const handleBackToPrevious = () => {
-    if (previousTab === "home") {
-      navigate("/");
-      setActiveMainTab("home");
-      setSelectedHashtag(null);
-      setSelectedLocation(null);
-      return;
+    switch (previousTab) {
+      case "home":
+        navigate("/home");
+        setActiveMainTab("home");
+        setSelectedHashtag(null);
+        setSelectedLocation(null);
+        break;
+      case "discover":
+        navigate("/discover");
+        setActiveMainTab("discover");
+        setSelectedHashtag(null);
+        setSelectedLocation(null);
+        break;
+      default:
+        // If we're coming from a hashtag or location detail, go back to discover
+        if (
+          activeMainTab === "hashtag-detail" ||
+          activeMainTab === "location-detail"
+        ) {
+          navigate("/discover");
+          setActiveMainTab("discover");
+          setSelectedHashtag(null);
+          setSelectedLocation(null);
+        }
     }
-    if (previousTab === "discover") {
-      navigate("/discover");
-      setActiveMainTab("discover");
-      setSelectedHashtag(null);
-      setSelectedLocation(null);
-      return;
-    }
-    setActiveMainTab(previousTab);
-    setSelectedHashtag(null);
-    setSelectedLocation(null);
   };
 
   const getBackButtonText = () => {
@@ -598,7 +646,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setActiveMainTab("home")}
+                  onClick={() => handleTabChange("home")}
                   className="flex flex-col items-center gap-1"
                 >
                   <Home className="h-5 w-5" />
@@ -608,7 +656,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setActiveMainTab("discover")}
+                  onClick={() => handleTabChange("discover")}
                   className="flex flex-col items-center gap-1"
                 >
                   <Search className="h-5 w-5" />
@@ -755,7 +803,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             <div className="max-w-6xl mx-auto">
               <Tabs
                 value={activeMainTab}
-                onValueChange={setActiveMainTab}
+                onValueChange={handleTabChange}
                 className="w-full"
               >
                 <TabsContent value="home" className="space-y-6">
@@ -890,7 +938,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setActiveMainTab("home")}
+                onClick={() => handleTabChange("home")}
                 className="flex flex-col items-center gap-1"
               >
                 <Home className="h-5 w-5" />
@@ -900,7 +948,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setActiveMainTab("discover")}
+                onClick={() => handleTabChange("discover")}
                 className="flex flex-col items-center gap-1"
               >
                 <Search className="h-5 w-5" />
@@ -938,7 +986,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex h-full flex-col">
               {/* Logo */}
-              <div className="flex h-14 items-center border-b px-6">
+              <div className="flex h-14 items-center px-4">
                 <button
                   onClick={scrollToTop}
                   className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
@@ -951,43 +999,40 @@ export function MainLayout({ children }: MainLayoutProps) {
               </div>
 
               {/* Navigation */}
-              <nav className="flex-1 space-y-2 p-4">
+              <nav className="flex-1 space-y-1 px-2">
                 <Button
-                  variant={activeMainTab === "home" ? "secondary" : "ghost"}
+                  variant="ghost"
                   className="w-full justify-start"
-                  onClick={() => setActiveMainTab("home")}
+                  onClick={() => handleTabChange("home")}
                 >
                   <Home className="mr-2 h-4 w-4" />
                   Home
                 </Button>
+
                 <Button
-                  variant={
-                    activeMainTab === "discover" ||
-                    activeMainTab === "hashtag-detail"
-                      ? "secondary"
-                      : "ghost"
-                  }
+                  variant="ghost"
                   className="w-full justify-start"
-                  onClick={() => setActiveMainTab("discover")}
+                  onClick={() => handleTabChange("discover")}
                 >
                   <Search className="mr-2 h-4 w-4" />
                   Discover
                 </Button>
-              </nav>
 
-              {/* User Area */}
-              <div className="border-t p-4">
                 {user && (
                   <Button
+                    variant="ghost"
+                    className="w-full justify-start"
                     onClick={() => setShowCreatePost(true)}
-                    className="w-full mb-4 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Create Post
+                    Post
                   </Button>
                 )}
+              </nav>
+
+              {/* Account Area */}
+              <div className="p-2">
                 <LoginArea
-                  className="w-full"
                   onSettingsClick={() => setShowSettings(true)}
                   onBookmarksClick={() => setShowBookmarks(true)}
                   onProfileClick={() => setShowProfile(true)}
@@ -1001,7 +1046,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             <div className="max-w-4xl mx-auto">
               <Tabs
                 value={activeMainTab}
-                onValueChange={setActiveMainTab}
+                onValueChange={handleTabChange}
                 className="w-full"
               >
                 <TabsContent value="home" className="space-y-6">
@@ -1026,28 +1071,14 @@ export function MainLayout({ children }: MainLayoutProps) {
                         <span>Following</span>
                       </TabsTrigger>
                     </TabsList>
-
-                    <TabsContent value="global" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Global Feed</h2>
-                        <p className="text-muted-foreground">
-                          Latest image posts from all relays
-                        </p>
-                      </div>
+                    <TabsContent value="global">
                       <ImageFeed
                         feedType="global"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}
                       />
                     </TabsContent>
-
-                    <TabsContent value="following" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Following Feed</h2>
-                        <p className="text-muted-foreground">
-                          Latest image posts from people you follow
-                        </p>
-                      </div>
+                    <TabsContent value="following">
                       <ImageFeed
                         feedType="following"
                         onHashtagClick={handleHashtagClick}
@@ -1058,13 +1089,16 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </TabsContent>
 
                 <TabsContent value="discover" className="space-y-6">
-                  <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-bold">Discover</h2>
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Discover</h2>
                     <p className="text-muted-foreground">
-                      Explore trending hashtags and locations
+                      Explore popular hashtags and communities
                     </p>
                   </div>
-                  <HashtagGrid onHashtagClick={handleHashtagClick} />
+                  <HashtagGrid
+                    onHashtagClick={handleHashtagClick}
+                    onLocationClick={handleLocationClick}
+                  />
                 </TabsContent>
 
                 <TabsContent value="hashtag-detail" className="space-y-6">

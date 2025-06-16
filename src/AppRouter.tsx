@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { ScrollToTop } from "./components/ScrollToTop";
 
 import Index from "./pages/Index";
@@ -10,7 +10,9 @@ export function AppRouter() {
     <BrowserRouter>
       <ScrollToTop />
       <Routes>
-        <Route path="/" element={<Index />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/home" element={<Index />} />
+        <Route path="/discover" element={<Index />} />
         <Route path="/location/:location" element={<Index />} />
         <Route path="/:nip19Id" element={<PostPage />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

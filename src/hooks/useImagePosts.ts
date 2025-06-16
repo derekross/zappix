@@ -25,40 +25,56 @@ function validateImageEvent(event: NostrEvent): boolean {
   return true;
 }
 
-// Shared discovery pool to avoid creating multiple connections
-let sharedDiscoveryPool: NPool | null = null;
-
-function getDiscoveryPool(): NPool {
-  if (!sharedDiscoveryPool) {
-    const discoveryRelays = [
+// Get a shared discovery pool to avoid creating too many connections
+let discoveryPool: NPool | null = null;
+function getDiscoveryPool() {
+  if (!discoveryPool) {
+    const relayUrls = [
       "wss://relay.nostr.band",
+      "wss://relay.damus.io",
       "wss://relay.primal.net",
-      "wss://relay.olas.app",
-      "wss://nos.lol",
-      "wss://relay.snort.social",
-      "wss://purplepag.es",
     ];
-
-    sharedDiscoveryPool = new NPool({
+    discoveryPool = new NPool({
       open(url: string) {
-        console.log("Discovery pool connecting to relay:", url);
         return new NRelay1(url);
       },
       reqRouter: (filters) => {
         const relayMap = new Map<string, typeof filters>();
-        // Use fewer relays to reduce connection load
-        for (const url of discoveryRelays) {
+        for (const url of relayUrls) {
           relayMap.set(url, filters);
         }
-        console.log("Global feed using shared discovery pool with relays:", [
-          ...relayMap.keys(),
-        ]);
         return relayMap;
       },
-      eventRouter: () => discoveryRelays.slice(0, 3),
+      eventRouter: () => relayUrls.slice(0, 2),
     });
   }
-  return sharedDiscoveryPool;
+  return discoveryPool;
+}
+
+// Get a shared outbox pool for following feed
+let outboxPool: NPool | null = null;
+function getOutboxPool() {
+  if (!outboxPool) {
+    const relayUrls = [
+      "wss://relay.nostr.band",
+      "wss://relay.damus.io",
+      "wss://relay.primal.net",
+    ];
+    outboxPool = new NPool({
+      open(url: string) {
+        return new NRelay1(url);
+      },
+      reqRouter: (filters) => {
+        const relayMap = new Map<string, typeof filters>();
+        for (const url of relayUrls) {
+          relayMap.set(url, filters);
+        }
+        return relayMap;
+      },
+      eventRouter: () => relayUrls.slice(0, 2),
+    });
+  }
+  return outboxPool;
 }
 
 export function useImagePosts(hashtag?: string, location?: string) {
@@ -74,7 +90,7 @@ export function useImagePosts(hashtag?: string, location?: string) {
         kinds: number[];
         limit: number;
         "#t"?: string[];
-        "#location"?: string[];
+        location?: string[];
         until?: number;
       } = {
         kinds: [20],
@@ -88,7 +104,7 @@ export function useImagePosts(hashtag?: string, location?: string) {
 
       // Add location filter if specified
       if (location) {
-        filter["#location"] = [location];
+        filter["location"] = [location];
       }
 
       // Add pagination using 'until' timestamp
@@ -139,131 +155,6 @@ export function useImagePosts(hashtag?: string, location?: string) {
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // 1 minute
   });
-}
-
-// Shared outbox pool to avoid creating multiple connections
-let sharedOutboxPool: NPool | null = null;
-
-function getOutboxPool(): NPool {
-  if (!sharedOutboxPool) {
-    const defaultRelays = [
-      "wss://relay.nostr.band",
-      "wss://relay.primal.net",
-      "wss://relay.olas.app",
-      "wss://nos.lol",
-    ];
-
-    // Function to get relay hints for a specific pubkey
-    const getRelayHints = async (
-      pubkey: string
-    ): Promise<{ writeRelays: string[]; readRelays: string[] }> => {
-      try {
-        // Use the shared discovery pool for relay list queries to avoid more connections
-        const discoveryPool = getDiscoveryPool();
-
-        const relayEvents = await discoveryPool.query(
-          [
-            {
-              kinds: [10002],
-              authors: [pubkey],
-              limit: 1,
-            },
-          ],
-          { signal: AbortSignal.timeout(3000) }
-        );
-
-        if (relayEvents.length === 0) {
-          return { writeRelays: [], readRelays: [] };
-        }
-
-        const relayList = relayEvents[0];
-        const writeRelays: string[] = [];
-        const readRelays: string[] = [];
-
-        for (const tag of relayList.tags) {
-          if (tag[0] === "r" && tag[1]) {
-            const url = tag[1];
-            const marker = tag[2];
-
-            if (!marker) {
-              writeRelays.push(url);
-              readRelays.push(url);
-            } else if (marker === "write") {
-              writeRelays.push(url);
-            } else if (marker === "read") {
-              readRelays.push(url);
-            }
-          }
-        }
-
-        return { writeRelays, readRelays };
-      } catch {
-        return { writeRelays: [], readRelays: [] };
-      }
-    };
-
-    sharedOutboxPool = new NPool({
-      open(url: string) {
-        console.log("Outbox pool connecting to relay:", url);
-        return new NRelay1(url);
-      },
-      async reqRouter(filters) {
-        const relayMap = new Map<string, typeof filters>();
-
-        // Add default relays as fallback
-        for (const url of defaultRelays) {
-          relayMap.set(url, filters);
-        }
-
-        // For each filter with authors, try to get their write relays
-        for (const filter of filters) {
-          if (filter.authors && filter.authors.length > 0) {
-            console.log(
-              "Following feed: Getting relay hints for",
-              filter.authors.length,
-              "authors"
-            );
-
-            // Limit to first 10 authors to avoid too many concurrent requests
-            const limitedAuthors = filter.authors.slice(0, 10);
-
-            // Get relay hints for each author
-            const relayHintPromises = limitedAuthors.map((author) =>
-              getRelayHints(author)
-            );
-            const relayHints = await Promise.all(relayHintPromises);
-
-            // Add each author's write relays
-            for (let i = 0; i < limitedAuthors.length; i++) {
-              const author = limitedAuthors[i];
-              const hints = relayHints[i];
-
-              if (hints.writeRelays.length > 0) {
-                console.log(
-                  `Author ${author.slice(0, 8)} write relays:`,
-                  hints.writeRelays.slice(0, 2)
-                );
-
-                // Add author's write relays (limit to 1 per author to reduce connections)
-                for (const relay of hints.writeRelays.slice(0, 1)) {
-                  const existingFilters = relayMap.get(relay) || [];
-                  relayMap.set(relay, [
-                    ...existingFilters,
-                    { ...filter, authors: [author] },
-                  ]);
-                }
-              }
-            }
-          }
-        }
-
-        console.log("Following feed routing to relays:", [...relayMap.keys()]);
-        return relayMap;
-      },
-      eventRouter: () => defaultRelays.slice(0, 2),
-    });
-  }
-  return sharedOutboxPool;
 }
 
 export function useFollowingImagePosts(followingPubkeys: string[]) {
@@ -330,9 +221,8 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: followingPubkeys.length > 0,
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // 1 minute
   });
 }
 
