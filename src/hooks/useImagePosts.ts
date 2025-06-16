@@ -1,6 +1,6 @@
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { NPool, NRelay1 } from '@nostrify/nostrify';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { NPool, NRelay1 } from "@nostrify/nostrify";
+import type { NostrEvent } from "@nostrify/nostrify";
 
 // Validator function for NIP-68 image events (more lenient)
 function validateImageEvent(event: NostrEvent): boolean {
@@ -8,8 +8,8 @@ function validateImageEvent(event: NostrEvent): boolean {
   if (event.kind !== 20) return false;
 
   // Check for required tags according to NIP-68 (be more lenient)
-  const title = event.tags.find(([name]) => name === 'title')?.[1];
-  const imeta = event.tags.find(([name]) => name === 'imeta');
+  const title = event.tags.find(([name]) => name === "title")?.[1];
+  const imeta = event.tags.find(([name]) => name === "imeta");
 
   // Picture events should have 'title' and 'imeta' tag, but be more forgiving
   if (!title && !imeta) {
@@ -18,7 +18,7 @@ function validateImageEvent(event: NostrEvent): boolean {
   }
 
   // If we have imeta, do basic validation
-  if (imeta && imeta[1] && !imeta[1].includes('url')) {
+  if (imeta && imeta[1] && !imeta[1].includes("url")) {
     return false;
   }
 
@@ -31,17 +31,17 @@ let sharedDiscoveryPool: NPool | null = null;
 function getDiscoveryPool(): NPool {
   if (!sharedDiscoveryPool) {
     const discoveryRelays = [
-      'wss://relay.nostr.band',
-      'wss://relay.primal.net', 
-      'wss://relay.olas.app',
-      'wss://nos.lol',
-      'wss://relay.snort.social',
-      'wss://purplepag.es'
+      "wss://relay.nostr.band",
+      "wss://relay.primal.net",
+      "wss://relay.olas.app",
+      "wss://nos.lol",
+      "wss://relay.snort.social",
+      "wss://purplepag.es",
     ];
-    
+
     sharedDiscoveryPool = new NPool({
       open(url: string) {
-        console.log('Discovery pool connecting to relay:', url);
+        console.log("Discovery pool connecting to relay:", url);
         return new NRelay1(url);
       },
       reqRouter: (filters) => {
@@ -50,7 +50,9 @@ function getDiscoveryPool(): NPool {
         for (const url of discoveryRelays) {
           relayMap.set(url, filters);
         }
-        console.log('Global feed using shared discovery pool with relays:', [...relayMap.keys()]);
+        console.log("Global feed using shared discovery pool with relays:", [
+          ...relayMap.keys(),
+        ]);
         return relayMap;
       },
       eventRouter: () => discoveryRelays.slice(0, 3),
@@ -61,21 +63,26 @@ function getDiscoveryPool(): NPool {
 
 export function useImagePosts(hashtag?: string) {
   return useInfiniteQuery({
-    queryKey: ['image-posts', hashtag],
+    queryKey: ["image-posts", hashtag],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
-      
+
       const discoveryPool = getDiscoveryPool();
-      
+
       // Global and hashtag feeds use discovery relays only (no outbox model)
-      const filter: { kinds: number[]; limit: number; '#t'?: string[]; until?: number } = { 
-        kinds: [20], 
-        limit: 10 // Smaller initial page size for faster loading
+      const filter: {
+        kinds: number[];
+        limit: number;
+        "#t"?: string[];
+        until?: number;
+      } = {
+        kinds: [20],
+        limit: 10, // Smaller initial page size for faster loading
       };
 
       // Add hashtag filter if specified
       if (hashtag) {
-        filter['#t'] = [hashtag];
+        filter["#t"] = [hashtag];
       }
 
       // Add pagination using 'until' timestamp
@@ -83,27 +90,41 @@ export function useImagePosts(hashtag?: string) {
         filter.until = pageParam;
       }
 
-      console.log('Querying global/hashtag feed from discovery relays...', pageParam ? `until ${pageParam}` : 'initial');
-      
+      console.log(
+        "Querying global/hashtag feed from discovery relays...",
+        pageParam ? `until ${pageParam}` : "initial"
+      );
+
       try {
-        const events = await discoveryPool.query([filter], { signal: querySignal });
-        console.log('Global feed raw events received:', events.length);
-        
+        const events = await discoveryPool.query([filter], {
+          signal: querySignal,
+        });
+        console.log("Global feed raw events received:", events.length);
+
         const validEvents = events.filter(validateImageEvent);
-        console.log('Global feed valid events:', validEvents.length);
-        
+        console.log("Global feed valid events:", validEvents.length);
+
         // Log unique authors to see diversity
-        const uniqueAuthors = [...new Set(validEvents.map(e => e.pubkey))];
-        console.log('Global feed unique authors found:', uniqueAuthors.length);
-        
-        const sortedEvents = validEvents.sort((a, b) => b.created_at - a.created_at);
-        
+        const uniqueAuthors = [...new Set(validEvents.map((e) => e.pubkey))];
+        console.log("Global feed unique authors found:", uniqueAuthors.length);
+
+        // Sort by created_at and deduplicate by ID
+        const sortedEvents = validEvents
+          .sort((a, b) => b.created_at - a.created_at)
+          .filter(
+            (event, index, self) =>
+              index === self.findIndex((e) => e.id === event.id)
+          );
+
         return {
           events: sortedEvents,
-          nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
+          nextCursor:
+            sortedEvents.length > 0
+              ? sortedEvents[sortedEvents.length - 1].created_at
+              : undefined,
         };
       } catch (error) {
-        console.error('Error querying discovery relays:', error);
+        console.error("Error querying discovery relays:", error);
         throw error;
       }
     },
@@ -120,23 +141,30 @@ let sharedOutboxPool: NPool | null = null;
 function getOutboxPool(): NPool {
   if (!sharedOutboxPool) {
     const defaultRelays = [
-      'wss://relay.nostr.band',
-      'wss://relay.primal.net', 
-      'wss://relay.olas.app',
-      'wss://nos.lol'
+      "wss://relay.nostr.band",
+      "wss://relay.primal.net",
+      "wss://relay.olas.app",
+      "wss://nos.lol",
     ];
-    
+
     // Function to get relay hints for a specific pubkey
-    const getRelayHints = async (pubkey: string): Promise<{ writeRelays: string[]; readRelays: string[] }> => {
+    const getRelayHints = async (
+      pubkey: string
+    ): Promise<{ writeRelays: string[]; readRelays: string[] }> => {
       try {
         // Use the shared discovery pool for relay list queries to avoid more connections
         const discoveryPool = getDiscoveryPool();
-        
-        const relayEvents = await discoveryPool.query([{
-          kinds: [10002],
-          authors: [pubkey],
-          limit: 1
-        }], { signal: AbortSignal.timeout(3000) });
+
+        const relayEvents = await discoveryPool.query(
+          [
+            {
+              kinds: [10002],
+              authors: [pubkey],
+              limit: 1,
+            },
+          ],
+          { signal: AbortSignal.timeout(3000) }
+        );
 
         if (relayEvents.length === 0) {
           return { writeRelays: [], readRelays: [] };
@@ -147,16 +175,16 @@ function getOutboxPool(): NPool {
         const readRelays: string[] = [];
 
         for (const tag of relayList.tags) {
-          if (tag[0] === 'r' && tag[1]) {
+          if (tag[0] === "r" && tag[1]) {
             const url = tag[1];
             const marker = tag[2];
 
             if (!marker) {
               writeRelays.push(url);
               readRelays.push(url);
-            } else if (marker === 'write') {
+            } else if (marker === "write") {
               writeRelays.push(url);
-            } else if (marker === 'read') {
+            } else if (marker === "read") {
               readRelays.push(url);
             }
           }
@@ -167,51 +195,63 @@ function getOutboxPool(): NPool {
         return { writeRelays: [], readRelays: [] };
       }
     };
-    
+
     sharedOutboxPool = new NPool({
       open(url: string) {
-        console.log('Outbox pool connecting to relay:', url);
+        console.log("Outbox pool connecting to relay:", url);
         return new NRelay1(url);
       },
       async reqRouter(filters) {
         const relayMap = new Map<string, typeof filters>();
-        
+
         // Add default relays as fallback
         for (const url of defaultRelays) {
           relayMap.set(url, filters);
         }
-        
+
         // For each filter with authors, try to get their write relays
         for (const filter of filters) {
           if (filter.authors && filter.authors.length > 0) {
-            console.log('Following feed: Getting relay hints for', filter.authors.length, 'authors');
-            
+            console.log(
+              "Following feed: Getting relay hints for",
+              filter.authors.length,
+              "authors"
+            );
+
             // Limit to first 10 authors to avoid too many concurrent requests
             const limitedAuthors = filter.authors.slice(0, 10);
-            
+
             // Get relay hints for each author
-            const relayHintPromises = limitedAuthors.map(author => getRelayHints(author));
+            const relayHintPromises = limitedAuthors.map((author) =>
+              getRelayHints(author)
+            );
             const relayHints = await Promise.all(relayHintPromises);
-            
+
             // Add each author's write relays
             for (let i = 0; i < limitedAuthors.length; i++) {
               const author = limitedAuthors[i];
               const hints = relayHints[i];
-              
+
               if (hints.writeRelays.length > 0) {
-                console.log(`Author ${author.slice(0, 8)} write relays:`, hints.writeRelays.slice(0, 2));
-                
+                console.log(
+                  `Author ${author.slice(0, 8)} write relays:`,
+                  hints.writeRelays.slice(0, 2)
+                );
+
                 // Add author's write relays (limit to 1 per author to reduce connections)
                 for (const relay of hints.writeRelays.slice(0, 1)) {
                   const existingFilters = relayMap.get(relay) || [];
-                  relayMap.set(relay, [...existingFilters, { ...filter, authors: [author] }]);
+                  relayMap.set(relay, [
+                    ...existingFilters,
+                    { ...filter, authors: [author] },
+                  ]);
                 }
               }
             }
           }
         }
-        
-        console.log('Following feed routing to relays:', [...relayMap.keys()]);
+
+        console.log("Following feed routing to relays:", [...relayMap.keys()]);
         return relayMap;
       },
       eventRouter: () => defaultRelays.slice(0, 2),
@@ -222,26 +262,23 @@ function getOutboxPool(): NPool {
 
 export function useFollowingImagePosts(followingPubkeys: string[]) {
   return useInfiniteQuery({
-    queryKey: ['following-image-posts', followingPubkeys],
+    queryKey: ["following-image-posts", followingPubkeys],
     queryFn: async ({ pageParam, signal }) => {
-      if (followingPubkeys.length === 0) {
-        console.log('Following feed: No users being followed');
-        return { events: [], nextCursor: undefined };
-      }
-      
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
-      
+
+      // Use outbox model for following feed
       const outboxPool = getOutboxPool();
-      
-      // Following feed uses outbox model - queries authors' write relays
-      console.log('Querying following feed using shared outbox pool for authors:', followingPubkeys.length, pageParam ? `until ${pageParam}` : 'initial');
-      console.log('Following pubkeys:', followingPubkeys.slice(0, 3).map(pk => pk.slice(0, 8)));
-      
+
       try {
-        const filter: { kinds: number[]; authors: string[]; limit: number; until?: number } = { 
-          kinds: [20], 
+        const filter: {
+          kinds: number[];
+          authors: string[];
+          limit: number;
+          until?: number;
+        } = {
+          kinds: [20],
           authors: followingPubkeys,
-          limit: 10 // Smaller initial page size for faster loading
+          limit: 10, // Smaller initial page size for faster loading
         };
 
         // Add pagination using 'until' timestamp
@@ -249,25 +286,39 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
           filter.until = pageParam;
         }
 
-        const events = await outboxPool.query([filter], { signal: querySignal });
-        
-        console.log('Following feed raw events received:', events.length);
-        
+        const events = await outboxPool.query([filter], {
+          signal: querySignal,
+        });
+
+        console.log("Following feed raw events received:", events.length);
+
         const validEvents = events.filter(validateImageEvent);
-        console.log('Following feed valid events:', validEvents.length);
-        
+        console.log("Following feed valid events:", validEvents.length);
+
         // Log unique authors found
-        const uniqueAuthors = [...new Set(validEvents.map(e => e.pubkey))];
-        console.log('Following feed unique authors found:', uniqueAuthors.length);
-        
-        const sortedEvents = validEvents.sort((a, b) => b.created_at - a.created_at);
-        
+        const uniqueAuthors = [...new Set(validEvents.map((e) => e.pubkey))];
+        console.log(
+          "Following feed unique authors found:",
+          uniqueAuthors.length
+        );
+
+        // Sort by created_at and deduplicate by ID
+        const sortedEvents = validEvents
+          .sort((a, b) => b.created_at - a.created_at)
+          .filter(
+            (event, index, self) =>
+              index === self.findIndex((e) => e.id === event.id)
+          );
+
         return {
           events: sortedEvents,
-          nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
+          nextCursor:
+            sortedEvents.length > 0
+              ? sortedEvents[sortedEvents.length - 1].created_at
+              : undefined,
         };
       } catch (error) {
-        console.error('Error in following feed query:', error);
+        console.error("Error in following feed query:", error);
         throw error;
       }
     },
@@ -281,32 +332,39 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
 
 export function useHashtagImagePosts(hashtags: string[], limit = 3) {
   return useQuery({
-    queryKey: ['hashtag-image-posts', hashtags, limit],
+    queryKey: ["hashtag-image-posts", hashtags, limit],
     queryFn: async (c) => {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
-      
+
       // Use shared discovery pool to avoid creating more connections
       const discoveryPool = getDiscoveryPool();
-      
+
       // Hashtag feeds use discovery relays only (no outbox model)
-      console.log('Querying hashtag feeds using shared discovery pool...');
-      
+      console.log("Querying hashtag feeds using shared discovery pool...");
+
       // Query for each hashtag
       const hashtagResults = await Promise.all(
         hashtags.map(async (hashtag) => {
-          const events = await discoveryPool.query([{ 
-            kinds: [20], 
-            '#t': [hashtag],
-            limit 
-          }], { signal });
-          
+          const events = await discoveryPool.query(
+            [
+              {
+                kinds: [20],
+                "#t": [hashtag],
+                limit,
+              },
+            ],
+            { signal }
+          );
+
           return {
             hashtag,
-            posts: events.filter(validateImageEvent).sort((a, b) => b.created_at - a.created_at)
+            posts: events
+              .filter(validateImageEvent)
+              .sort((a, b) => b.created_at - a.created_at),
           };
         })
       );
-      
+
       return hashtagResults;
     },
     staleTime: 60000, // 1 minute

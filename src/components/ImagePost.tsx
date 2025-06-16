@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Heart, MessageCircle, Zap, MoreHorizontal, MapPin, Hash } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useReactions } from '@/hooks/useReactions';
+import { useReactions, useReactToPost, useRemoveReaction } from '@/hooks/useReactions';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useComments } from '@/hooks/useComments';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -17,6 +19,7 @@ import {
 import { genUserName } from '@/lib/genUserName';
 import { ImagePostActions } from './ImagePostActions';
 import { CommentSection } from './CommentSection';
+import { ZapButton } from './ZapButton';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import * as nip19 from 'nostr-tools/nip19';
@@ -32,10 +35,14 @@ export function ImagePost({ event, className, onHashtagClick }: ImagePostProps) 
   const [showActions, setShowActions] = useState(false);
   const navigate = useNavigate();
   
+  const { user } = useCurrentUser();
+  const { toast } = useToast();
   const author = useAuthor(event.pubkey);
   const reactions = useReactions(event.id);
   const zaps = useZaps(event.id);
   const comments = useComments(event.id, event.pubkey);
+  const reactToPost = useReactToPost();
+  const removeReaction = useRemoveReaction();
   
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? genUserName(event.pubkey);
@@ -62,6 +69,7 @@ export function ImagePost({ event, className, onHashtagClick }: ImagePostProps) 
   }).filter(img => img.url);
   
   const likeCount = reactions.data?.['+']?.count || 0;
+  const hasLiked = reactions.data?.['+']?.hasReacted || false;
   const zapCount = zaps.data?.count || 0;
   const zapTotal = zaps.data?.totalSats || 0;
   // Get unique comment count (in case of duplicates across pages)
@@ -88,6 +96,41 @@ export function ImagePost({ event, className, onHashtagClick }: ImagePostProps) 
     e.stopPropagation();
     // Navigate to the user profile page
     navigate(`/${npub}`);
+  };
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "Please log in to like posts",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (hasLiked) {
+        await removeReaction.mutateAsync({
+          eventId: event.id,
+          reaction: '+',
+        });
+      } else {
+        await reactToPost.mutateAsync({
+          eventId: event.id,
+          authorPubkey: event.pubkey,
+          reaction: '+',
+          kind: '20',
+        });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: hasLiked ? "Failed to remove like" : "Failed to like post",
+        variant: "destructive",
+      });
+    }
   };
   
   if (images.length === 0) return null;
@@ -228,8 +271,17 @@ export function ImagePost({ event, className, onHashtagClick }: ImagePostProps) 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-2 border-t">
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                <Heart className="h-4 w-4" />
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center space-x-1"
+                onClick={handleLike}
+                disabled={reactToPost.isPending || removeReaction.isPending}
+              >
+                <Heart className={cn(
+                  "h-4 w-4 transition-colors",
+                  hasLiked ? "fill-red-500 text-red-500" : "text-muted-foreground hover:text-red-500"
+                )} />
                 <span className="text-xs">{likeCount}</span>
               </Button>
               
@@ -243,15 +295,12 @@ export function ImagePost({ event, className, onHashtagClick }: ImagePostProps) 
                 <span className="text-xs">{commentCount}</span>
               </Button>
               
-              <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                <Zap className="h-4 w-4 text-orange-500" />
-                <span className="text-xs">{zapCount}</span>
-                {zapTotal > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    ({zapTotal} sats)
-                  </span>
-                )}
-              </Button>
+              <ZapButton 
+                eventId={event.id} 
+                authorPubkey={event.pubkey}
+                zapCount={zapCount}
+                zapTotal={zapTotal}
+              />
             </div>
           </div>
         </div>

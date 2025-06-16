@@ -4,6 +4,7 @@ import { Zap, Wallet, Info } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useToast } from '@/hooks/useToast';
+import { useNWC } from '@/hooks/useNWC';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 export function ZapConfiguration() {
   const { user } = useCurrentUser();
   const { toast } = useToast();
+  const nwc = useNWC();
   
   const [nwcString, setNwcString] = useLocalStorage('nwc-string', '');
   const [defaultZapAmount, setDefaultZapAmount] = useLocalStorage('default-zap-amount', '21');
@@ -87,6 +89,17 @@ export function ZapConfiguration() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Wallet Status */}
+          {nwc.isConnected && (
+            <Alert>
+              <Wallet className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Wallet Connected:</strong> {nwc.walletType === 'nwc' ? 'Nostr Wallet Connect (NWC)' : 'WebLN Browser Extension'}
+                {nwc.walletType === 'nwc' && ' - NWC takes priority over WebLN'}
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="nwc">Nostr Wallet Connect String</Label>
             <Input
@@ -97,7 +110,7 @@ export function ZapConfiguration() {
               type="password"
             />
             <p className="text-sm text-muted-foreground">
-              Connect your lightning wallet to enable seamless zapping
+              Connect your lightning wallet to enable seamless zapping. NWC takes priority over WebLN.
             </p>
           </div>
           

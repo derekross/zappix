@@ -1,16 +1,24 @@
-import { useState, useEffect } from 'react';
-import { Send, Heart, Zap, MessageCircle, Loader2 } from 'lucide-react';
-import { useInView } from 'react-intersection-observer';
-import type { NostrEvent } from '@nostrify/nostrify';
-import { useComments, useCreateComment } from '@/hooks/useComments';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useAuthor } from '@/hooks/useAuthor';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
-import { genUserName } from '@/lib/genUserName';
-import { useToast } from '@/hooks/useToast';
+import { useState, useEffect } from "react";
+import { Send, Heart, MessageCircle, Loader2 } from "lucide-react";
+import { useInView } from "react-intersection-observer";
+import {
+  useReactions,
+  useReactToPost,
+  useRemoveReaction,
+} from "@/hooks/useReactions";
+import { useZaps } from "@/hooks/useZaps";
+import { ZapButton } from "./ZapButton";
+import type { NostrEvent } from "@nostrify/nostrify";
+import { useComments, useCreateComment } from "@/hooks/useComments";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useAuthor } from "@/hooks/useAuthor";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { genUserName } from "@/lib/genUserName";
+import { useToast } from "@/hooks/useToast";
+import { cn } from "@/lib/utils";
 
 interface CommentSectionProps {
   eventId: string;
@@ -25,20 +33,29 @@ interface CommentProps {
 
 function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
   const [showReplyForm, setShowReplyForm] = useState(false);
-  const [replyContent, setReplyContent] = useState('');
-  
+  const [replyContent, setReplyContent] = useState("");
+
   const author = useAuthor(comment.pubkey);
+  const reactions = useReactions(comment.id);
+  const zaps = useZaps(comment.id);
   const createComment = useCreateComment();
+  const reactToPost = useReactToPost();
+  const removeReaction = useRemoveReaction();
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  
+
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? genUserName(comment.pubkey);
   const profileImage = metadata?.picture;
-  
+
+  const likeCount = reactions.data?.["+"]?.count || 0;
+  const hasLiked = reactions.data?.["+"]?.hasReacted || false;
+  const zapCount = zaps.data?.count || 0;
+  const zapTotal = zaps.data?.totalSats || 0;
+
   const handleReply = async () => {
     if (!replyContent.trim() || !user) return;
-    
+
     try {
       await createComment.mutateAsync({
         content: replyContent.trim(),
@@ -47,8 +64,8 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
         parentEventId: comment.id,
         parentAuthorPubkey: comment.pubkey,
       });
-      
-      setReplyContent('');
+
+      setReplyContent("");
       setShowReplyForm(false);
       toast({
         title: "Reply posted!",
@@ -63,6 +80,43 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
     }
   };
 
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "Please log in to like comments",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (hasLiked) {
+        await removeReaction.mutateAsync({
+          eventId: comment.id,
+          reaction: "+",
+        });
+      } else {
+        await reactToPost.mutateAsync({
+          eventId: comment.id,
+          authorPubkey: comment.pubkey,
+          reaction: "+",
+          kind: "1111", // Comment kind
+        });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: hasLiked
+          ? "Failed to remove like"
+          : "Failed to like comment",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex space-x-3">
@@ -70,7 +124,7 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
           <AvatarImage src={profileImage} alt={displayName} />
           <AvatarFallback>{displayName[0]?.toUpperCase()}</AvatarFallback>
         </Avatar>
-        
+
         <div className="flex-1 space-y-1">
           <div className="flex items-center space-x-2">
             <span className="font-semibold text-sm">{displayName}</span>
@@ -78,31 +132,48 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
               {new Date(comment.created_at * 1000).toLocaleString()}
             </span>
           </div>
-          
+
           <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
-          
+
           <div className="flex items-center space-x-4 pt-1">
-            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-              <Heart className="h-3 w-3 mr-1" />
-              0
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={handleLike}
+              disabled={reactToPost.isPending || removeReaction.isPending}
+            >
+              <Heart
+                className={cn(
+                  "h-3 w-3 mr-1 transition-colors",
+                  hasLiked
+                    ? "fill-red-500 text-red-500"
+                    : "text-muted-foreground hover:text-red-500"
+                )}
+              />
+              {likeCount}
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
+
+            <Button
+              variant="ghost"
+              size="sm"
               className="h-6 px-2 text-xs"
               onClick={() => setShowReplyForm(!showReplyForm)}
             >
               <MessageCircle className="h-3 w-3" />
             </Button>
-            
-            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-              <Zap className="h-3 w-3 text-orange-500" />
-            </Button>
+
+            <ZapButton
+              eventId={comment.id}
+              authorPubkey={comment.pubkey}
+              zapCount={zapCount}
+              zapTotal={zapTotal}
+              size="sm"
+            />
           </div>
         </div>
       </div>
-      
+
       {showReplyForm && user && (
         <div className="ml-11 space-y-2">
           <Textarea
@@ -112,17 +183,17 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
             className="min-h-[60px] text-sm"
           />
           <div className="flex justify-end space-x-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => {
                 setShowReplyForm(false);
-                setReplyContent('');
+                setReplyContent("");
               }}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               size="sm"
               onClick={handleReply}
               disabled={!replyContent.trim() || createComment.isPending}
@@ -138,8 +209,8 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
 }
 
 export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
-  const [newComment, setNewComment] = useState('');
-  
+  const [newComment, setNewComment] = useState("");
+
   const comments = useComments(eventId, authorPubkey);
   const createComment = useCreateComment();
   const { user } = useCurrentUser();
@@ -148,7 +219,7 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
   // Intersection observer for infinite scrolling
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0,
-    rootMargin: '100px',
+    rootMargin: "100px",
   });
 
   // Load more comments when the load more element comes into view
@@ -159,27 +230,31 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
   }, [inView, comments]);
 
   // Flatten all pages into a single array of comments, deduplicate, and sort chronologically (oldest first)
-  const allComments = comments.data?.pages?.flatMap(page => page.comments) || [];
-  
+  const allComments =
+    comments.data?.pages?.flatMap((page) => page.comments) || [];
+
   // Deduplicate comments by ID
-  const uniqueComments = allComments.filter((comment, index, array) => 
-    array.findIndex(c => c.id === comment.id) === index
+  const uniqueComments = allComments.filter(
+    (comment, index, array) =>
+      array.findIndex((c) => c.id === comment.id) === index
   );
-  
+
   // Sort chronologically (oldest first)
-  const sortedComments = uniqueComments.sort((a, b) => a.created_at - b.created_at);
-  
+  const sortedComments = uniqueComments.sort(
+    (a, b) => a.created_at - b.created_at
+  );
+
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !user) return;
-    
+
     try {
       await createComment.mutateAsync({
         content: newComment.trim(),
         rootEventId: eventId,
         rootAuthorPubkey: authorPubkey,
       });
-      
-      setNewComment('');
+
+      setNewComment("");
       toast({
         title: "Comment posted!",
         description: "Your comment has been published",
@@ -206,7 +281,7 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
               className="min-h-[80px]"
             />
             <div className="flex justify-end">
-              <Button 
+              <Button
                 onClick={handleSubmitComment}
                 disabled={!newComment.trim() || createComment.isPending}
                 size="sm"
@@ -221,7 +296,7 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
             Please log in to comment
           </p>
         )}
-        
+
         {/* Comments List */}
         {comments.data && sortedComments.length > 0 && (
           <>
@@ -230,7 +305,7 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
               <h4 className="font-semibold text-sm">
                 Comments ({sortedComments.length})
               </h4>
-              
+
               {sortedComments.map((comment) => (
                 <Comment
                   key={comment.id}
@@ -249,8 +324,8 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
                       <span>Loading more comments...</span>
                     </div>
                   ) : (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => comments.fetchNextPage()}
                       disabled={!comments.hasNextPage}
@@ -260,7 +335,7 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
                   )}
                 </div>
               )}
-              
+
               {/* End of comments indicator */}
               {!comments.hasNextPage && sortedComments.length > 10 && (
                 <div className="text-center py-2">
@@ -272,7 +347,7 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
             </div>
           </>
         )}
-        
+
         {comments.isLoading && (
           <div className="text-center py-4">
             <p className="text-sm text-muted-foreground">Loading comments...</p>

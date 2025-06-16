@@ -1,16 +1,25 @@
-import { useState } from 'react';
-import { Copy, Share, Bookmark, UserPlus, UserMinus, VolumeX, Volume2, Flag, ExternalLink } from 'lucide-react';
-import { nip19 } from 'nostr-tools';
-import type { NostrEvent } from '@nostrify/nostrify';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useIsBookmarked, useToggleBookmark } from '@/hooks/useBookmarks';
-import { useIsFollowing, useToggleFollow } from '@/hooks/useFollowing';
+import { useState } from "react";
+import {
+  Copy,
+  Share,
+  Bookmark,
+  UserPlus,
+  UserMinus,
+  VolumeX,
+  Volume2,
+  Flag,
+} from "lucide-react";
+import { nip19 } from "nostr-tools";
+import type { NostrEvent } from "@nostrify/nostrify";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useIsBookmarked, useToggleBookmark } from "@/hooks/useBookmarks";
+import { useIsFollowing, useToggleFollow } from "@/hooks/useFollowing";
 
-import { useToast } from '@/hooks/useToast';
-import { 
+import { useToast } from "@/hooks/useToast";
+import {
   DropdownMenuItem,
-  DropdownMenuSeparator 
-} from '@/components/ui/dropdown-menu';
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 interface ImagePostActionsProps {
   event: NostrEvent;
@@ -21,14 +30,14 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const [isMuted, setIsMuted] = useState(false); // TODO: Implement mute functionality
-  
+
   const isBookmarked = useIsBookmarked(event.id);
   const toggleBookmark = useToggleBookmark();
   const isFollowing = useIsFollowing(event.pubkey);
   const toggleFollow = useToggleFollow();
-  
+
   const isOwnPost = user?.pubkey === event.pubkey;
-  
+
   const handleCopyNevent = async () => {
     try {
       const nevent = nip19.neventEncode({
@@ -36,7 +45,7 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
         author: event.pubkey,
         kind: event.kind,
       });
-      
+
       await navigator.clipboard.writeText(nevent);
       toast({
         title: "Copied!",
@@ -51,7 +60,7 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
       });
     }
   };
-  
+
   const handleShare = async () => {
     try {
       const nevent = nip19.neventEncode({
@@ -59,12 +68,12 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
         author: event.pubkey,
         kind: event.kind,
       });
-      
+
       const url = `${window.location.origin}/${nevent}`;
-      
+
       if (navigator.share) {
         await navigator.share({
-          title: 'Zappix Image Post',
+          title: "Zappix Image Post",
           url: url,
         });
       } else {
@@ -83,17 +92,21 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
       });
     }
   };
-  
+
   const handleToggleBookmark = async () => {
     try {
       await toggleBookmark.mutateAsync({
         eventId: event.id,
         isBookmarked: isBookmarked.data || false,
       });
-      
+
       toast({
-        title: isBookmarked.data ? "Removed from bookmarks" : "Added to bookmarks",
-        description: isBookmarked.data ? "Post removed from your bookmarks" : "Post saved to your bookmarks",
+        title: isBookmarked.data
+          ? "Removed from bookmarks"
+          : "Added to bookmarks",
+        description: isBookmarked.data
+          ? "Post removed from your bookmarks"
+          : "Post saved to your bookmarks",
       });
       onClose();
     } catch {
@@ -104,17 +117,19 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
       });
     }
   };
-  
+
   const handleToggleFollow = async () => {
     try {
       await toggleFollow.mutateAsync({
         pubkey: event.pubkey,
         isFollowing: isFollowing.data || false,
       });
-      
+
       toast({
         title: isFollowing.data ? "Unfollowed" : "Following",
-        description: isFollowing.data ? "You are no longer following this user" : "You are now following this user",
+        description: isFollowing.data
+          ? "You are no longer following this user"
+          : "You are now following this user",
       });
       onClose();
     } catch {
@@ -125,35 +140,25 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
       });
     }
   };
-  
+
   const handleToggleMute = () => {
     // TODO: Implement mute functionality
     setIsMuted(!isMuted);
     toast({
       title: isMuted ? "Unmuted" : "Muted",
-      description: isMuted ? "You will see posts from this user again" : "You will no longer see posts from this user",
+      description: isMuted
+        ? "You will see posts from this user again"
+        : "You will no longer see posts from this user",
     });
     onClose();
   };
-  
+
   const handleReport = () => {
     // TODO: Implement report functionality
     toast({
       title: "Reported",
       description: "Thank you for reporting this content",
     });
-    onClose();
-  };
-  
-  const handleOpenInClient = () => {
-    const nevent = nip19.neventEncode({
-      id: event.id,
-      author: event.pubkey,
-      kind: event.kind,
-    });
-    
-    // Open in default Nostr client
-    window.open(`nostr:${nevent}`, '_blank');
     onClose();
   };
 
@@ -163,32 +168,31 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
         <Copy className="h-4 w-4 mr-2" />
         Copy event ID
       </DropdownMenuItem>
-      
+
       <DropdownMenuItem onClick={handleShare}>
         <Share className="h-4 w-4 mr-2" />
         Share post
       </DropdownMenuItem>
-      
-      <DropdownMenuItem onClick={handleOpenInClient}>
-        <ExternalLink className="h-4 w-4 mr-2" />
-        Open in Nostr client
-      </DropdownMenuItem>
-      
+
       {user && (
         <>
           <DropdownMenuSeparator />
-          
-          <DropdownMenuItem 
+
+          <DropdownMenuItem
             onClick={handleToggleBookmark}
             disabled={toggleBookmark.isPending}
           >
-            <Bookmark className={`h-4 w-4 mr-2 ${isBookmarked.data ? 'fill-current' : ''}`} />
-            {isBookmarked.data ? 'Remove bookmark' : 'Add bookmark'}
+            <Bookmark
+              className={`h-4 w-4 mr-2 ${
+                isBookmarked.data ? "fill-current" : ""
+              }`}
+            />
+            {isBookmarked.data ? "Remove bookmark" : "Add bookmark"}
           </DropdownMenuItem>
-          
+
           {!isOwnPost && (
             <>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={handleToggleFollow}
                 disabled={toggleFollow.isPending}
               >
@@ -197,21 +201,21 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
                 ) : (
                   <UserPlus className="h-4 w-4 mr-2" />
                 )}
-                {isFollowing.data ? 'Unfollow' : 'Follow'} user
+                {isFollowing.data ? "Unfollow" : "Follow"} user
               </DropdownMenuItem>
-              
+
               <DropdownMenuItem onClick={handleToggleMute}>
                 {isMuted ? (
                   <Volume2 className="h-4 w-4 mr-2" />
                 ) : (
                   <VolumeX className="h-4 w-4 mr-2" />
                 )}
-                {isMuted ? 'Unmute' : 'Mute'} user
+                {isMuted ? "Unmute" : "Mute"} user
               </DropdownMenuItem>
-              
+
               <DropdownMenuSeparator />
-              
-              <DropdownMenuItem 
+
+              <DropdownMenuItem
                 onClick={handleReport}
                 className="text-destructive focus:text-destructive"
               >
