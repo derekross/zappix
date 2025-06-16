@@ -19,6 +19,7 @@ export function MainLayout() {
   const [activeMainTab, setActiveMainTab] = useState('home');
   const [activeHomeTab, setActiveHomeTab] = useState('global');
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
+  const [previousTab, setPreviousTab] = useState<string>('discover'); // Track where user came from
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -33,15 +34,31 @@ export function MainLayout() {
   };
   
   const handleHashtagClick = (hashtag: string) => {
+    // Only update previousTab if we're not already on a hashtag detail page
+    // This preserves the original source when navigating between hashtags
+    if (activeMainTab !== 'hashtag-detail') {
+      setPreviousTab(activeMainTab);
+    }
     setSelectedHashtag(hashtag);
     setActiveMainTab('hashtag-detail');
     // Scroll to top when navigating to hashtag feed
     scrollToTop();
   };
   
-  const handleBackToDiscover = () => {
+  const handleBackToPrevious = () => {
     setSelectedHashtag(null);
-    setActiveMainTab('discover');
+    setActiveMainTab(previousTab);
+  };
+  
+  const getBackButtonText = () => {
+    switch (previousTab) {
+      case 'home':
+        return '← Back to Home';
+      case 'discover':
+        return '← Back to Discover';
+      default:
+        return '← Back';
+    }
   };
   
   // Special layouts for bookmarks, settings, and profile pages
@@ -563,9 +580,9 @@ export function MainLayout() {
                       <div className="flex items-center space-x-4">
                         <Button 
                           variant="outline" 
-                          onClick={handleBackToDiscover}
+                          onClick={handleBackToPrevious}
                         >
-                          ← Back
+                          {getBackButtonText()}
                         </Button>
                         <div>
                           <h2 className="text-2xl font-bold flex items-center space-x-2">
@@ -747,9 +764,9 @@ export function MainLayout() {
                       <div className="flex items-center space-x-4">
                         <Button 
                           variant="outline" 
-                          onClick={handleBackToDiscover}
+                          onClick={handleBackToPrevious}
                         >
-                          ← Back
+                          {getBackButtonText()}
                         </Button>
                         <div>
                           <h2 className="text-2xl font-bold flex items-center space-x-2">
