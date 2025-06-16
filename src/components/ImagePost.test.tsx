@@ -51,6 +51,27 @@ describe('ImagePost', () => {
     expect(mockHashtagClick).toHaveBeenCalledWith('photography');
   });
 
+  it('prevents event bubbling when hashtag is clicked', () => {
+    const mockHashtagClick = vi.fn();
+    const mockContainerClick = vi.fn();
+    
+    render(
+      <TestApp>
+        <div onClick={mockContainerClick}>
+          <ImagePost event={mockEvent} onHashtagClick={mockHashtagClick} />
+        </div>
+      </TestApp>
+    );
+
+    // Click on the photography hashtag
+    const photographyBadge = screen.getByText('photography');
+    fireEvent.click(photographyBadge);
+
+    // Verify the hashtag callback was called but container click was not
+    expect(mockHashtagClick).toHaveBeenCalledWith('photography');
+    expect(mockContainerClick).not.toHaveBeenCalled();
+  });
+
   it('renders hashtag badges as non-clickable when onHashtagClick is not provided', () => {
     render(
       <TestApp>

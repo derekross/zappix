@@ -28,18 +28,20 @@ export function MainLayout() {
   const { user } = useCurrentUser();
   const isMobile = useIsMobile();
   
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
   const handleHashtagClick = (hashtag: string) => {
     setSelectedHashtag(hashtag);
     setActiveMainTab('hashtag-detail');
+    // Scroll to top when navigating to hashtag feed
+    scrollToTop();
   };
   
   const handleBackToDiscover = () => {
     setSelectedHashtag(null);
     setActiveMainTab('discover');
-  };
-  
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
   // Special layouts for bookmarks, settings, and profile pages
