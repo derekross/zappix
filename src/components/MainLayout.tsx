@@ -530,7 +530,7 @@ export function MainLayout() {
                           Latest image posts from all relays
                         </p>
                       </div>
-                      <ImageFeed feedType="global" />
+                      <ImageFeed feedType="global" onHashtagClick={handleHashtagClick} />
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
@@ -540,7 +540,7 @@ export function MainLayout() {
                           Posts from people you follow
                         </p>
                       </div>
-                      <ImageFeed feedType="following" />
+                      <ImageFeed feedType="following" onHashtagClick={handleHashtagClick} />
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
@@ -575,7 +575,7 @@ export function MainLayout() {
                           </p>
                         </div>
                       </div>
-                      <ImageFeed feedType="global" hashtag={selectedHashtag} />
+                      <ImageFeed feedType="global" hashtag={selectedHashtag} onHashtagClick={handleHashtagClick} />
                     </>
                   )}
                 </TabsContent>
@@ -714,7 +714,7 @@ export function MainLayout() {
                           Latest image posts from all relays
                         </p>
                       </div>
-                      <ImageFeed feedType="global" />
+                      <ImageFeed feedType="global" onHashtagClick={handleHashtagClick} />
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
@@ -724,7 +724,7 @@ export function MainLayout() {
                           Posts from people you follow
                         </p>
                       </div>
-                      <ImageFeed feedType="following" />
+                      <ImageFeed feedType="following" onHashtagClick={handleHashtagClick} />
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
@@ -759,7 +759,7 @@ export function MainLayout() {
                           </p>
                         </div>
                       </div>
-                      <ImageFeed feedType="global" hashtag={selectedHashtag} />
+                      <ImageFeed feedType="global" hashtag={selectedHashtag} onHashtagClick={handleHashtagClick} />
                     </>
                   )}
                 </TabsContent>

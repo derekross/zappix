@@ -5,10 +5,12 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useIsBookmarked, useToggleBookmark } from '@/hooks/useBookmarks';
 import { useIsFollowing, useToggleFollow } from '@/hooks/useFollowing';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+
 import { useToast } from '@/hooks/useToast';
-import { Separator } from '@/components/ui/separator';
+import { 
+  DropdownMenuItem,
+  DropdownMenuSeparator 
+} from '@/components/ui/dropdown-menu';
 
 interface ImagePostActionsProps {
   event: NostrEvent;
@@ -156,102 +158,70 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
   };
 
   return (
-    <Card className="absolute top-12 right-0 z-10 w-64 shadow-lg">
-      <CardContent className="p-2">
-        <div className="space-y-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
-            onClick={handleCopyNevent}
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy event ID
-          </Button>
+    <>
+      <DropdownMenuItem onClick={handleCopyNevent}>
+        <Copy className="h-4 w-4 mr-2" />
+        Copy event ID
+      </DropdownMenuItem>
+      
+      <DropdownMenuItem onClick={handleShare}>
+        <Share className="h-4 w-4 mr-2" />
+        Share post
+      </DropdownMenuItem>
+      
+      <DropdownMenuItem onClick={handleOpenInClient}>
+        <ExternalLink className="h-4 w-4 mr-2" />
+        Open in Nostr client
+      </DropdownMenuItem>
+      
+      {user && (
+        <>
+          <DropdownMenuSeparator />
           
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
-            onClick={handleShare}
+          <DropdownMenuItem 
+            onClick={handleToggleBookmark}
+            disabled={toggleBookmark.isPending}
           >
-            <Share className="h-4 w-4 mr-2" />
-            Share post
-          </Button>
+            <Bookmark className={`h-4 w-4 mr-2 ${isBookmarked.data ? 'fill-current' : ''}`} />
+            {isBookmarked.data ? 'Remove bookmark' : 'Add bookmark'}
+          </DropdownMenuItem>
           
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
-            onClick={handleOpenInClient}
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Open in Nostr client
-          </Button>
-          
-          {user && (
+          {!isOwnPost && (
             <>
-              <Separator className="my-2" />
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start"
-                onClick={handleToggleBookmark}
-                disabled={toggleBookmark.isPending}
+              <DropdownMenuItem 
+                onClick={handleToggleFollow}
+                disabled={toggleFollow.isPending}
               >
-                <Bookmark className={`h-4 w-4 mr-2 ${isBookmarked.data ? 'fill-current' : ''}`} />
-                {isBookmarked.data ? 'Remove bookmark' : 'Add bookmark'}
-              </Button>
+                {isFollowing.data ? (
+                  <UserMinus className="h-4 w-4 mr-2" />
+                ) : (
+                  <UserPlus className="h-4 w-4 mr-2" />
+                )}
+                {isFollowing.data ? 'Unfollow' : 'Follow'} user
+              </DropdownMenuItem>
               
-              {!isOwnPost && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={handleToggleFollow}
-                    disabled={toggleFollow.isPending}
-                  >
-                    {isFollowing.data ? (
-                      <UserMinus className="h-4 w-4 mr-2" />
-                    ) : (
-                      <UserPlus className="h-4 w-4 mr-2" />
-                    )}
-                    {isFollowing.data ? 'Unfollow' : 'Follow'} user
-                  </Button>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={handleToggleMute}
-                  >
-                    {isMuted ? (
-                      <Volume2 className="h-4 w-4 mr-2" />
-                    ) : (
-                      <VolumeX className="h-4 w-4 mr-2" />
-                    )}
-                    {isMuted ? 'Unmute' : 'Mute'} user
-                  </Button>
-                  
-                  <Separator className="my-2" />
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-destructive hover:text-destructive"
-                    onClick={handleReport}
-                  >
-                    <Flag className="h-4 w-4 mr-2" />
-                    Report post
-                  </Button>
-                </>
-              )}
+              <DropdownMenuItem onClick={handleToggleMute}>
+                {isMuted ? (
+                  <Volume2 className="h-4 w-4 mr-2" />
+                ) : (
+                  <VolumeX className="h-4 w-4 mr-2" />
+                )}
+                {isMuted ? 'Unmute' : 'Mute'} user
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem 
+                onClick={handleReport}
+                className="text-destructive focus:text-destructive"
+              >
+                <Flag className="h-4 w-4 mr-2" />
+                Report post
+              </DropdownMenuItem>
             </>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </>
+      )}
+    </>
   );
 }

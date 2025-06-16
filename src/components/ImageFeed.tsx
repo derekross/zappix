@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface ImageFeedProps {
   feedType: 'global' | 'following';
   hashtag?: string;
+  onHashtagClick?: (hashtag: string) => void;
 }
 
 function ImagePostSkeleton() {
@@ -38,7 +39,7 @@ function ImagePostSkeleton() {
   );
 }
 
-export function ImageFeed({ feedType, hashtag }: ImageFeedProps) {
+export function ImageFeed({ feedType, hashtag, onHashtagClick }: ImageFeedProps) {
   const { user } = useCurrentUser();
   const following = useFollowing();
   
@@ -93,7 +94,7 @@ export function ImageFeed({ feedType, hashtag }: ImageFeedProps) {
   return (
     <div className="space-y-6">
       {posts.data.map((post) => (
-        <ImagePost key={post.id} event={post} />
+        <ImagePost key={post.id} event={post} onHashtagClick={onHashtagClick} />
       ))}
     </div>
   );

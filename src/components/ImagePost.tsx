@@ -9,19 +9,28 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { genUserName } from '@/lib/genUserName';
 import { ImagePostActions } from './ImagePostActions';
 import { CommentSection } from './CommentSection';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import * as nip19 from 'nostr-tools/nip19';
 
 interface ImagePostProps {
   event: NostrEvent;
   className?: string;
+  onHashtagClick?: (hashtag: string) => void;
 }
 
-export function ImagePost({ event, className }: ImagePostProps) {
+export function ImagePost({ event, className, onHashtagClick }: ImagePostProps) {
   const [showComments, setShowComments] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const navigate = useNavigate();
   
   const author = useAuthor(event.pubkey);
   const reactions = useReactions(event.id);
@@ -57,6 +66,27 @@ export function ImagePost({ event, className }: ImagePostProps) {
   const zapTotal = zaps.data?.totalSats || 0;
   const commentCount = comments.data?.length || 0;
   
+  // Create nevent for linking to the post
+  const nevent = nip19.neventEncode({
+    id: event.id,
+    author: event.pubkey,
+  });
+
+  // Create npub for linking to the user profile
+  const npub = nip19.npubEncode(event.pubkey);
+
+  const handleImageClick = () => {
+    // Navigate to the individual post page
+    navigate(`/${nevent}`);
+  };
+
+  const handleProfileClick = (e: React.MouseEvent) => {
+    // Prevent event bubbling
+    e.stopPropagation();
+    // Navigate to the user profile page
+    navigate(`/${npub}`);
+  };
+  
   if (images.length === 0) return null;
 
   return (
@@ -64,32 +94,43 @@ export function ImagePost({ event, className }: ImagePostProps) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Avatar className="h-10 w-10">
+            <Avatar 
+              className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
+              onClick={handleProfileClick}
+            >
               <AvatarImage src={profileImage} alt={displayName} />
               <AvatarFallback>{displayName[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-semibold text-sm">{displayName}</p>
+              <p 
+                className="font-semibold text-sm cursor-pointer hover:text-primary transition-colors"
+                onClick={handleProfileClick}
+              >
+                {displayName}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {new Date(event.created_at * 1000).toLocaleDateString()}
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowActions(!showActions)}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
+          
+          <DropdownMenu open={showActions} onOpenChange={setShowActions}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <ImagePostActions 
+                event={event} 
+                onClose={() => setShowActions(false)} 
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        
-        {showActions && (
-          <ImagePostActions 
-            event={event} 
-            onClose={() => setShowActions(false)} 
-          />
-        )}
       </CardHeader>
       
       <CardContent className="p-0">
@@ -114,16 +155,19 @@ export function ImagePost({ event, className }: ImagePostProps) {
             <div 
               key={index} 
               className={cn(
-                "relative aspect-square overflow-hidden",
+                "relative aspect-square overflow-hidden cursor-pointer group",
                 images.length === 3 && index === 0 ? "row-span-2" : ""
               )}
+              onClick={handleImageClick}
             >
               <img
                 src={image.url}
                 alt={image.alt || title}
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                 loading="lazy"
               />
+              {/* Subtle overlay on hover to indicate clickability */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
             </div>
           ))}
         </div>
@@ -132,7 +176,12 @@ export function ImagePost({ event, className }: ImagePostProps) {
         <div className="p-4 space-y-3">
           {/* Title */}
           {title && (
-            <h3 className="font-semibold text-lg">{title}</h3>
+            <h3 
+              className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"
+              onClick={handleImageClick}
+            >
+              {title}
+            </h3>
           )}
           
           {/* Description */}
@@ -154,7 +203,18 @@ export function ImagePost({ event, className }: ImagePostProps) {
           {hashtags.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {hashtags.map((tag, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
+                <Badge 
+                  key={index} 
+                  variant="secondary" 
+                  className={cn(
+                    "text-xs",
+                    onHashtagClick && "cursor-pointer hover:bg-primary/20 hover:text-primary transition-colors"
+                  )}
+                  onClick={onHashtagClick ? (e) => {
+                    e.stopPropagation();
+                    onHashtagClick(tag);
+                  } : undefined}
+                >
                   <Hash className="h-3 w-3 mr-1" />
                   {tag}
                 </Badge>

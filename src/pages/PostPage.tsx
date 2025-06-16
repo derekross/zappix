@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { ImagePost } from '@/components/ImagePost';
+import { PublicUserProfilePage } from '@/components/PublicUserProfilePage';
 
 
 const PostPage = () => {
@@ -19,41 +20,75 @@ const PostPage = () => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Default SEO meta - will be overridden for specific content types
+  useSeoMeta({
+    title: 'Zappix',
+    description: 'View content on Zappix',
+  });
   
-  const postQuery = useQuery({
-    queryKey: ['post', nip19Id],
-    queryFn: async (c) => {
-      if (!nip19Id) throw new Error('No post ID provided');
+  const decodedQuery = useQuery({
+    queryKey: ['decoded', nip19Id],
+    queryFn: async () => {
+      if (!nip19Id) throw new Error('No ID provided');
       
       try {
         const decoded = nip19.decode(nip19Id);
-        
-        if (decoded.type === 'nevent') {
-          const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
-          const events = await nostr.query([{
-            ids: [decoded.data.id],
-            kinds: [20],
-            limit: 1
-          }], { signal });
-          
-          return events[0] || null;
-        }
-        
-        throw new Error('Invalid post identifier');
+        return decoded;
       } catch {
-        throw new Error('Failed to decode post identifier');
+        throw new Error('Failed to decode identifier');
       }
     },
     enabled: !!nip19Id,
   });
-  
-  const post = postQuery.data;
-  const title = post?.tags.find(([name]) => name === 'title')?.[1] || 'Image Post';
-  
-  useSeoMeta({
-    title: `${title} - Zappix`,
-    description: post?.content || 'View this image post on Zappix',
+
+  const postQuery = useQuery({
+    queryKey: ['post', nip19Id],
+    queryFn: async (c) => {
+      if (!decodedQuery.data || decodedQuery.data.type !== 'nevent') {
+        return null;
+      }
+      
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
+      const events = await nostr.query([{
+        ids: [decodedQuery.data.data.id],
+        kinds: [20],
+        limit: 1
+      }], { signal });
+      
+      return events[0] || null;
+    },
+    enabled: !!decodedQuery.data && decodedQuery.data.type === 'nevent',
   });
+  
+  // Handle different types of identifiers
+  if (decodedQuery.isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (decodedQuery.error || !decodedQuery.data) {
+    return <div>Invalid identifier</div>;
+  }
+
+  const decoded = decodedQuery.data;
+
+  // If it's a profile (nprofile or npub), render the profile page
+  if (decoded.type === 'nprofile') {
+    return <PublicUserProfilePage pubkey={decoded.data.pubkey} />;
+  }
+
+  if (decoded.type === 'npub') {
+    return <PublicUserProfilePage pubkey={decoded.data} />;
+  }
+
+  // If it's not a nevent, show error
+  if (decoded.type !== 'nevent') {
+    return <div>Unsupported identifier type</div>;
+  }
+
+  // Handle nevent (post) case
+  const post = postQuery.data;
+  const _title = post?.tags.find(([name]) => name === 'title')?.[1] || 'Image Post';
   
   if (postQuery.isLoading) {
     return (
