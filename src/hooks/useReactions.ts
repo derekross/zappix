@@ -20,6 +20,7 @@ function validateReactionEvent(event: NostrEvent): boolean {
 
 export function useReactions(eventId: string) {
   const { nostr } = useNostr();
+  const { user } = useCurrentUser();
 
   return useQuery({
     queryKey: ['reactions', eventId],
@@ -46,6 +47,12 @@ export function useReactions(eventId: string) {
         }
         acc[content].count++;
         acc[content].users.push(reaction.pubkey);
+        
+        // Check if current user has reacted
+        if (user && reaction.pubkey === user.pubkey) {
+          acc[content].hasReacted = true;
+        }
+        
         return acc;
       }, {} as Record<string, { count: number; users: string[]; hasReacted: boolean }>);
 

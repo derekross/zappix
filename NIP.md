@@ -73,10 +73,12 @@ Zappix features predefined hashtag categories for discovery:
 
 ## Media Upload
 
-Zappix integrates with Blossom servers (NIP-96) for media storage:
+Zappix integrates with Blossom servers (NIP-B7) for media storage:
 - Kind 10063 events define user's preferred Blossom servers
 - Multiple image uploads supported per post
 - NIP-94 compatible file metadata tags
+- Automatic fallback to default servers when user hasn't configured any
+- Server validation and management through dedicated settings interface
 
 ## Security Considerations
 

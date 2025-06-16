@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from './useCurrentUser';
+import { outboxUtils } from './useOutboxModel';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 export interface RelayInfo {
@@ -28,7 +29,7 @@ export function useRelayList(pubkey?: string) {
     queryFn: async (c) => {
       if (!pubkey) return null;
       
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(3000)]);
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(10000)]); // Increased timeout to 10 seconds
       
       // Get user's relay list (kind 10002)
       const relayEvents = await nostr.query([{ 
@@ -67,6 +68,8 @@ export function useRelayList(pubkey?: string) {
     },
     enabled: !!pubkey,
     staleTime: 300000, // 5 minutes
+    retry: 3, // Add retry mechanism
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 }
 
@@ -103,6 +106,8 @@ export function useUpdateRelayList() {
     onSuccess: () => {
       // Invalidate relay list queries
       queryClient.invalidateQueries({ queryKey: ['relay-list'] });
+      // Clear outbox model cache to ensure fresh relay hints
+      outboxUtils.clearRelayCache();
     },
   });
 }

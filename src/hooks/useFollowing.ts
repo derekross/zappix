@@ -13,7 +13,7 @@ export function useFollowing() {
     queryFn: async (c) => {
       if (!user?.pubkey) return [];
       
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(3000)]);
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(10000)]);
       
       // Get user's contact list (kind 3)
       const contactEvents = await nostr.query([{ 
@@ -36,6 +36,8 @@ export function useFollowing() {
     },
     enabled: !!user?.pubkey,
     staleTime: 60000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 }
 

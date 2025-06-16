@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Send, Heart, Zap, MessageCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Send, Heart, Zap, MessageCircle, Loader2 } from 'lucide-react';
+import { useInView } from 'react-intersection-observer';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useComments, useCreateComment } from '@/hooks/useComments';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -143,6 +144,30 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
   const createComment = useCreateComment();
   const { user } = useCurrentUser();
   const { toast } = useToast();
+
+  // Intersection observer for infinite scrolling
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '100px',
+  });
+
+  // Load more comments when the load more element comes into view
+  useEffect(() => {
+    if (inView && comments.hasNextPage && !comments.isFetchingNextPage) {
+      comments.fetchNextPage();
+    }
+  }, [inView, comments]);
+
+  // Flatten all pages into a single array of comments, deduplicate, and sort chronologically (oldest first)
+  const allComments = comments.data?.pages?.flatMap(page => page.comments) || [];
+  
+  // Deduplicate comments by ID
+  const uniqueComments = allComments.filter((comment, index, array) => 
+    array.findIndex(c => c.id === comment.id) === index
+  );
+  
+  // Sort chronologically (oldest first)
+  const sortedComments = uniqueComments.sort((a, b) => a.created_at - b.created_at);
   
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !user) return;
@@ -198,15 +223,15 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
         )}
         
         {/* Comments List */}
-        {comments.data && comments.data.length > 0 && (
+        {comments.data && sortedComments.length > 0 && (
           <>
             <Separator />
             <div className="space-y-4">
               <h4 className="font-semibold text-sm">
-                Comments ({comments.data.length})
+                Comments ({sortedComments.length})
               </h4>
               
-              {comments.data.map((comment) => (
+              {sortedComments.map((comment) => (
                 <Comment
                   key={comment.id}
                   comment={comment}
@@ -214,6 +239,36 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
                   rootAuthorPubkey={authorPubkey}
                 />
               ))}
+
+              {/* Load more trigger element */}
+              {comments.hasNextPage && (
+                <div ref={loadMoreRef} className="flex justify-center py-4">
+                  {comments.isFetchingNextPage ? (
+                    <div className="flex items-center space-x-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Loading more comments...</span>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => comments.fetchNextPage()}
+                      disabled={!comments.hasNextPage}
+                    >
+                      Load More Comments
+                    </Button>
+                  )}
+                </div>
+              )}
+              
+              {/* End of comments indicator */}
+              {!comments.hasNextPage && sortedComments.length > 10 && (
+                <div className="text-center py-2">
+                  <p className="text-muted-foreground text-xs">
+                    All comments loaded
+                  </p>
+                </div>
+              )}
             </div>
           </>
         )}

@@ -1,26 +1,19 @@
-import { useState } from 'react';
-import { Settings, Server, Zap, Palette } from 'lucide-react';
+import { Settings, Server, Palette, Zap, Wifi } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
+import { Label } from '@/components/ui/label';
 
 import { RelayConfiguration } from './RelayConfiguration';
+import { ZapConfiguration } from './ZapConfiguration';
+import { BlossomConfiguration } from './BlossomConfiguration';
 import { useTheme } from '@/hooks/useTheme';
-import { useToast } from '@/hooks/useToast';
 
 export function SettingsPage() {
   const { user } = useCurrentUser();
   const { theme, setTheme } = useTheme();
-  const { toast } = useToast();
-  
-  const [nwcString, setNwcString] = useState('');
-  const [defaultZapAmount, setDefaultZapAmount] = useState('21');
-  const [blossomServers, setBlossomServers] = useState('');
   
   if (!user) {
     return (
@@ -39,22 +32,6 @@ export function SettingsPage() {
       </Card>
     );
   }
-  
-  const handleSaveZapSettings = () => {
-    // TODO: Save NWC and zap settings to user preferences
-    toast({
-      title: "Settings saved",
-      description: "Your zap settings have been updated",
-    });
-  };
-  
-  const handleSaveBlossomSettings = () => {
-    // TODO: Save Blossom server settings
-    toast({
-      title: "Settings saved", 
-      description: "Your media server settings have been updated",
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -69,14 +46,18 @@ export function SettingsPage() {
       </div>
       
       <Tabs defaultValue="relays" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="relays" className="flex items-center space-x-2">
-            <Server className="h-4 w-4" />
+            <Wifi className="h-4 w-4" />
             <span className="hidden sm:inline">Relays</span>
           </TabsTrigger>
           <TabsTrigger value="zaps" className="flex items-center space-x-2">
             <Zap className="h-4 w-4" />
             <span className="hidden sm:inline">Zaps</span>
+          </TabsTrigger>
+          <TabsTrigger value="media" className="flex items-center space-x-2">
+            <Server className="h-4 w-4" />
+            <span className="hidden sm:inline">Media</span>
           </TabsTrigger>
           <TabsTrigger value="appearance" className="flex items-center space-x-2">
             <Palette className="h-4 w-4" />
@@ -89,68 +70,11 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="zaps" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Zap className="h-5 w-5 text-orange-500" />
-                <span>Zap Settings</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nwc">Nostr Wallet Connect String</Label>
-                <Input
-                  id="nwc"
-                  placeholder="nostrwalletconnect://..."
-                  value={nwcString}
-                  onChange={(e) => setNwcString(e.target.value)}
-                  type="password"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Connect your lightning wallet to enable seamless zapping
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="zap-amount">Default Zap Amount (sats)</Label>
-                <Input
-                  id="zap-amount"
-                  type="number"
-                  placeholder="21"
-                  value={defaultZapAmount}
-                  onChange={(e) => setDefaultZapAmount(e.target.value)}
-                />
-              </div>
-              
-              <Button onClick={handleSaveZapSettings} className="w-full">
-                Save Zap Settings
-              </Button>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Blossom Media Servers</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="blossom-servers">Media Server URLs</Label>
-                <Input
-                  id="blossom-servers"
-                  placeholder="https://blossom.server1.com, https://blossom.server2.com"
-                  value={blossomServers}
-                  onChange={(e) => setBlossomServers(e.target.value)}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Configure Blossom servers for uploading images (comma separated)
-                </p>
-              </div>
-              
-              <Button onClick={handleSaveBlossomSettings} className="w-full">
-                Save Media Settings
-              </Button>
-            </CardContent>
-          </Card>
+          <ZapConfiguration />
+        </TabsContent>
+
+        <TabsContent value="media" className="space-y-6">
+          <BlossomConfiguration />
         </TabsContent>
 
         <TabsContent value="appearance" className="space-y-6">

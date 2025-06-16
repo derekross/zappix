@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from './useCurrentUser';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -21,22 +21,37 @@ function validateCommentEvent(event: NostrEvent): boolean {
 export function useComments(eventId: string, _authorPubkey: string) {
   const { nostr } = useNostr();
 
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['comments', eventId],
-    queryFn: async (c) => {
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
+    queryFn: async ({ pageParam, signal }) => {
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
       
-      const events = await nostr.query([{ 
+      const filter: { kinds: number[]; '#E': string[]; limit: number; until?: number } = { 
         kinds: [1111], 
         '#E': [eventId], // Comments on the root event
-        limit: 100 
-      }], { signal });
+        limit: 20 // Smaller page size for better performance
+      };
+
+      // Add pagination using 'until' timestamp (going backwards in time)
+      if (pageParam) {
+        filter.until = pageParam - 1; // Subtract 1 to avoid getting the same comment again
+      }
+      
+      const events = await nostr.query([filter], { signal: querySignal });
       
       const validComments = events.filter(validateCommentEvent);
       
-      // Sort by creation time (oldest first for comments)
-      return validComments.sort((a, b) => a.created_at - b.created_at);
+      // Sort by creation time (newest first for this page)
+      const sortedComments = validComments.sort((a, b) => b.created_at - a.created_at);
+      
+      return {
+        comments: sortedComments,
+        nextCursor: sortedComments.length > 0 ? sortedComments[sortedComments.length - 1].created_at : undefined,
+        hasMore: sortedComments.length === filter.limit, // Only has more if we got a full page
+      };
     },
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
     staleTime: 30000,
   });
 }

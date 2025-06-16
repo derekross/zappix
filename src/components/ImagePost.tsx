@@ -64,7 +64,10 @@ export function ImagePost({ event, className, onHashtagClick }: ImagePostProps) 
   const likeCount = reactions.data?.['+']?.count || 0;
   const zapCount = zaps.data?.count || 0;
   const zapTotal = zaps.data?.totalSats || 0;
-  const commentCount = comments.data?.length || 0;
+  // Get unique comment count (in case of duplicates across pages)
+  const allComments = comments.data?.pages?.flatMap(page => page.comments) || [];
+  const uniqueCommentIds = new Set(allComments.map(c => c.id));
+  const commentCount = uniqueCommentIds.size;
   
   // Create nevent for linking to the post
   const nevent = nip19.neventEncode({

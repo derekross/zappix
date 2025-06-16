@@ -1,10 +1,14 @@
 import { useUserImagePosts } from '@/hooks/useUserImagePosts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import * as nip19 from 'nostr-tools/nip19';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNavigate } from 'react-router-dom';
+import { useInView } from 'react-intersection-observer';
+import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface UserImageGridProps {
   pubkey: string;
@@ -77,6 +81,22 @@ function ImageGridItem({ event }: { event: NostrEvent }) {
 export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
   const posts = useUserImagePosts(pubkey);
   
+  // Intersection observer for infinite scrolling
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '100px',
+  });
+
+  // Load more posts when the load more element comes into view
+  useEffect(() => {
+    if (inView && posts.hasNextPage && !posts.isFetchingNextPage) {
+      posts.fetchNextPage();
+    }
+  }, [inView, posts]);
+
+  // Flatten all pages into a single array of posts
+  const allPosts = posts.data?.pages?.flatMap(page => page.events) || [];
+  
   if (posts.isLoading) {
     return (
       <div className={cn("space-y-4", className)}>
@@ -104,7 +124,7 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
     );
   }
   
-  if (!posts.data || posts.data.length === 0) {
+  if (!posts.data || allPosts.length === 0) {
     return (
       <div className={cn("space-y-4", className)}>
         <h3 className="text-lg font-semibold">Your Images</h3>
@@ -124,15 +144,45 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Your Images</h3>
         <span className="text-sm text-muted-foreground">
-          {posts.data.length} {posts.data.length === 1 ? 'image' : 'images'}
+          {allPosts.length} {allPosts.length === 1 ? 'image' : 'images'}
         </span>
       </div>
       
       <div className="grid grid-cols-3 gap-1">
-        {posts.data.map((post) => (
+        {allPosts.map((post) => (
           <ImageGridItem key={post.id} event={post} />
         ))}
       </div>
+
+      {/* Load more trigger element */}
+      {posts.hasNextPage && (
+        <div ref={loadMoreRef} className="flex justify-center py-4">
+          {posts.isFetchingNextPage ? (
+            <div className="flex items-center space-x-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Loading more images...</span>
+            </div>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => posts.fetchNextPage()}
+              disabled={!posts.hasNextPage}
+            >
+              Load More
+            </Button>
+          )}
+        </div>
+      )}
+      
+      {/* End of feed indicator */}
+      {!posts.hasNextPage && allPosts.length > 0 && (
+        <div className="text-center py-4">
+          <p className="text-muted-foreground text-xs">
+            All images loaded
+          </p>
+        </div>
+      )}
     </div>
   );
 }

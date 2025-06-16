@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { NPool, NRelay1 } from '@nostrify/nostrify';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -60,37 +60,51 @@ function getDiscoveryPool(): NPool {
 }
 
 export function useUserImagePosts(pubkey: string | undefined) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['user-image-posts', pubkey],
-    queryFn: async (c) => {
+    queryFn: async ({ pageParam, signal }) => {
       if (!pubkey) {
-        return [];
+        return { events: [], nextCursor: undefined };
       }
 
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(10000)]);
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
       
       const discoveryPool = getDiscoveryPool();
       
-      console.log('Querying user image posts for pubkey:', pubkey.slice(0, 8));
+      console.log('Querying user image posts for pubkey:', pubkey.slice(0, 8), pageParam ? `until ${pageParam}` : 'initial');
       
       try {
-        const events = await discoveryPool.query([{ 
+        const filter: { kinds: number[]; authors: string[]; limit: number; until?: number } = { 
           kinds: [20], 
           authors: [pubkey],
-          limit: 50
-        }], { signal });
+          limit: 15 // Smaller initial page size for faster loading
+        };
+
+        // Add pagination using 'until' timestamp
+        if (pageParam) {
+          filter.until = pageParam;
+        }
+
+        const events = await discoveryPool.query([filter], { signal: querySignal });
         
         console.log('User image posts raw events received:', events.length);
         
         const validEvents = events.filter(validateImageEvent);
         console.log('User image posts valid events:', validEvents.length);
         
-        return validEvents.sort((a, b) => b.created_at - a.created_at);
+        const sortedEvents = validEvents.sort((a, b) => b.created_at - a.created_at);
+        
+        return {
+          events: sortedEvents,
+          nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
+        };
       } catch (error) {
         console.error('Error querying user image posts:', error);
         throw error;
       }
     },
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!pubkey,
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // 1 minute

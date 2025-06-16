@@ -26,7 +26,7 @@ export function useOutboxModel() {
         kinds: [10002],
         authors: [pubkey],
         limit: 1
-      }], { signal: AbortSignal.timeout(2000) });
+      }], { signal: AbortSignal.timeout(8000) }); // Increased timeout to 8 seconds
 
       if (relayEvents.length === 0) {
         const fallback = { writeRelays: [], readRelays: [] };
