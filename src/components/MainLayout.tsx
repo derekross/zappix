@@ -1,66 +1,89 @@
-import { useState } from 'react';
-import { Camera, Home, Globe, Users, Search, Plus, Hash } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import {
+  Camera,
+  Home,
+  Globe,
+  Users,
+  Search,
+  Plus,
+  Hash,
+  MapPin,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LoginArea } from '@/components/auth/LoginArea';
-import { ImageFeed } from './ImageFeed';
-import { HashtagGrid } from './HashtagGrid';
-import { CreatePostDialog } from './CreatePostDialog';
-import { BookmarksPage } from './BookmarksPage';
-import { SettingsPage } from './SettingsPage';
-import { ProfilePage } from './ProfilePage';
-import { EditProfilePage } from './EditProfilePage';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useIsMobile } from '@/hooks/useIsMobile';
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LoginArea } from "@/components/auth/LoginArea";
+import { ImageFeed } from "./ImageFeed";
+import { HashtagGrid } from "./HashtagGrid";
+import { CreatePostDialog } from "./CreatePostDialog";
+import { BookmarksPage } from "./BookmarksPage";
+import { SettingsPage } from "./SettingsPage";
+import { ProfilePage } from "./ProfilePage";
+import { EditProfilePage } from "./EditProfilePage";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export function MainLayout() {
-  const [activeMainTab, setActiveMainTab] = useState('home');
-  const [activeHomeTab, setActiveHomeTab] = useState('global');
+  const [activeMainTab, setActiveMainTab] = useState("home");
+  const [activeHomeTab, setActiveHomeTab] = useState("global");
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
-  const [previousTab, setPreviousTab] = useState<string>('discover'); // Track where user came from
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [previousTab, setPreviousTab] = useState<string>("discover"); // Track where user came from
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
-  
+
   const { user } = useCurrentUser();
   const isMobile = useIsMobile();
-  
+
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  
+
   const handleHashtagClick = (hashtag: string) => {
     // Only update previousTab if we're not already on a hashtag detail page
     // This preserves the original source when navigating between hashtags
-    if (activeMainTab !== 'hashtag-detail') {
+    if (activeMainTab !== "hashtag-detail") {
       setPreviousTab(activeMainTab);
     }
     setSelectedHashtag(hashtag);
-    setActiveMainTab('hashtag-detail');
+    setSelectedLocation(null);
+    setActiveMainTab("hashtag-detail");
     // Scroll to top when navigating to hashtag feed
     scrollToTop();
   };
-  
-  const handleBackToPrevious = () => {
+
+  const handleLocationClick = (location: string) => {
+    // Only update previousTab if we're not already on a location detail page
+    if (activeMainTab !== "location-detail") {
+      setPreviousTab(activeMainTab);
+    }
+    setSelectedLocation(location);
     setSelectedHashtag(null);
-    setActiveMainTab(previousTab);
+    setActiveMainTab("location-detail");
+    // Scroll to top when navigating to location feed
+    scrollToTop();
   };
-  
+
+  const handleBackToPrevious = () => {
+    setActiveMainTab(previousTab);
+    setSelectedHashtag(null);
+    setSelectedLocation(null);
+  };
+
   const getBackButtonText = () => {
     switch (previousTab) {
-      case 'home':
-        return '← Back to Home';
-      case 'discover':
-        return '← Back to Discover';
+      case "home":
+        return "Back to Home";
+      case "discover":
+        return "Back to Discover";
       default:
-        return '← Back';
+        return "Back";
     }
   };
-  
+
   // Special layouts for bookmarks, settings, and profile pages
   if (showProfile) {
     return (
@@ -70,8 +93,8 @@ export function MainLayout() {
           <>
             <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="container flex h-14 items-center justify-between">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowProfile(false);
                     scrollToTop();
@@ -83,10 +106,12 @@ export function MainLayout() {
               </div>
             </header>
             <main className="container py-6 pb-20">
-              <ProfilePage onEditClick={() => {
-                setShowProfile(false);
-                setShowEditProfile(true);
-              }} />
+              <ProfilePage
+                onEditClick={() => {
+                  setShowProfile(false);
+                  setShowEditProfile(true);
+                }}
+              />
             </main>
           </>
         ) : (
@@ -97,7 +122,7 @@ export function MainLayout() {
               <div className="flex h-full flex-col">
                 {/* Logo */}
                 <div className="flex h-14 items-center border-b px-6">
-                  <button 
+                  <button
                     onClick={() => {
                       setShowProfile(false);
                       scrollToTop();
@@ -110,7 +135,7 @@ export function MainLayout() {
                     </h1>
                   </button>
                 </div>
-                
+
                 {/* Navigation */}
                 <nav className="flex-1 space-y-2 p-4">
                   <Button
@@ -118,7 +143,7 @@ export function MainLayout() {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowProfile(false);
-                      setActiveMainTab('home');
+                      setActiveMainTab("home");
                     }}
                   >
                     <Home className="mr-2 h-4 w-4" />
@@ -129,14 +154,14 @@ export function MainLayout() {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowProfile(false);
-                      setActiveMainTab('discover');
+                      setActiveMainTab("discover");
                     }}
                   >
                     <Search className="mr-2 h-4 w-4" />
                     Discover
                   </Button>
                 </nav>
-                
+
                 {/* User Area */}
                 <div className="border-t p-4">
                   {user && (
@@ -148,8 +173,8 @@ export function MainLayout() {
                       Create Post
                     </Button>
                   )}
-                  <LoginArea 
-                    className="w-full" 
+                  <LoginArea
+                    className="w-full"
                     onSettingsClick={() => setShowSettings(true)}
                     onBookmarksClick={() => setShowBookmarks(true)}
                     onProfileClick={() => setShowProfile(true)}
@@ -157,14 +182,16 @@ export function MainLayout() {
                 </div>
               </div>
             </aside>
-            
+
             {/* Main Content */}
             <main className="ml-64 flex-1 p-6">
               <div className="max-w-4xl mx-auto">
-                <ProfilePage onEditClick={() => {
-                  setShowProfile(false);
-                  setShowEditProfile(true);
-                }} />
+                <ProfilePage
+                  onEditClick={() => {
+                    setShowProfile(false);
+                    setShowEditProfile(true);
+                  }}
+                />
               </div>
             </main>
           </div>
@@ -172,7 +199,7 @@ export function MainLayout() {
       </div>
     );
   }
-  
+
   if (showBookmarks) {
     return (
       <div className="min-h-screen bg-background">
@@ -181,8 +208,8 @@ export function MainLayout() {
           <>
             <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="container flex h-14 items-center justify-between">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowBookmarks(false);
                     scrollToTop();
@@ -205,7 +232,7 @@ export function MainLayout() {
               <div className="flex h-full flex-col">
                 {/* Logo */}
                 <div className="flex h-14 items-center border-b px-6">
-                  <button 
+                  <button
                     onClick={() => {
                       setShowBookmarks(false);
                       scrollToTop();
@@ -218,7 +245,7 @@ export function MainLayout() {
                     </h1>
                   </button>
                 </div>
-                
+
                 {/* Navigation */}
                 <nav className="flex-1 space-y-2 p-4">
                   <Button
@@ -226,7 +253,7 @@ export function MainLayout() {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowBookmarks(false);
-                      setActiveMainTab('home');
+                      setActiveMainTab("home");
                     }}
                   >
                     <Home className="mr-2 h-4 w-4" />
@@ -237,14 +264,14 @@ export function MainLayout() {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowBookmarks(false);
-                      setActiveMainTab('discover');
+                      setActiveMainTab("discover");
                     }}
                   >
                     <Search className="mr-2 h-4 w-4" />
                     Discover
                   </Button>
                 </nav>
-                
+
                 {/* User Area */}
                 <div className="border-t p-4">
                   {user && (
@@ -256,8 +283,8 @@ export function MainLayout() {
                       Create Post
                     </Button>
                   )}
-                  <LoginArea 
-                    className="w-full" 
+                  <LoginArea
+                    className="w-full"
                     onSettingsClick={() => setShowSettings(true)}
                     onBookmarksClick={() => setShowBookmarks(true)}
                     onProfileClick={() => setShowProfile(true)}
@@ -265,7 +292,7 @@ export function MainLayout() {
                 </div>
               </div>
             </aside>
-            
+
             {/* Main Content */}
             <main className="ml-64 flex-1 p-6">
               <div className="max-w-4xl mx-auto">
@@ -281,7 +308,7 @@ export function MainLayout() {
       </div>
     );
   }
-  
+
   if (showSettings) {
     return (
       <div className="min-h-screen bg-background">
@@ -290,8 +317,8 @@ export function MainLayout() {
           <>
             <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="container flex h-14 items-center justify-between">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowSettings(false);
                     scrollToTop();
@@ -314,7 +341,7 @@ export function MainLayout() {
               <div className="flex h-full flex-col">
                 {/* Logo */}
                 <div className="flex h-14 items-center border-b px-6">
-                  <button 
+                  <button
                     onClick={() => {
                       setShowSettings(false);
                       scrollToTop();
@@ -327,7 +354,7 @@ export function MainLayout() {
                     </h1>
                   </button>
                 </div>
-                
+
                 {/* Navigation */}
                 <nav className="flex-1 space-y-2 p-4">
                   <Button
@@ -335,7 +362,7 @@ export function MainLayout() {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowSettings(false);
-                      setActiveMainTab('home');
+                      setActiveMainTab("home");
                     }}
                   >
                     <Home className="mr-2 h-4 w-4" />
@@ -346,14 +373,14 @@ export function MainLayout() {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowSettings(false);
-                      setActiveMainTab('discover');
+                      setActiveMainTab("discover");
                     }}
                   >
                     <Search className="mr-2 h-4 w-4" />
                     Discover
                   </Button>
                 </nav>
-                
+
                 {/* User Area */}
                 <div className="border-t p-4">
                   {user && (
@@ -365,8 +392,8 @@ export function MainLayout() {
                       Create Post
                     </Button>
                   )}
-                  <LoginArea 
-                    className="w-full" 
+                  <LoginArea
+                    className="w-full"
                     onSettingsClick={() => setShowSettings(true)}
                     onBookmarksClick={() => setShowBookmarks(true)}
                     onProfileClick={() => setShowProfile(true)}
@@ -374,13 +401,15 @@ export function MainLayout() {
                 </div>
               </div>
             </aside>
-            
+
             {/* Main Content */}
             <main className="ml-64 flex-1 p-6">
               <div className="max-w-4xl mx-auto">
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold">Settings</h2>
-                  <p className="text-muted-foreground">Manage your account and preferences</p>
+                  <p className="text-muted-foreground">
+                    Manage your account and preferences
+                  </p>
                 </div>
                 <SettingsPage />
               </div>
@@ -390,7 +419,7 @@ export function MainLayout() {
       </div>
     );
   }
-  
+
   if (showEditProfile) {
     return (
       <div className="min-h-screen bg-background">
@@ -399,8 +428,8 @@ export function MainLayout() {
           <>
             <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="container flex h-14 items-center justify-between">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowEditProfile(false);
                     setShowProfile(true);
@@ -413,10 +442,12 @@ export function MainLayout() {
               </div>
             </header>
             <main className="container py-6 pb-20">
-              <EditProfilePage onBackClick={() => {
-                setShowEditProfile(false);
-                setShowProfile(true);
-              }} />
+              <EditProfilePage
+                onBackClick={() => {
+                  setShowEditProfile(false);
+                  setShowProfile(true);
+                }}
+              />
             </main>
           </>
         ) : (
@@ -427,7 +458,7 @@ export function MainLayout() {
               <div className="flex h-full flex-col">
                 {/* Logo */}
                 <div className="flex h-14 items-center border-b px-6">
-                  <button 
+                  <button
                     onClick={() => {
                       setShowEditProfile(false);
                       setShowProfile(true);
@@ -441,7 +472,7 @@ export function MainLayout() {
                     </h1>
                   </button>
                 </div>
-                
+
                 {/* Navigation */}
                 <nav className="flex-1 space-y-2 p-4">
                   <Button
@@ -449,7 +480,7 @@ export function MainLayout() {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowEditProfile(false);
-                      setActiveMainTab('home');
+                      setActiveMainTab("home");
                     }}
                   >
                     <Home className="mr-2 h-4 w-4" />
@@ -460,14 +491,14 @@ export function MainLayout() {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowEditProfile(false);
-                      setActiveMainTab('discover');
+                      setActiveMainTab("discover");
                     }}
                   >
                     <Search className="mr-2 h-4 w-4" />
                     Discover
                   </Button>
                 </nav>
-                
+
                 {/* User Area */}
                 <div className="border-t p-4">
                   {user && (
@@ -479,8 +510,8 @@ export function MainLayout() {
                       Create Post
                     </Button>
                   )}
-                  <LoginArea 
-                    className="w-full" 
+                  <LoginArea
+                    className="w-full"
                     onSettingsClick={() => setShowSettings(true)}
                     onBookmarksClick={() => setShowBookmarks(true)}
                     onProfileClick={() => setShowProfile(true)}
@@ -488,14 +519,16 @@ export function MainLayout() {
                 </div>
               </div>
             </aside>
-            
+
             {/* Main Content */}
             <main className="ml-64 flex-1 p-6">
               <div className="max-w-4xl mx-auto">
-                <EditProfilePage onBackClick={() => {
-                  setShowEditProfile(false);
-                  setShowProfile(true);
-                }} />
+                <EditProfilePage
+                  onBackClick={() => {
+                    setShowEditProfile(false);
+                    setShowProfile(true);
+                  }}
+                />
               </div>
             </main>
           </div>
@@ -512,7 +545,7 @@ export function MainLayout() {
         <>
           <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-14 items-center justify-center">
-              <button 
+              <button
                 onClick={scrollToTop}
                 className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
               >
@@ -527,16 +560,29 @@ export function MainLayout() {
           {/* Main Content */}
           <main className="container py-6 pb-20">
             <div className="max-w-6xl mx-auto">
-              <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
-
+              <Tabs
+                value={activeMainTab}
+                onValueChange={setActiveMainTab}
+                className="w-full"
+              >
                 <TabsContent value="home" className="space-y-6">
-                  <Tabs value={activeHomeTab} onValueChange={setActiveHomeTab} className="w-full">
+                  <Tabs
+                    value={activeHomeTab}
+                    onValueChange={setActiveHomeTab}
+                    className="w-full"
+                  >
                     <TabsList className="grid w-full grid-cols-2 mb-6">
-                      <TabsTrigger value="global" className="flex items-center space-x-2">
+                      <TabsTrigger
+                        value="global"
+                        className="flex items-center space-x-2"
+                      >
                         <Globe className="h-4 w-4" />
                         <span className="hidden sm:inline">Global</span>
                       </TabsTrigger>
-                      <TabsTrigger value="following" className="flex items-center space-x-2">
+                      <TabsTrigger
+                        value="following"
+                        className="flex items-center space-x-2"
+                      >
                         <Users className="h-4 w-4" />
                         <span className="hidden sm:inline">Following</span>
                       </TabsTrigger>
@@ -549,7 +595,10 @@ export function MainLayout() {
                           Latest image posts from all relays
                         </p>
                       </div>
-                      <ImageFeed feedType="global" onHashtagClick={handleHashtagClick} />
+                      <ImageFeed
+                        feedType="global"
+                        onHashtagClick={handleHashtagClick}
+                      />
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
@@ -559,12 +608,18 @@ export function MainLayout() {
                           Posts from people you follow
                         </p>
                       </div>
-                      <ImageFeed feedType="following" onHashtagClick={handleHashtagClick} />
+                      <ImageFeed
+                        feedType="following"
+                        onHashtagClick={handleHashtagClick}
+                      />
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
 
-                <TabsContent value="discover" className="space-y-6 lg:space-y-8">
+                <TabsContent
+                  value="discover"
+                  className="space-y-6 lg:space-y-8"
+                >
                   <div className="text-center space-y-2 lg:space-y-3">
                     <h2 className="text-2xl lg:text-3xl font-bold">Discover</h2>
                     <p className="text-muted-foreground lg:text-lg">
@@ -573,13 +628,13 @@ export function MainLayout() {
                   </div>
                   <HashtagGrid onHashtagClick={handleHashtagClick} />
                 </TabsContent>
-                
+
                 <TabsContent value="hashtag-detail" className="space-y-6">
                   {selectedHashtag && (
                     <>
                       <div className="flex items-center space-x-4">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           onClick={handleBackToPrevious}
                         >
                           {getBackButtonText()}
@@ -594,7 +649,42 @@ export function MainLayout() {
                           </p>
                         </div>
                       </div>
-                      <ImageFeed feedType="global" hashtag={selectedHashtag} onHashtagClick={handleHashtagClick} />
+                      <ImageFeed
+                        feedType="global"
+                        hashtag={selectedHashtag}
+                        onHashtagClick={handleHashtagClick}
+                        onLocationClick={handleLocationClick}
+                      />
+                    </>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="location-detail" className="space-y-6">
+                  {selectedLocation && (
+                    <>
+                      <div className="flex items-center space-x-4">
+                        <Button
+                          variant="outline"
+                          onClick={handleBackToPrevious}
+                        >
+                          {getBackButtonText()}
+                        </Button>
+                        <div>
+                          <h2 className="text-2xl font-bold flex items-center space-x-2">
+                            <MapPin className="h-6 w-6 text-primary" />
+                            <span>{selectedLocation}</span>
+                          </h2>
+                          <p className="text-muted-foreground">
+                            Posts from {selectedLocation}
+                          </p>
+                        </div>
+                      </div>
+                      <ImageFeed
+                        feedType="global"
+                        location={selectedLocation}
+                        onHashtagClick={handleHashtagClick}
+                        onLocationClick={handleLocationClick}
+                      />
                     </>
                   )}
                 </TabsContent>
@@ -608,23 +698,23 @@ export function MainLayout() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setActiveMainTab('home')}
+                onClick={() => setActiveMainTab("home")}
                 className="flex flex-col items-center gap-1"
               >
                 <Home className="h-5 w-5" />
                 <span className="text-xs">Home</span>
               </Button>
-              
+
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setActiveMainTab('discover')}
+                onClick={() => setActiveMainTab("discover")}
                 className="flex flex-col items-center gap-1"
               >
                 <Search className="h-5 w-5" />
                 <span className="text-xs">Discover</span>
               </Button>
-              
+
               {user && (
                 <Button
                   variant="ghost"
@@ -636,10 +726,10 @@ export function MainLayout() {
                   <span className="text-xs">Post</span>
                 </Button>
               )}
-              
+
               <div className="flex flex-col items-center">
-                <LoginArea 
-                  className="max-w-none" 
+                <LoginArea
+                  className="max-w-none"
                   onSettingsClick={() => setShowSettings(true)}
                   onBookmarksClick={() => setShowBookmarks(true)}
                   onProfileClick={() => setShowProfile(true)}
@@ -657,7 +747,7 @@ export function MainLayout() {
             <div className="flex h-full flex-col">
               {/* Logo */}
               <div className="flex h-14 items-center border-b px-6">
-                <button 
+                <button
                   onClick={scrollToTop}
                   className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
                 >
@@ -667,27 +757,32 @@ export function MainLayout() {
                   </h1>
                 </button>
               </div>
-              
+
               {/* Navigation */}
               <nav className="flex-1 space-y-2 p-4">
                 <Button
-                  variant={activeMainTab === 'home' ? 'secondary' : 'ghost'}
+                  variant={activeMainTab === "home" ? "secondary" : "ghost"}
                   className="w-full justify-start"
-                  onClick={() => setActiveMainTab('home')}
+                  onClick={() => setActiveMainTab("home")}
                 >
                   <Home className="mr-2 h-4 w-4" />
                   Home
                 </Button>
                 <Button
-                  variant={activeMainTab === 'discover' || activeMainTab === 'hashtag-detail' ? 'secondary' : 'ghost'}
+                  variant={
+                    activeMainTab === "discover" ||
+                    activeMainTab === "hashtag-detail"
+                      ? "secondary"
+                      : "ghost"
+                  }
                   className="w-full justify-start"
-                  onClick={() => setActiveMainTab('discover')}
+                  onClick={() => setActiveMainTab("discover")}
                 >
                   <Search className="mr-2 h-4 w-4" />
                   Discover
                 </Button>
               </nav>
-              
+
               {/* User Area */}
               <div className="border-t p-4">
                 {user && (
@@ -699,8 +794,8 @@ export function MainLayout() {
                     Create Post
                   </Button>
                 )}
-                <LoginArea 
-                  className="w-full" 
+                <LoginArea
+                  className="w-full"
                   onSettingsClick={() => setShowSettings(true)}
                   onBookmarksClick={() => setShowBookmarks(true)}
                   onProfileClick={() => setShowProfile(true)}
@@ -708,19 +803,33 @@ export function MainLayout() {
               </div>
             </div>
           </aside>
-          
+
           {/* Main Content */}
           <main className="ml-64 flex-1 p-6">
             <div className="max-w-4xl mx-auto">
-              <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
+              <Tabs
+                value={activeMainTab}
+                onValueChange={setActiveMainTab}
+                className="w-full"
+              >
                 <TabsContent value="home" className="space-y-6">
-                  <Tabs value={activeHomeTab} onValueChange={setActiveHomeTab} className="w-full">
+                  <Tabs
+                    value={activeHomeTab}
+                    onValueChange={setActiveHomeTab}
+                    className="w-full"
+                  >
                     <TabsList className="grid w-full grid-cols-2 mb-6">
-                      <TabsTrigger value="global" className="flex items-center space-x-2">
+                      <TabsTrigger
+                        value="global"
+                        className="flex items-center space-x-2"
+                      >
                         <Globe className="h-4 w-4" />
                         <span>Global</span>
                       </TabsTrigger>
-                      <TabsTrigger value="following" className="flex items-center space-x-2">
+                      <TabsTrigger
+                        value="following"
+                        className="flex items-center space-x-2"
+                      >
                         <Users className="h-4 w-4" />
                         <span>Following</span>
                       </TabsTrigger>
@@ -733,7 +842,10 @@ export function MainLayout() {
                           Latest image posts from all relays
                         </p>
                       </div>
-                      <ImageFeed feedType="global" onHashtagClick={handleHashtagClick} />
+                      <ImageFeed
+                        feedType="global"
+                        onHashtagClick={handleHashtagClick}
+                      />
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
@@ -743,7 +855,10 @@ export function MainLayout() {
                           Posts from people you follow
                         </p>
                       </div>
-                      <ImageFeed feedType="following" onHashtagClick={handleHashtagClick} />
+                      <ImageFeed
+                        feedType="following"
+                        onHashtagClick={handleHashtagClick}
+                      />
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
@@ -757,13 +872,13 @@ export function MainLayout() {
                   </div>
                   <HashtagGrid onHashtagClick={handleHashtagClick} />
                 </TabsContent>
-                
+
                 <TabsContent value="hashtag-detail" className="space-y-6">
                   {selectedHashtag && (
                     <>
                       <div className="flex items-center space-x-4">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           onClick={handleBackToPrevious}
                         >
                           {getBackButtonText()}
@@ -778,7 +893,42 @@ export function MainLayout() {
                           </p>
                         </div>
                       </div>
-                      <ImageFeed feedType="global" hashtag={selectedHashtag} onHashtagClick={handleHashtagClick} />
+                      <ImageFeed
+                        feedType="global"
+                        hashtag={selectedHashtag}
+                        onHashtagClick={handleHashtagClick}
+                        onLocationClick={handleLocationClick}
+                      />
+                    </>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="location-detail" className="space-y-6">
+                  {selectedLocation && (
+                    <>
+                      <div className="flex items-center space-x-4">
+                        <Button
+                          variant="outline"
+                          onClick={handleBackToPrevious}
+                        >
+                          {getBackButtonText()}
+                        </Button>
+                        <div>
+                          <h2 className="text-2xl font-bold flex items-center space-x-2">
+                            <MapPin className="h-6 w-6 text-primary" />
+                            <span>{selectedLocation}</span>
+                          </h2>
+                          <p className="text-muted-foreground">
+                            Posts from {selectedLocation}
+                          </p>
+                        </div>
+                      </div>
+                      <ImageFeed
+                        feedType="global"
+                        location={selectedLocation}
+                        onHashtagClick={handleHashtagClick}
+                        onLocationClick={handleLocationClick}
+                      />
                     </>
                   )}
                 </TabsContent>
@@ -789,20 +939,20 @@ export function MainLayout() {
       )}
 
       {/* Create Post Dialog */}
-      <CreatePostDialog 
-        open={showCreatePost} 
-        onOpenChange={setShowCreatePost} 
+      <CreatePostDialog
+        open={showCreatePost}
+        onOpenChange={setShowCreatePost}
       />
-      
+
       {/* Footer - only show on desktop */}
       {!isMobile && (
         <footer className="ml-64 border-t py-6">
           <div className="container text-center text-sm text-muted-foreground">
             <p>
-              Vibed with{' '}
-              <a 
-                href="https://soapbox.pub/tools/mkstack/" 
-                target="_blank" 
+              Vibed with{" "}
+              <a
+                href="https://soapbox.pub/tools/mkstack/"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:underline"
               >

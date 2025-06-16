@@ -61,9 +61,9 @@ function getDiscoveryPool(): NPool {
   return sharedDiscoveryPool;
 }
 
-export function useImagePosts(hashtag?: string) {
+export function useImagePosts(hashtag?: string, location?: string) {
   return useInfiniteQuery({
-    queryKey: ["image-posts", hashtag],
+    queryKey: ["image-posts", hashtag, location],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
 
@@ -74,6 +74,7 @@ export function useImagePosts(hashtag?: string) {
         kinds: number[];
         limit: number;
         "#t"?: string[];
+        "#location"?: string[];
         until?: number;
       } = {
         kinds: [20],
@@ -83,6 +84,11 @@ export function useImagePosts(hashtag?: string) {
       // Add hashtag filter if specified
       if (hashtag) {
         filter["#t"] = [hashtag];
+      }
+
+      // Add location filter if specified
+      if (location) {
+        filter["#location"] = [location];
       }
 
       // Add pagination using 'until' timestamp
