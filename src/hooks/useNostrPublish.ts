@@ -26,6 +26,8 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           created_at: t.created_at ?? Math.floor(Date.now() / 1000),
         });
 
+        // The NostrProvider with outbox model will automatically route this event
+        // to the user's write relays and any mentioned users' read relays
         await nostr.event(event, { signal: AbortSignal.timeout(5000) });
         return event;
       } else {
@@ -37,6 +39,7 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
     },
     onSuccess: (data) => {
       console.log("Event published successfully:", data);
+      console.log("Published to relays via outbox model");
     },
   });
 }

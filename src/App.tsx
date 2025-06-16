@@ -6,6 +6,7 @@ import { createHead, UnheadProvider } from '@unhead/react/client';
 import { InferSeoMetaPlugin } from '@unhead/addons';
 import { Suspense } from 'react';
 import NostrProvider from '@/components/NostrProvider';
+import { OutboxEnhancer } from '@/components/OutboxEnhancer';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -32,23 +33,27 @@ const queryClient = new QueryClient({
 
 const defaultConfig: AppConfig = {
   theme: "light",
-  relayUrl: "wss://relay.nostr.band",
 };
 
-const presetRelays = [
-  { url: 'wss://ditto.pub/relay', name: 'Ditto' },
+const defaultRelays = [
   { url: 'wss://relay.nostr.band', name: 'Nostr.Band' },
-  { url: 'wss://relay.damus.io', name: 'Damus' },
   { url: 'wss://relay.primal.net', name: 'Primal' },
+  { url: 'wss://relay.olas.app', name: 'Olas' },
+  { url: 'wss://nos.lol', name: 'nos.lol' },
+  { url: 'wss://relay.snort.social', name: 'Snort' },
+  { url: 'wss://purplepag.es', name: 'Purple Pages' },
+  { url: 'wss://relay.damus.io', name: 'Damus' },
+  { url: 'wss://ditto.pub/relay', name: 'Ditto' },
 ];
 
 export function App() {
   return (
     <UnheadProvider head={head}>
-      <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig} presetRelays={presetRelays}>
+      <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig} defaultRelays={defaultRelays}>
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey='nostr:login'>
             <NostrProvider>
+              <OutboxEnhancer />
               <TooltipProvider>
                 <Toaster />
                 <Sonner />

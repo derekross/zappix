@@ -22,12 +22,18 @@ export function TestApp({ children }: TestAppProps) {
 
   const defaultConfig: AppConfig = {
     theme: 'light',
-    relayUrl: 'wss://relay.nostr.band',
   };
+
+  const defaultRelays = [
+    { url: 'wss://relay.nostr.band', name: 'Nostr.Band' },
+    { url: 'wss://relay.primal.net', name: 'Primal' },
+    { url: 'wss://relay.olas.app', name: 'Olas' },
+    { url: 'wss://nos.lol', name: 'nos.lol' },
+  ];
 
   return (
     <UnheadProvider head={head}>
-      <AppProvider storageKey='test-app-config' defaultConfig={defaultConfig}>
+      <AppProvider storageKey='test-app-config' defaultConfig={defaultConfig} defaultRelays={defaultRelays}>
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey='test-login'>
             <NostrProvider>

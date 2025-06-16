@@ -1,0 +1,21 @@
+{
+  "name": "Zappix - Social Image Sharing on Nostr",
+  "short_name": "Zappix",
+  "description": "Share and discover amazing images on the decentralized Nostr network",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff6600",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png", 
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

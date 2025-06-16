@@ -1,7 +1,7 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
-import { ChevronDown, LogOut, UserIcon, UserPlus } from 'lucide-react';
+import { ChevronDown, LogOut, UserIcon, UserPlus, Settings, Bookmark, User } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,15 +10,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu.tsx';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar.tsx';
-import { RelaySelector } from '@/components/RelaySelector';
+
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { genUserName } from '@/lib/genUserName';
 
 interface AccountSwitcherProps {
   onAddAccountClick: () => void;
+  onSettingsClick?: () => void;
+  onBookmarksClick?: () => void;
+  onProfileClick?: () => void;
 }
 
-export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
+export function AccountSwitcher({ onAddAccountClick, onSettingsClick, onBookmarksClick, onProfileClick }: AccountSwitcherProps) {
   const { currentUser, otherUsers, setLogin, removeLogin } = useLoggedInAccounts();
 
   if (!currentUser) return null;
@@ -42,9 +45,6 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className='w-56 p-2 animate-scale-in'>
-        <div className='font-medium text-sm px-2 py-1.5'>Switch Relay</div>
-        <RelaySelector className="w-full" />
-        <DropdownMenuSeparator />
         <div className='font-medium text-sm px-2 py-1.5'>Switch Account</div>
         {otherUsers.map((user) => (
           <DropdownMenuItem
@@ -62,6 +62,34 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
             {user.id === currentUser.id && <div className='w-2 h-2 rounded-full bg-primary'></div>}
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        {onProfileClick && (
+          <DropdownMenuItem
+            onClick={onProfileClick}
+            className='flex items-center gap-2 cursor-pointer p-2 rounded-md'
+          >
+            <User className='w-4 h-4' />
+            <span>Edit Profile</span>
+          </DropdownMenuItem>
+        )}
+        {onBookmarksClick && (
+          <DropdownMenuItem
+            onClick={onBookmarksClick}
+            className='flex items-center gap-2 cursor-pointer p-2 rounded-md'
+          >
+            <Bookmark className='w-4 h-4' />
+            <span>Bookmarks</span>
+          </DropdownMenuItem>
+        )}
+        {onSettingsClick && (
+          <DropdownMenuItem
+            onClick={onSettingsClick}
+            className='flex items-center gap-2 cursor-pointer p-2 rounded-md'
+          >
+            <Settings className='w-4 h-4' />
+            <span>Settings</span>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={onAddAccountClick}

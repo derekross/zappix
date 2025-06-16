@@ -611,18 +611,57 @@ export function Post(/* ...props */) {
 }
 ```
 
+### Outbox Model Implementation
+
+This project implements the outbox model (NIP-65) for intelligent relay routing. The outbox model automatically routes queries and publishes to the most appropriate relays based on user relay lists.
+
+#### How It Works
+
+The system uses different routing strategies based on feed type:
+
+1. **Global Feed**: Uses discovery relays only (no outbox model) for broad content discovery
+2. **Following Feed**: Uses outbox model - routes to followed users' write relays (where they publish)
+3. **Hashtag Feed**: Uses discovery relays only (no outbox model) for hashtag-based discovery
+4. **Mention Routing**: Routes to mentioned users' read relays (where they check for mentions)
+5. **Publishing**: Events are sent to author's write relays and mentioned users' read relays
+6. **Fallback**: Default discovery relays are used when outbox routing is not available or fails
+
+#### Relay Configuration
+
+Users can configure their relay lists using the `RelayConfiguration` component, which publishes NIP-65 relay list events (kind 10002). This allows other clients to discover where to find their content and where to send mentions.
+
+```tsx
+import { RelayConfiguration } from '@/components/RelayConfiguration';
+
+function SettingsPage() {
+  return (
+    <div>
+      <RelayConfiguration />
+    </div>
+  );
+}
+```
+
+#### Benefits
+
+- **Optimized Discovery**: Global and hashtag feeds use discovery relays for broad content discovery
+- **Efficient Following**: Following feeds use outbox model to find content where authors actually publish
+- **Smart Mention Delivery**: Sends mentions to relays where users actually read them
+- **Reduced Relay Load**: Distributes queries intelligently across the network
+- **Improved Censorship Resistance**: Content is distributed across multiple relays automatically
+- **Better Performance**: Different strategies optimized for different use cases
+
 ## App Configuration
 
-The project includes an `AppProvider` that manages global application state including theme and relay configuration. The default configuration includes:
+The project includes an `AppProvider` that manages global application state including theme configuration. The default configuration includes:
 
 ```typescript
 const defaultConfig: AppConfig = {
   theme: "light",
-  relayUrl: "wss://relay.nostr.band",
 };
 ```
 
-Preset relays are available including Ditto, Nostr.Band, Damus, and Primal. The app uses local storage to persist user preferences.
+Default relays are configured for fallback when outbox model routing is not available, including Nostr.Band, Primal, Olas, Damus, and Ditto. These relays are specifically chosen for good discovery of kind 20 (image) content. The app uses local storage to persist user preferences.
 
 ## Routing
 
@@ -645,7 +684,7 @@ The router includes automatic scroll-to-top functionality and a 404 NotFound pag
 - Implements Path Aliases with `@/` prefix for cleaner imports
 - Uses Vite for fast development and production builds
 - Component-based architecture with React hooks
-- Default connection to one Nostr relay for best performance
+- Uses outbox model for intelligent relay routing based on user relay lists (NIP-65)
 - Comprehensive provider setup with NostrLoginProvider, QueryClientProvider, and custom AppProvider
 - **Never use the `any` type**: Always use proper TypeScript types for type safety
 
@@ -676,10 +715,9 @@ The router includes automatic scroll-to-top functionality and a 404 NotFound pag
 
 ### Empty States and No Content Found
 
-When no content is found (empty search results, no data available, etc.), display a minimalist empty state with the `RelaySelector` component. This allows users to easily switch relays to discover content from different sources.
+When no content is found (empty search results, no data available, etc.), display a minimalist empty state. The outbox model will automatically route queries to appropriate relays based on user relay lists.
 
 ```tsx
-import { RelaySelector } from '@/components/RelaySelector';
 import { Card, CardContent } from '@/components/ui/card';
 
 // Empty state example
@@ -688,9 +726,8 @@ import { Card, CardContent } from '@/components/ui/card';
     <CardContent className="py-12 px-8 text-center">
       <div className="max-w-sm mx-auto space-y-6">
         <p className="text-muted-foreground">
-          No results found. Try another relay?
+          No results found. Content will appear as users publish to the network.
         </p>
-        <RelaySelector className="w-full" />
       </div>
     </CardContent>
   </Card>

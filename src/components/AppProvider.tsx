@@ -8,8 +8,8 @@ interface AppProviderProps {
   storageKey: string;
   /** Default app configuration */
   defaultConfig: AppConfig;
-  /** Optional list of preset relays to display in the RelaySelector */
-  presetRelays?: { name: string; url: string }[];
+  /** Default relays used for fallback when outbox model routing fails */
+  defaultRelays: { name: string; url: string }[];
 }
 
 export function AppProvider(props: AppProviderProps) {
@@ -17,7 +17,7 @@ export function AppProvider(props: AppProviderProps) {
     children,
     storageKey,
     defaultConfig,
-    presetRelays,
+    defaultRelays,
   } = props;
 
   // App configuration state with localStorage persistence
@@ -31,7 +31,7 @@ export function AppProvider(props: AppProviderProps) {
   const appContextValue: AppContextType = {
     config,
     updateConfig,
-    presetRelays,
+    defaultRelays,
   };
 
   // Apply theme effects to document
