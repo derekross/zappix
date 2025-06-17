@@ -184,7 +184,7 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
           >
             <Bookmark
               className={`h-4 w-4 mr-2 ${
-                isBookmarked.data ? "fill-current" : ""
+                isBookmarked.data ? "fill-current text-primary" : ""
               }`}
             />
             {isBookmarked.data ? "Remove bookmark" : "Add bookmark"}

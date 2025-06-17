@@ -286,22 +286,76 @@ export function MainLayout({ children }: MainLayoutProps) {
           // Mobile layout with header
           <>
             <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="container flex h-14 items-center justify-between">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setShowBookmarks(false);
-                    scrollToTop();
-                  }}
-                  className="font-bold text-lg"
+              <div className="container flex h-14 items-center justify-center">
+                <button
+                  onClick={scrollToTop}
+                  className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
                 >
-                  ← Zappix
-                </Button>
+                  <Camera className="h-6 w-6 text-primary" />
+                  <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Zappix
+                  </h1>
+                </button>
               </div>
             </header>
             <main className="container py-6 pb-20">
               <BookmarksPage />
             </main>
+
+            {/* Mobile Bottom Navigation */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="flex justify-around items-center py-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowBookmarks(false);
+                    handleTabChange("home");
+                  }}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <Home className="h-5 w-5" />
+                  <span className="text-xs">Home</span>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowBookmarks(false);
+                    handleTabChange("discover");
+                  }}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <Search className="h-5 w-5" />
+                  <span className="text-xs">Discover</span>
+                </Button>
+
+                {user && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowBookmarks(false);
+                      setShowCreatePost(true);
+                    }}
+                    className="flex flex-col items-center gap-1"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span className="text-xs">Post</span>
+                  </Button>
+                )}
+
+                <div className="flex flex-col items-center">
+                  <LoginArea
+                    className="max-w-none"
+                    onSettingsClick={() => setShowSettings(true)}
+                    onBookmarksClick={() => setShowBookmarks(true)}
+                    onProfileClick={() => setShowProfile(true)}
+                  />
+                </div>
+              </div>
+            </div>
           </>
         ) : (
           // Desktop layout with sidebar
@@ -312,10 +366,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 {/* Logo */}
                 <div className="flex h-14 items-center border-b px-6">
                   <button
-                    onClick={() => {
-                      setShowBookmarks(false);
-                      scrollToTop();
-                    }}
+                    onClick={scrollToTop}
                     className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
                   >
                     <Camera className="h-6 w-6 text-primary" />
@@ -375,13 +426,26 @@ export function MainLayout({ children }: MainLayoutProps) {
             {/* Main Content */}
             <main className="ml-64 flex-1 p-6">
               <div className="max-w-4xl mx-auto">
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold">Bookmarks</h2>
-                  <p className="text-muted-foreground">Your saved posts</p>
-                </div>
                 <BookmarksPage />
               </div>
             </main>
+
+            {/* Footer */}
+            <footer className="ml-64 border-t py-6">
+              <div className="container text-center text-sm text-muted-foreground">
+                <p>
+                  Vibed with{" "}
+                  <a
+                    href="https://soapbox.pub/tools/mkstack/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    MKStack
+                  </a>
+                </p>
+              </div>
+            </footer>
           </div>
         )}
       </div>
@@ -682,7 +746,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     onBookmarksClick={() => setShowBookmarks(true)}
                     onProfileClick={() => setShowProfile(true)}
                   />
-                  <span className="text-xs mt-1">Account</span>
                 </div>
               </div>
             </div>
@@ -974,7 +1037,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                   onBookmarksClick={() => setShowBookmarks(true)}
                   onProfileClick={() => setShowProfile(true)}
                 />
-                <span className="text-xs mt-1">Account</span>
               </div>
             </div>
           </div>
@@ -1089,7 +1151,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </TabsContent>
 
                 <TabsContent value="discover" className="space-y-6">
-                  <div>
+                  <div className="text-center space-y-2">
                     <h2 className="text-2xl font-bold mb-2">Discover</h2>
                     <p className="text-muted-foreground">
                       Explore popular hashtags and communities

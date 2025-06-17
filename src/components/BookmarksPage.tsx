@@ -1,9 +1,9 @@
-import { useBookmarks } from '@/hooks/useBookmarks';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { ImagePost } from './ImagePost';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Bookmark } from 'lucide-react';
+import { useBookmarks } from "@/hooks/useBookmarks";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { ImagePost } from "./ImagePost";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Bookmark } from "lucide-react";
 
 function BookmarkSkeleton() {
   return (
@@ -30,7 +30,7 @@ function BookmarkSkeleton() {
 export function BookmarksPage() {
   const { user } = useCurrentUser();
   const bookmarks = useBookmarks();
-  
+
   if (!user) {
     return (
       <Card className="border-dashed">
@@ -48,20 +48,18 @@ export function BookmarksPage() {
       </Card>
     );
   }
-  
+
   if (bookmarks.isLoading) {
     return (
       <div className="space-y-6">
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold flex items-center justify-center space-x-2">
-            <Bookmark className="h-6 w-6" />
+            <Bookmark className="h-6 w-6 text-primary" />
             <span>Your Bookmarks</span>
           </h2>
-          <p className="text-muted-foreground">
-            Your saved image posts
-          </p>
+          <p className="text-muted-foreground">Your saved image posts</p>
         </div>
-        
+
         <div className="space-y-6">
           {Array.from({ length: 3 }).map((_, i) => (
             <BookmarkSkeleton key={i} />
@@ -70,7 +68,7 @@ export function BookmarksPage() {
       </div>
     );
   }
-  
+
   if (bookmarks.error) {
     return (
       <Card className="border-dashed">
@@ -88,19 +86,17 @@ export function BookmarksPage() {
       </Card>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-bold flex items-center justify-center space-x-2">
-          <Bookmark className="h-6 w-6" />
+          <Bookmark className="h-6 w-6 text-primary" />
           <span>Your Bookmarks</span>
         </h2>
-        <p className="text-muted-foreground">
-          Your saved image posts
-        </p>
+        <p className="text-muted-foreground">Your saved image posts</p>
       </div>
-      
+
       {!bookmarks.data || bookmarks.data.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-12 px-8 text-center">
