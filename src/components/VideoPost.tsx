@@ -87,7 +87,7 @@ export function VideoPost({
     ([name]) => name === "content-warning"
   )?.[1];
   const duration = event.tags.find(([name]) => name === "duration")?.[1];
-  const alt = event.tags.find(([name]) => name === "alt")?.[1];
+  const _alt = event.tags.find(([name]) => name === "alt")?.[1];
 
   // Parse video URLs from vertical video events
   let videos: Array<{ url?: string; mimeType?: string; dimensions?: string; thumbnail?: string; duration?: string }> = [];
@@ -194,20 +194,9 @@ export function VideoPost({
   // Create npub for linking to the user profile
   const npub = nip19.npubEncode(event.pubkey);
 
-  const handleVideoClick = () => {
-    // Navigate to the individual post page
-    navigate(`/${nevent}`);
-  };
-
-  const handleProfileClick = (e: React.MouseEvent) => {
-    // Prevent event bubbling
+  const handleVideoClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Navigate to the user profile page
-    navigate(`/${npub}`);
-  };
-
-  const handlePlayPause = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    // Toggle play/pause when clicking on the video
     if (videoRef.current && videoLoaded) {
       if (isPlaying) {
         videoRef.current.pause();
@@ -219,6 +208,25 @@ export function VideoPost({
       }
       setIsPlaying(!isPlaying);
     }
+  };
+
+  const handleProfileClick = (e: React.MouseEvent) => {
+    // Prevent event bubbling
+    e.stopPropagation();
+    // Navigate to the user profile page
+    navigate(`/${npub}`);
+  };
+
+  const handlePlayPause = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // This function is now redundant since video click handles play/pause
+    handleVideoClick(e);
+  };
+
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Navigate to the individual post page when clicking title
+    navigate(`/${nevent}`);
   };
 
   const handleMuteToggle = (e: React.MouseEvent) => {
@@ -386,6 +394,8 @@ export function VideoPost({
         <div 
           ref={containerRef}
           className={cn("relative bg-black overflow-hidden cursor-pointer group", aspectRatio)}
+          onClick={handleVideoClick}
+          title="Click to play/pause"
         >
           {/* Show thumbnail while video is loading or not yet visible */}
           {primaryVideo.thumbnail && (!shouldLoadVideo || (!videoLoaded && !videoError)) && (
@@ -399,7 +409,7 @@ export function VideoPost({
                 )}
               />
               {/* Play button overlay on thumbnail */}
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center">
                   <Play className="h-8 w-8 text-white ml-1" />
                 </div>
@@ -422,7 +432,6 @@ export function VideoPost({
               loop
               playsInline
               preload="metadata" // Load metadata when video element is created
-              onClick={handleVideoClick}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onLoadedData={handleVideoLoadedData}
@@ -461,8 +470,8 @@ export function VideoPost({
 
           {/* Video Controls Overlay - only show when video is loaded */}
           {videoLoaded && !videoError && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-auto">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -525,7 +534,7 @@ export function VideoPost({
           {title && (
             <h3
               className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"
-              onClick={handleVideoClick}
+              onClick={handleTitleClick}
             >
               {title}
             </h3>
@@ -538,12 +547,7 @@ export function VideoPost({
             </p>
           )}
 
-          {/* Alt text for accessibility */}
-          {alt && (
-            <p className="text-xs text-muted-foreground italic">
-              {alt}
-            </p>
-          )}
+
 
           {/* Location */}
           {(location || geohash) && (
