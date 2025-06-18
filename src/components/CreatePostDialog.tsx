@@ -199,13 +199,13 @@ export function CreatePostDialog({
         // Additional validation for video file types
         if (isVideo) {
           const supportedVideoTypes = [
-            'video/mp4',
-            'video/webm', 
-            'video/quicktime', // .mov files
-            'video/x-msvideo', // .avi files
-            'video/ogg'
+            "video/mp4",
+            "video/webm",
+            "video/quicktime", // .mov files
+            "video/x-msvideo", // .avi files
+            "video/ogg",
           ];
-          
+
           if (!supportedVideoTypes.includes(file.type)) {
             toast({
               title: "Unsupported video format",
@@ -253,12 +253,14 @@ export function CreatePostDialog({
               height: videoMeta.height,
               duration: videoMeta.duration,
               isVertical: videoMeta.height > videoMeta.width,
-              aspectRatio: (videoMeta.height / videoMeta.width).toFixed(2)
+              aspectRatio: (videoMeta.height / videoMeta.width).toFixed(2),
             });
 
             // Check if video is vertical (height > width)
             if (videoMeta.height <= videoMeta.width) {
-              const aspectRatio = (videoMeta.width / videoMeta.height).toFixed(2);
+              const aspectRatio = (videoMeta.width / videoMeta.height).toFixed(
+                2
+              );
               toast({
                 title: "Invalid video orientation",
                 description: `Video must be vertical (portrait). Current aspect ratio: ${aspectRatio}:1 (landscape). Please upload a vertical video where height > width.`,
@@ -275,7 +277,10 @@ export function CreatePostDialog({
                 title: "Video too long",
                 description: `Video duration is ${minutes}:${seconds
                   .toString()
-                  .padStart(2, "0")}. Maximum allowed duration is 3:00 minutes.`,
+                  .padStart(
+                    2,
+                    "0"
+                  )}. Maximum allowed duration is 3:00 minutes.`,
                 variant: "destructive",
               });
               continue;
@@ -347,7 +352,8 @@ export function CreatePostDialog({
       });
     } catch (error) {
       console.error("Upload error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
       toast({
         title: "Upload failed",
         description:
@@ -433,7 +439,7 @@ export function CreatePostDialog({
         tags.push(["content-warning", contentWarning.trim()]);
       }
 
-      // Determine event kind based on post type
+      // Determine event kind based on Create
       let kind: number;
       if (postType === "image") {
         kind = 20; // NIP-68 image events
@@ -464,7 +470,7 @@ export function CreatePostDialog({
         title: "Post created!",
         description:
           postType === "video"
-            ? "Your short vertical video has been published"
+            ? "Your Flix post has been published"
             : `Your ${postType} post has been published`,
       });
     } catch (error) {
@@ -566,17 +572,14 @@ export function CreatePostDialog({
             ) : (
               <Video className="h-5 w-5 text-primary" />
             )}
-            <span>
-              Create {postType === "image" ? "Image" : "Short Vertical Video"}{" "}
-              Post
-            </span>
+            <span>Create {postType === "image" ? "Pix" : "Flix"} Post</span>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Post Type Selector */}
+          {/* Create Selector */}
           <div className="space-y-2">
-            <Label>Post Type</Label>
+            <Label>Create</Label>
             <Tabs
               value={postType}
               onValueChange={(value) => {
@@ -590,14 +593,14 @@ export function CreatePostDialog({
                   className="flex items-center space-x-2"
                 >
                   <ImageIcon className="h-4 w-4" />
-                  <span>Images</span>
+                  <span>Pix</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="video"
                   className="flex items-center space-x-2"
                 >
                   <Video className="h-4 w-4" />
-                  <span>Short Vertical Videos</span>
+                  <span>Flix</span>
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -726,7 +729,7 @@ export function CreatePostDialog({
             <Textarea
               id="content"
               placeholder={`What's zappening with your ${
-                postType === "image" ? "images" : "short videos"
+                postType === "image" ? "pix" : "flix"
               }...`}
               value={content}
               onChange={(e) => setContent(e.target.value)}
