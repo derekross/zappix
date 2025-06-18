@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Heart,
   MessageCircle,
@@ -26,6 +26,14 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { genUserName } from "@/lib/genUserName";
 import { ImagePostActions } from "./ImagePostActions";
 import { CommentSection } from "./CommentSection";
@@ -50,6 +58,8 @@ export function ImagePost({
   const [showComments, setShowComments] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const navigate = useNavigate();
 
   const { user } = useCurrentUser();
@@ -106,6 +116,22 @@ export function ImagePost({
 
   // Create npub for linking to the user profile
   const npub = nip19.npubEncode(event.pubkey);
+
+  // Handle carousel slide changes
+  useEffect(() => {
+    if (!carouselApi) return;
+
+    const onSelect = () => {
+      setCurrentSlide(carouselApi.selectedScrollSnap());
+    };
+
+    carouselApi.on("select", onSelect);
+    onSelect(); // Set initial slide
+
+    return () => {
+      carouselApi.off("select", onSelect);
+    };
+  }, [carouselApi]);
 
   const handleImageClick = () => {
     // Navigate to the individual post page
@@ -220,30 +246,16 @@ export function ImagePost({
         )}
 
         {/* Images */}
-        <div
-          className={cn(
-            "grid gap-1 relative",
-            images.length === 1
-              ? "grid-cols-1"
-              : images.length === 2
-              ? "grid-cols-2"
-              : images.length === 3
-              ? "grid-cols-2"
-              : "grid-cols-2"
-          )}
-        >
-          {images.map((image, index) => (
+        {images.length === 1 ? (
+          // Single image - display as before
+          <div className="relative">
             <div
-              key={index}
-              className={cn(
-                "relative aspect-square overflow-hidden cursor-pointer group",
-                images.length === 3 && index === 0 ? "row-span-2" : ""
-              )}
+              className="relative aspect-[4/3] max-h-[500px] overflow-hidden cursor-pointer group"
               onClick={handleImageClick}
             >
               <img
-                src={image.url}
-                alt={image.alt || title}
+                src={images[0].url}
+                alt={images[0].alt || title}
                 className={cn(
                   "w-full h-full object-cover group-hover:scale-105 transition-all duration-200",
                   contentWarning && !isRevealed && "blur-[40px]"
@@ -253,27 +265,118 @@ export function ImagePost({
               {/* Subtle overlay on hover to indicate clickability */}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
             </div>
-          ))}
 
-          {/* Reveal overlay for content warnings */}
-          {contentWarning && !isRevealed && (
-            <div
-              className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsRevealed(true);
+            {/* Reveal overlay for content warnings */}
+            {contentWarning && !isRevealed && (
+              <div
+                className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsRevealed(true);
+                }}
+              >
+                <div className="text-center text-white space-y-2">
+                  <Eye className="h-8 w-8 mx-auto" />
+                  <p className="text-sm font-medium">Click to reveal content</p>
+                  <p className="text-xs opacity-80">
+                    Content warning: {contentWarning}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          // Multiple images - use carousel
+          <div className="relative">
+            <Carousel 
+              className="w-full" 
+              setApi={setCarouselApi}
+              opts={{
+                align: "start",
+                loop: true,
               }}
             >
-              <div className="text-center text-white space-y-2">
-                <Eye className="h-8 w-8 mx-auto" />
-                <p className="text-sm font-medium">Click to reveal content</p>
-                <p className="text-xs opacity-80">
-                  Content warning: {contentWarning}
-                </p>
+              <CarouselContent>
+                {images.map((image, index) => (
+                  <CarouselItem key={index}>
+                    <div
+                      className="relative aspect-[4/3] max-h-[500px] overflow-hidden cursor-pointer group"
+                      onClick={handleImageClick}
+                    >
+                      <img
+                        src={image.url}
+                        alt={image.alt || title}
+                        className={cn(
+                          "w-full h-full object-cover group-hover:scale-105 transition-all duration-200",
+                          contentWarning && !isRevealed && "blur-[40px]"
+                        )}
+                        loading="lazy"
+                      />
+                      {/* Subtle overlay on hover to indicate clickability */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              
+              {/* Navigation buttons - only show if there are multiple images */}
+              {images.length > 1 && (
+                <>
+                  <CarouselPrevious className="left-2 bg-black/50 border-white/20 text-white hover:bg-black/70" />
+                  <CarouselNext className="right-2 bg-black/50 border-white/20 text-white hover:bg-black/70" />
+                </>
+              )}
+
+              {/* Image counter and dots indicator */}
+              {images.length > 1 && (
+                <>
+                  <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+                    {currentSlide + 1} / {images.length}
+                  </div>
+                  
+                  {/* Dots indicator */}
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                    {images.map((_, index) => (
+                      <button
+                        key={index}
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-all duration-200",
+                          index === currentSlide 
+                            ? "bg-white" 
+                            : "bg-white/50 hover:bg-white/75"
+                        )}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          carouselApi?.scrollTo(index);
+                        }}
+                        aria-label={`Go to slide ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </Carousel>
+
+            {/* Reveal overlay for content warnings */}
+            {contentWarning && !isRevealed && (
+              <div
+                className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsRevealed(true);
+                }}
+              >
+                <div className="text-center text-white space-y-2">
+                  <Eye className="h-8 w-8 mx-auto" />
+                  <p className="text-sm font-medium">Click to reveal content</p>
+                  <p className="text-xs opacity-80">
+                    Content warning: {contentWarning}
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Post Content */}
         <div className="p-4 space-y-3">
