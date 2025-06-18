@@ -5,8 +5,7 @@ import { useNostrPublish } from "./useNostrPublish";
 import { useMemo } from "react";
 import type { NostrEvent } from "@nostrify/nostrify";
 
-// Using NIP-51 standard bookmarks (kind 10003) instead of bookmark sets (kind 30003)
-
+// Using NIP-51 standard bookmarks (kind 10003)
 export function useBookmarks() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();

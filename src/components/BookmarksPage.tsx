@@ -160,6 +160,12 @@ function BookmarksContent() {
         </Card>
       ) : (
         <div className="space-y-6">
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-semibold">Bookmarks (Kind 10003)</h3>
+            <p className="text-muted-foreground">
+              Your bookmark list - {bookmarks.data.length} item{bookmarks.data.length !== 1 ? 's' : ''}
+            </p>
+          </div>
           {bookmarks.data.map((post) => (
             <ImagePost 
               key={post.id} 

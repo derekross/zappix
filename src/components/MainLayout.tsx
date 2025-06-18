@@ -418,7 +418,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     className="w-full justify-start"
                     onClick={() => navigate("/videos")}
                   >
-                    <Video className="mr-2 h-4 w-4" />
+                    <Film className="mr-2 h-4 w-4" />
                     Flix
                   </Button>
                   <Button
