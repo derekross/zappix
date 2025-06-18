@@ -8,7 +8,7 @@ import {
   Plus,
   Hash,
   MapPin,
-  Video,
+  Film,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -247,8 +247,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                       navigate("/videos");
                     }}
                   >
-                    <Video className="mr-2 h-4 w-4" />
-                    Videos
+                    <Film className="mr-2 h-4 w-4" />
+                    Flix
                   </Button>
                   <Button
                     variant="ghost"
@@ -347,8 +347,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                   onClick={() => navigate("/videos")}
                   className="flex flex-col items-center gap-1"
                 >
-                  <Video className="h-5 w-5" />
-                  <span className="text-xs">Videos</span>
+                  <Film className="h-5 w-5" />
+                  <span className="text-xs">Flix</span>
                 </Button>
 
                 <Button
@@ -419,7 +419,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     onClick={() => navigate("/videos")}
                   >
                     <Video className="mr-2 h-4 w-4" />
-                    Videos
+                    Flix
                   </Button>
                   <Button
                     variant="ghost"
@@ -589,7 +589,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
                     <TabsContent value="global" className="space-y-6">
                       <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Global Videos</h2>
+                        <h2 className="text-2xl font-bold">Global Flix</h2>
                         <p className="text-muted-foreground">
                           Latest vertical videos from all relays - TikTok-style feed
                         </p>
@@ -603,7 +603,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
                     <TabsContent value="following" className="space-y-6">
                       <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Following Videos</h2>
+                        <h2 className="text-2xl font-bold">Following Flix</h2>
                         <p className="text-muted-foreground">
                           Latest vertical videos from people you follow
                         </p>
@@ -710,8 +710,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                 onClick={() => handleTabChange("videos")}
                 className="flex flex-col items-center gap-1"
               >
-                <Video className="h-5 w-5" />
-                <span className="text-xs">Videos</span>
+                <Film className="h-5 w-5" />
+                <span className="text-xs">Flix</span>
               </Button>
 
               <Button
@@ -782,8 +782,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                   className="w-full justify-start"
                   onClick={() => handleTabChange("videos")}
                 >
-                  <Video className="mr-2 h-4 w-4" />
-                  Videos
+                  <Film className="mr-2 h-4 w-4" />
+                  Flix
                 </Button>
 
                 <Button
@@ -904,7 +904,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
                     <TabsContent value="global" className="space-y-6">
                       <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold mb-2">Global Videos</h2>
+                        <h2 className="text-2xl font-bold mb-2">Global Flix</h2>
                         <p className="text-muted-foreground">
                           Latest vertical videos from all relays - TikTok-style feed
                         </p>
@@ -918,7 +918,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
                     <TabsContent value="following" className="space-y-6">
                       <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold mb-2">Following Videos</h2>
+                        <h2 className="text-2xl font-bold mb-2">Following Flix</h2>
                         <p className="text-muted-foreground">
                           Latest vertical videos from people you follow
                         </p>

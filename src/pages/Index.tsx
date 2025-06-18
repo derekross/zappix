@@ -10,7 +10,7 @@ const Index = () => {
     switch (location.pathname) {
       case '/videos':
         return {
-          title: 'Videos - Zappix',
+          title: 'Flix - Zappix',
           description: 'Discover and share vertical videos on the decentralized Nostr network. TikTok-style feed with short-form content from creators worldwide.',
         };
       case '/discover':

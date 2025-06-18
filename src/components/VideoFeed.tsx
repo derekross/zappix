@@ -72,7 +72,7 @@ export function VideoFeed({
           <CardContent className="py-12 px-8 text-center">
             <div className="max-w-sm mx-auto space-y-6">
               <p className="text-muted-foreground">
-                Failed to load videos. Please try again.
+                Failed to load flix. Please try again.
               </p>
               <button
                 onClick={() => query.refetch()}
@@ -97,7 +97,7 @@ export function VideoFeed({
             <CardContent className="py-12 px-8 text-center">
               <div className="max-w-sm mx-auto space-y-6">
                 <p className="text-muted-foreground">
-                  You're not following anyone yet. Follow some users to see their videos here.
+                  You're not following anyone yet. Follow some users to see their flix here.
                 </p>
               </div>
             </CardContent>
@@ -113,12 +113,12 @@ export function VideoFeed({
             <div className="max-w-sm mx-auto space-y-6">
               <p className="text-muted-foreground">
                 {feedType === "following"
-                  ? "No videos from people you follow yet. Videos will appear as they publish to the network."
+                  ? "No flix from people you follow yet. Flix will appear as they publish to the network."
                   : hashtag
-                  ? `No videos found for #${hashtag}. Videos will appear as users publish to the network.`
+                  ? `No flix found for #${hashtag}. Flix will appear as users publish to the network.`
                   : location
-                  ? `No videos found for ${location}. Videos will appear as users publish to the network.`
-                  : "No videos found. Videos will appear as users publish to the network."}
+                  ? `No flix found for ${location}. Flix will appear as users publish to the network.`
+                  : "No flix found. Flix will appear as users publish to the network."}
               </p>
             </div>
           </CardContent>
