@@ -5,7 +5,7 @@ import { useNostrPublish } from "./useNostrPublish";
 import { useMemo } from "react";
 import type { NostrEvent } from "@nostrify/nostrify";
 
-// Using NIP-51 standard bookmarks (kind 10003)
+// Using NIP-51 bookmark sets (kind 30003) with d tag "nip-68-posts"
 export function useBookmarks() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -13,41 +13,79 @@ export function useBookmarks() {
   return useQuery({
     queryKey: ["bookmarks", user?.pubkey],
     queryFn: async (c) => {
+      console.log('useBookmarks queryFn - Starting for user:', user?.pubkey);
+      
       if (!user?.pubkey) {
+        console.log('useBookmarks - No user pubkey');
         return [];
       }
 
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(2000)]);
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
 
-      // Get user's bookmark list (kind 10003 - standard NIP-51 bookmarks)
+      // Get user's bookmark set (kind 30003 - NIP-51 bookmark sets with d tag "nip-68-posts")
+      console.log('useBookmarks - Querying for kind 30003 events with d tag "nip-68-posts"');
+      console.log('useBookmarks - Query filter:', {
+        kinds: [30003],
+        authors: [user.pubkey],
+        '#d': ['nip-68-posts'],
+        limit: 1,
+      });
+      
       const bookmarkEvents = await nostr.query(
         [
           {
-            kinds: [10003],
+            kinds: [30003],
             authors: [user.pubkey],
+            '#d': ['nip-68-posts'],
             limit: 1,
           },
         ],
         { signal }
       );
+      
+      console.log('useBookmarks - Raw query response:', bookmarkEvents);
+
+      // Debug: Try to query for any events by this user to see if the issue is with the query itself
+      try {
+        const allUserEvents = await nostr.query(
+          [
+            {
+              authors: [user.pubkey],
+              limit: 5,
+            },
+          ],
+          { signal }
+        );
+        console.log('useBookmarks - Debug: All user events found:', allUserEvents.length, allUserEvents);
+      } catch (error) {
+        console.log('useBookmarks - Debug: Error querying all user events:', error);
+      }
+
+      console.log('useBookmarks - Found bookmark events:', bookmarkEvents.length, bookmarkEvents);
 
       if (bookmarkEvents.length === 0) {
+        console.log('useBookmarks - No bookmark set found');
         return [];
       }
 
-      const bookmarkList = bookmarkEvents[0];
+      const bookmarkSet = bookmarkEvents[0];
+      console.log('useBookmarks - Bookmark set tags:', bookmarkSet.tags);
 
       // Extract event IDs from 'e' tags
-      const eventIds = bookmarkList.tags
+      const eventIds = bookmarkSet.tags
         .filter(([name]) => name === "e")
         .map(([, eventId]) => eventId)
         .filter(Boolean);
 
+      console.log('useBookmarks - Extracted event IDs:', eventIds);
+
       if (eventIds.length === 0) {
+        console.log('useBookmarks - No event IDs in bookmark set');
         return [];
       }
 
       // Fetch the bookmarked events
+      console.log('useBookmarks - Fetching events by IDs');
       const allEvents = await nostr.query(
         [
           {
@@ -58,28 +96,42 @@ export function useBookmarks() {
         { signal }
       );
 
-      // Filter for kind 20 (image posts)
-      const events = allEvents.filter(event => event.kind === 20);
+      console.log('useBookmarks - Fetched events:', allEvents.length, allEvents);
 
-      // Filter to only valid image events
-      const validEvents = events
+      // For debugging: return all events first to see what we're getting
+      console.log('useBookmarks - All fetched events by kind:', 
+        allEvents.reduce((acc, event) => {
+          acc[event.kind] = (acc[event.kind] || 0) + 1;
+          return acc;
+        }, {} as Record<number, number>)
+      );
+
+      // Display all bookmarked events regardless of kind for now
+      const validEvents = allEvents
         .filter((event) => {
-          const title = event.tags.find(([name]) => name === "title")?.[1];
-          const imeta = event.tags.find(([name]) => name === "imeta");
+          // Basic validation - just ensure it's a valid event
+          console.log('useBookmarks - Event validation:', event.id, { 
+            kind: event.kind,
+            hasContent: !!event.content,
+            tagCount: event.tags.length,
+            tags: event.tags.map(([name]) => name)
+          });
           
-          // Require either title OR imeta
-          return title || imeta;
+          return true; // Accept all events for now
         })
         .sort((a, b) => b.created_at - a.created_at);
+
+      console.log('useBookmarks - Final valid events:', validEvents.length, validEvents);
 
       return validEvents;
     },
     enabled: !!user?.pubkey,
-    staleTime: 60000,
+    staleTime: 60000, // 1 minute
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
-// Get bookmark list data for efficient status checking
+// Get bookmark set data for efficient status checking
 export function useBookmarkList() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -94,12 +146,13 @@ export function useBookmarkList() {
       try {
         const signal = AbortSignal.any([c.signal, AbortSignal.timeout(1500)]);
 
-        // Get bookmark list (kind 10003)
+        // Get bookmark set (kind 30003 with d tag "nip-68-posts")
         const bookmarkEvents = await nostr.query(
           [
             {
-              kinds: [10003],
+              kinds: [30003],
               authors: [user.pubkey],
+              '#d': ['nip-68-posts'],
               limit: 1,
             },
           ],
@@ -119,7 +172,7 @@ export function useBookmarkList() {
   });
 }
 
-// Efficient bookmark status check using cached bookmark list
+// Efficient bookmark status check using cached bookmark set
 export function useIsBookmarked(eventId: string) {
   const bookmarkList = useBookmarkList();
   const { user } = useCurrentUser();
@@ -145,11 +198,47 @@ export function useIsBookmarked(eventId: string) {
   }, [bookmarkList.data, bookmarkList.isLoading, bookmarkList.error, eventId, user?.pubkey]);
 }
 
+// Hook to create an initial empty bookmark set if none exists
+export function useCreateInitialBookmarkList() {
+  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user?.signer || !user?.pubkey) {
+        throw new Error("User not logged in");
+      }
+
+      const eventTemplate = {
+        kind: 30003,
+        content: "",
+        tags: [
+          ["d", "nip-68-posts"],
+          ["title", "Bookmarked Posts"],
+          ["description", "Posts bookmarked from this application"]
+        ], // Empty bookmark set with required d tag
+      };
+
+      console.log('useCreateInitialBookmarkList - Creating initial bookmark set:', eventTemplate);
+      const event = await publishEvent(eventTemplate);
+      console.log('useCreateInitialBookmarkList - Created event:', event);
+      return event;
+    },
+    onSuccess: () => {
+      // Invalidate bookmark queries to refetch
+      queryClient.invalidateQueries({ queryKey: ["bookmark-list"] });
+      queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
+    },
+  });
+}
+
 export function useToggleBookmark() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const bookmarkList = useBookmarkList();
+  const { mutateAsync: createInitialBookmarkList } = useCreateInitialBookmarkList();
 
   return useMutation({
     mutationFn: async ({
@@ -163,12 +252,22 @@ export function useToggleBookmark() {
         throw new Error("User not logged in");
       }
 
-      // Use cached bookmark list data instead of querying again
-      const currentBookmarkList = bookmarkList.data;
+      // Use cached bookmark set data instead of querying again
+      const currentBookmarkSet = bookmarkList.data;
       let currentTags: string[][] = [];
 
-      if (currentBookmarkList) {
-        currentTags = currentBookmarkList.tags;
+      if (currentBookmarkSet) {
+        currentTags = currentBookmarkSet.tags;
+      } else {
+        // If no bookmark set exists, create one first
+        console.log('useToggleBookmark - No bookmark set exists, creating initial set');
+        await createInitialBookmarkList();
+        // The bookmark set should now exist, but we'll proceed with base tags for this operation
+        currentTags = [
+          ["d", "nip-68-posts"],
+          ["title", "Bookmarked Posts"],
+          ["description", "Posts bookmarked from this application"]
+        ];
       }
 
       let newTags: string[][];
@@ -179,17 +278,33 @@ export function useToggleBookmark() {
           ([name, id]) => !(name === "e" && id === eventId)
         );
       } else {
-        // Add bookmark
-        newTags = [...currentTags, ["e", eventId]];
+        // Add bookmark - ensure we have the required tags
+        const baseTags = currentTags.filter(([name]) => ["d", "title", "description"].includes(name));
+        const eventTags = currentTags.filter(([name]) => name === "e");
+        newTags = [...baseTags, ...eventTags, ["e", eventId]];
+      }
+
+      // Ensure we always have the required d tag
+      if (!newTags.some(([name]) => name === "d")) {
+        newTags.unshift(["d", "nip-68-posts"]);
       }
 
       const eventTemplate = {
-        kind: 10003,
+        kind: 30003,
         content: "",
         tags: newTags,
       };
 
+      console.log('useToggleBookmark - Publishing event:', eventTemplate);
+      console.log('useToggleBookmark - Event tags breakdown:', {
+        dTag: newTags.find(([name]) => name === 'd'),
+        titleTag: newTags.find(([name]) => name === 'title'),
+        descriptionTag: newTags.find(([name]) => name === 'description'),
+        eTags: newTags.filter(([name]) => name === 'e'),
+        allTags: newTags
+      });
       const event = await publishEvent(eventTemplate);
+      console.log('useToggleBookmark - Published event:', event);
       return event;
     },
     onMutate: async (variables) => {

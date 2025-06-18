@@ -142,12 +142,30 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           relayMap.set(url, filters);
         }
 
+        // Debug logging for bookmark queries specifically
+        const hasBookmarkQuery = filters.some(f => f.kinds?.includes(10003));
+        if (hasBookmarkQuery) {
+          console.log('NostrProvider reqRouter - Bookmark query detected:', filters);
+        }
+
         try {
           // OUTBOX MODEL: Only apply for specific query patterns
           for (const filter of filters) {
-            // Apply outbox model only for following feeds (queries with specific authors but no hashtags)
+            // Apply outbox model for following feeds (queries with specific authors but no hashtags)
             const isFollowingFeed =
               filter.authors && filter.authors.length > 0 && !filter["#t"];
+
+            // Apply outbox model for current user's own replaceable events (like bookmarks, profile, etc.)
+            const isCurrentUserReplaceable =
+              filter.authors &&
+              filter.authors.length === 1 &&
+              filter.authors[0] === currentUserPubkey &&
+              filter.kinds &&
+              filter.kinds.some(kind => 
+                (kind >= 10000 && kind < 20000) || // replaceable events
+                (kind >= 30000 && kind < 40000) || // addressable events
+                kind === 0 || kind === 3 // legacy replaceable events
+              );
 
             if (isFollowingFeed && filter.authors) {
               console.log(
@@ -187,6 +205,19 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
                 } catch {
                   // Ignore errors for individual authors
                 }
+              }
+            }
+
+            // Apply outbox model for current user's own replaceable events
+            if (isCurrentUserReplaceable && currentUserRelayList?.writeRelays.length) {
+              console.log(
+                "Routing current user replaceable event query to write relays:",
+                filter.kinds,
+                currentUserRelayList.writeRelays
+              );
+              for (const relay of currentUserRelayList.writeRelays.slice(0, 3)) {
+                const existingFilters = relayMap.get(relay) || [];
+                relayMap.set(relay, [...existingFilters, filter]);
               }
             }
 

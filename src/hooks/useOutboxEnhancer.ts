@@ -12,6 +12,18 @@ export function useOutboxEnhancer() {
   const { user } = useCurrentUser();
   const userRelayList = useRelayList(user?.pubkey);
 
+  // Debug logging for relay list status
+  if (user?.pubkey) {
+    console.log('useOutboxEnhancer - User relay list status:', {
+      pubkey: user.pubkey.slice(0, 8) + '...',
+      isLoading: userRelayList.isLoading,
+      hasData: !!userRelayList.data,
+      writeRelays: userRelayList.data?.writeRelays.length || 0,
+      readRelays: userRelayList.data?.readRelays.length || 0,
+      error: userRelayList.error?.message
+    });
+  }
+
   // Cache the current user's relay list for the outbox model
   useEffect(() => {
     if (user?.pubkey && userRelayList.data) {

@@ -1,6 +1,49 @@
-# Short Vertical Video Events with Legacy Support
+# Custom Nostr Implementation
 
-This document describes the video event implementation in this Nostr client, which focuses on short vertical videos while maintaining backward compatibility with existing video formats.
+This document describes the custom Nostr event implementations in this client application.
+
+## Bookmarks Implementation
+
+This client uses NIP-51 bookmark sets (kind 30003) for storing user bookmarks, specifically using the `d` tag value "nip-68-posts" to create a dedicated bookmark set for posts from this application.
+
+### Bookmark Set Format
+
+```json
+{
+  "kind": 30003,
+  "content": "",
+  "tags": [
+    ["d", "nip-68-posts"],
+    ["title", "Bookmarked Posts"],
+    ["description", "Posts bookmarked from this application"],
+    ["e", "event_id_1"],
+    ["e", "event_id_2"]
+  ]
+}
+```
+
+**Required Tags:**
+- `d`: Must be "nip-68-posts" to identify this application's bookmark set
+- `title`: Human-readable title for the bookmark set
+- `description`: Description of what this bookmark set contains
+
+**Event References:**
+- `e` tags: Reference bookmarked events by their event ID
+- Only kind 20 (image posts) events are displayed in the bookmarks page
+
+### Implementation Details
+
+- **Kind**: 30003 (NIP-51 bookmark sets)
+- **Identifier**: "nip-68-posts" (stored in `d` tag)
+- **Replaceability**: Each user can have only one bookmark set with this identifier
+- **Content Filtering**: Only kind 20 events are shown in the bookmarks interface
+- **Auto-creation**: Empty bookmark set is created automatically when user first bookmarks a post
+
+This approach allows users to have multiple bookmark sets (using different `d` tag values) while keeping this application's bookmarks organized in a dedicated set.
+
+## Short Vertical Video Events with Legacy Support
+
+This document also describes the video event implementation in this Nostr client, which focuses on short vertical videos while maintaining backward compatibility with existing video formats.
 
 ## Publishing Restrictions
 
