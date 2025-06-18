@@ -13,37 +13,39 @@ export function useBookmarks() {
   return useQuery({
     queryKey: ["bookmarks", user?.pubkey],
     queryFn: async (c) => {
-      console.log('useBookmarks queryFn - Starting for user:', user?.pubkey);
-      
+      console.log("useBookmarks queryFn - Starting for user:", user?.pubkey);
+
       if (!user?.pubkey) {
-        console.log('useBookmarks - No user pubkey');
+        console.log("useBookmarks - No user pubkey");
         return [];
       }
 
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
 
       // Get user's bookmark set (kind 30003 - NIP-51 bookmark sets with d tag "nip-68-posts")
-      console.log('useBookmarks - Querying for kind 30003 events with d tag "nip-68-posts"');
-      console.log('useBookmarks - Query filter:', {
+      console.log(
+        'useBookmarks - Querying for kind 30003 events with d tag "nip-68-posts"'
+      );
+      console.log("useBookmarks - Query filter:", {
         kinds: [30003],
         authors: [user.pubkey],
-        '#d': ['nip-68-posts'],
+        "#d": ["nip-68-posts"],
         limit: 1,
       });
-      
+
       const bookmarkEvents = await nostr.query(
         [
           {
             kinds: [30003],
             authors: [user.pubkey],
-            '#d': ['nip-68-posts'],
+            "#d": ["nip-68-posts"],
             limit: 1,
           },
         ],
         { signal }
       );
-      
-      console.log('useBookmarks - Raw query response:', bookmarkEvents);
+
+      console.log("useBookmarks - Raw query response:", bookmarkEvents);
 
       // Debug: Try to query for any events by this user to see if the issue is with the query itself
       try {
@@ -56,20 +58,31 @@ export function useBookmarks() {
           ],
           { signal }
         );
-        console.log('useBookmarks - Debug: All user events found:', allUserEvents.length, allUserEvents);
+        console.log(
+          "useBookmarks - Debug: All user events found:",
+          allUserEvents.length,
+          allUserEvents
+        );
       } catch (error) {
-        console.log('useBookmarks - Debug: Error querying all user events:', error);
+        console.log(
+          "useBookmarks - Debug: Error querying all user events:",
+          error
+        );
       }
 
-      console.log('useBookmarks - Found bookmark events:', bookmarkEvents.length, bookmarkEvents);
+      console.log(
+        "useBookmarks - Found bookmark events:",
+        bookmarkEvents.length,
+        bookmarkEvents
+      );
 
       if (bookmarkEvents.length === 0) {
-        console.log('useBookmarks - No bookmark set found');
+        console.log("useBookmarks - No bookmark set found");
         return [];
       }
 
       const bookmarkSet = bookmarkEvents[0];
-      console.log('useBookmarks - Bookmark set tags:', bookmarkSet.tags);
+      console.log("useBookmarks - Bookmark set tags:", bookmarkSet.tags);
 
       // Extract event IDs from 'e' tags
       const eventIds = bookmarkSet.tags
@@ -77,17 +90,17 @@ export function useBookmarks() {
         .map(([, eventId]) => eventId)
         .filter(Boolean);
 
-      console.log('useBookmarks - Extracted event IDs:', eventIds);
+      console.log("useBookmarks - Extracted event IDs:", eventIds);
 
       if (eventIds.length === 0) {
-        console.log('useBookmarks - No event IDs in bookmark set');
+        console.log("useBookmarks - No event IDs in bookmark set");
         return [];
       }
 
       // Fetch the bookmarked events - try multiple strategies
-      console.log('useBookmarks - Fetching events by IDs');
-      console.log('useBookmarks - Target event IDs:', eventIds);
-      
+      console.log("useBookmarks - Fetching events by IDs");
+      console.log("useBookmarks - Target event IDs:", eventIds);
+
       // Strategy 1: Try to fetch all events at once
       let allEvents = await nostr.query(
         [
@@ -99,11 +112,15 @@ export function useBookmarks() {
         { signal }
       );
 
-      console.log('useBookmarks - Strategy 1 - Fetched events:', allEvents.length, allEvents);
+      console.log(
+        "useBookmarks - Strategy 1 - Fetched events:",
+        allEvents.length,
+        allEvents
+      );
 
       // Strategy 2: If we didn't get all events, try without limit
       if (allEvents.length < eventIds.length) {
-        console.log('useBookmarks - Strategy 2 - Trying query without limit');
+        console.log("useBookmarks - Strategy 2 - Trying query without limit");
         try {
           const unlimitedEvents = await nostr.query(
             [
@@ -113,29 +130,41 @@ export function useBookmarks() {
             ],
             { signal: AbortSignal.timeout(4000) }
           );
-          
-          console.log('useBookmarks - Strategy 2 - Unlimited query result:', unlimitedEvents.length, unlimitedEvents);
-          
+
+          console.log(
+            "useBookmarks - Strategy 2 - Unlimited query result:",
+            unlimitedEvents.length,
+            unlimitedEvents
+          );
+
           // Merge results, avoiding duplicates
-          const existingIds = new Set(allEvents.map(e => e.id));
-          const newEvents = unlimitedEvents.filter(e => !existingIds.has(e.id));
+          const existingIds = new Set(allEvents.map((e) => e.id));
+          const newEvents = unlimitedEvents.filter(
+            (e) => !existingIds.has(e.id)
+          );
           allEvents = [...allEvents, ...newEvents];
-          
-          console.log('useBookmarks - After strategy 2:', allEvents.length, 'total events');
+
+          console.log(
+            "useBookmarks - After strategy 2:",
+            allEvents.length,
+            "total events"
+          );
         } catch (error) {
-          console.log('useBookmarks - Strategy 2 failed:', error);
+          console.log("useBookmarks - Strategy 2 failed:", error);
         }
       }
 
       // Strategy 3: If we still don't have all events, try fetching them individually
       // This might help with relay-specific availability
       if (allEvents.length < eventIds.length) {
-        console.log('useBookmarks - Strategy 3 - Trying individual queries for missing events');
-        const foundIds = new Set(allEvents.map(e => e.id));
-        const missingIds = eventIds.filter(id => !foundIds.has(id));
-        
-        console.log('useBookmarks - Missing event IDs:', missingIds);
-        
+        console.log(
+          "useBookmarks - Strategy 3 - Trying individual queries for missing events"
+        );
+        const foundIds = new Set(allEvents.map((e) => e.id));
+        const missingIds = eventIds.filter((id) => !foundIds.has(id));
+
+        console.log("useBookmarks - Missing event IDs:", missingIds);
+
         for (const eventId of missingIds) {
           try {
             const individualEvents = await nostr.query(
@@ -147,51 +176,79 @@ export function useBookmarks() {
               ],
               { signal: AbortSignal.timeout(3000) }
             );
-            
-            console.log(`useBookmarks - Individual query for ${eventId}:`, individualEvents.length, individualEvents);
+
+            console.log(
+              `useBookmarks - Individual query for ${eventId}:`,
+              individualEvents.length,
+              individualEvents
+            );
             allEvents = [...allEvents, ...individualEvents];
           } catch (error) {
-            console.log(`useBookmarks - Failed to fetch individual event ${eventId}:`, error);
+            console.log(
+              `useBookmarks - Failed to fetch individual event ${eventId}:`,
+              error
+            );
           }
         }
       }
 
-      console.log('useBookmarks - Final fetched events after all strategies:', allEvents.length, allEvents);
+      console.log(
+        "useBookmarks - Final fetched events after all strategies:",
+        allEvents.length,
+        allEvents
+      );
 
       // For debugging: verify what we have
-      console.log('useBookmarks - Final analysis:', {
+      console.log("useBookmarks - Final analysis:", {
         requestedEventIds: eventIds,
-        foundEventIds: allEvents.map(e => e.id),
-        missingEventIds: eventIds.filter(id => !allEvents.some(e => e.id === id)),
+        foundEventIds: allEvents.map((e) => e.id),
+        missingEventIds: eventIds.filter(
+          (id) => !allEvents.some((e) => e.id === id)
+        ),
         eventsByKind: allEvents.reduce((acc, event) => {
           acc[event.kind] = (acc[event.kind] || 0) + 1;
           return acc;
-        }, {} as Record<number, number>)
+        }, {} as Record<number, number>),
       });
 
       // Display all bookmarked events regardless of kind for now
       const validEvents = allEvents
         .filter((event) => {
           // Basic validation - just ensure it's a valid event
-          const isValid = event && event.id && event.pubkey && typeof event.created_at === 'number';
-          console.log('useBookmarks - Event validation:', event.id, { 
+          const isValid =
+            event &&
+            event.id &&
+            event.pubkey &&
+            typeof event.created_at === "number";
+          console.log("useBookmarks - Event validation:", event.id, {
             kind: event.kind,
             hasContent: !!event.content,
             tagCount: event.tags?.length || 0,
             isValid,
-            created: new Date(event.created_at * 1000).toISOString()
+            created: new Date(event.created_at * 1000).toISOString(),
           });
-          
+
           return isValid;
         })
         .sort((a, b) => b.created_at - a.created_at);
 
-      console.log('useBookmarks - Final valid events:', validEvents.length, 'out of', eventIds.length, 'requested');
-      
+      console.log(
+        "useBookmarks - Final valid events:",
+        validEvents.length,
+        "out of",
+        eventIds.length,
+        "requested"
+      );
+
       // If we have missing events, add placeholder objects for debugging
-      const missingEventIds = eventIds.filter(id => !validEvents.some(e => e.id === id));
+      const missingEventIds = eventIds.filter(
+        (id) => !validEvents.some((e) => e.id === id)
+      );
       if (missingEventIds.length > 0) {
-        console.log('useBookmarks - Events not found on any relay:', missingEventIds);
+        console.log(
+          "useBookmarks - Events not found on any relay:",
+          missingEventIds
+        );
         // Optionally, you could add placeholder events to show in the UI that some bookmarks are missing
       }
 
@@ -224,7 +281,7 @@ export function useBookmarkList() {
             {
               kinds: [30003],
               authors: [user.pubkey],
-              '#d': ['nip-68-posts'],
+              "#d": ["nip-68-posts"],
               limit: 1,
             },
           ],
@@ -267,7 +324,13 @@ export function useIsBookmarked(eventId: string) {
       isLoading: false,
       error: null,
     };
-  }, [bookmarkList.data, bookmarkList.isLoading, bookmarkList.error, eventId, user?.pubkey]);
+  }, [
+    bookmarkList.data,
+    bookmarkList.isLoading,
+    bookmarkList.error,
+    eventId,
+    user?.pubkey,
+  ]);
 }
 
 // Hook to create an initial empty bookmark set if none exists
@@ -287,14 +350,17 @@ export function useCreateInitialBookmarkList() {
         content: "",
         tags: [
           ["d", "nip-68-posts"],
-          ["title", "Bookmarked Posts"],
-          ["description", "Posts bookmarked from this application"]
+          ["title", "NIP-68 Bookmarked Images"],
+          ["description", "Images bookmarked from Zappix"],
         ], // Empty bookmark set with required d tag
       };
 
-      console.log('useCreateInitialBookmarkList - Creating initial bookmark set:', eventTemplate);
+      console.log(
+        "useCreateInitialBookmarkList - Creating initial bookmark set:",
+        eventTemplate
+      );
       const event = await publishEvent(eventTemplate);
-      console.log('useCreateInitialBookmarkList - Created event:', event);
+      console.log("useCreateInitialBookmarkList - Created event:", event);
       return event;
     },
     onSuccess: () => {
@@ -310,7 +376,8 @@ export function useToggleBookmark() {
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const bookmarkList = useBookmarkList();
-  const { mutateAsync: createInitialBookmarkList } = useCreateInitialBookmarkList();
+  const { mutateAsync: createInitialBookmarkList } =
+    useCreateInitialBookmarkList();
 
   return useMutation({
     mutationFn: async ({
@@ -332,13 +399,15 @@ export function useToggleBookmark() {
         currentTags = currentBookmarkSet.tags;
       } else {
         // If no bookmark set exists, create one first
-        console.log('useToggleBookmark - No bookmark set exists, creating initial set');
+        console.log(
+          "useToggleBookmark - No bookmark set exists, creating initial set"
+        );
         await createInitialBookmarkList();
         // The bookmark set should now exist, but we'll proceed with base tags for this operation
         currentTags = [
           ["d", "nip-68-posts"],
-          ["title", "Bookmarked Posts"],
-          ["description", "Posts bookmarked from this application"]
+          ["title", "NIP-68 Bookmarked Images"],
+          ["description", "Images bookmarked from Zappix"],
         ];
       }
 
@@ -351,7 +420,9 @@ export function useToggleBookmark() {
         );
       } else {
         // Add bookmark - ensure we have the required tags
-        const baseTags = currentTags.filter(([name]) => ["d", "title", "description"].includes(name));
+        const baseTags = currentTags.filter(([name]) =>
+          ["d", "title", "description"].includes(name)
+        );
         const eventTags = currentTags.filter(([name]) => name === "e");
         newTags = [...baseTags, ...eventTags, ["e", eventId]];
       }
@@ -367,16 +438,16 @@ export function useToggleBookmark() {
         tags: newTags,
       };
 
-      console.log('useToggleBookmark - Publishing event:', eventTemplate);
-      console.log('useToggleBookmark - Event tags breakdown:', {
-        dTag: newTags.find(([name]) => name === 'd'),
-        titleTag: newTags.find(([name]) => name === 'title'),
-        descriptionTag: newTags.find(([name]) => name === 'description'),
-        eTags: newTags.filter(([name]) => name === 'e'),
-        allTags: newTags
+      console.log("useToggleBookmark - Publishing event:", eventTemplate);
+      console.log("useToggleBookmark - Event tags breakdown:", {
+        dTag: newTags.find(([name]) => name === "d"),
+        titleTag: newTags.find(([name]) => name === "title"),
+        descriptionTag: newTags.find(([name]) => name === "description"),
+        eTags: newTags.filter(([name]) => name === "e"),
+        allTags: newTags,
       });
       const event = await publishEvent(eventTemplate);
-      console.log('useToggleBookmark - Published event:', event);
+      console.log("useToggleBookmark - Published event:", event);
       return event;
     },
     onMutate: async (variables) => {
@@ -384,7 +455,10 @@ export function useToggleBookmark() {
       await queryClient.cancelQueries({ queryKey: ["bookmark-list"] });
 
       // Snapshot the previous bookmark list
-      const previousBookmarkList = queryClient.getQueryData(["bookmark-list", user?.pubkey]);
+      const previousBookmarkList = queryClient.getQueryData([
+        "bookmark-list",
+        user?.pubkey,
+      ]);
 
       // Optimistically update the bookmark list
       if (previousBookmarkList) {
@@ -394,7 +468,8 @@ export function useToggleBookmark() {
         if (variables.isBookmarked) {
           // Remove bookmark
           newTags = currentTags.filter(
-            ([name, id]: string[]) => !(name === "e" && id === variables.eventId)
+            ([name, id]: string[]) =>
+              !(name === "e" && id === variables.eventId)
           );
         } else {
           // Add bookmark
@@ -412,7 +487,10 @@ export function useToggleBookmark() {
     onError: (_, __, context) => {
       // Roll back on error
       if (context?.previousBookmarkList) {
-        queryClient.setQueryData(["bookmark-list", user?.pubkey], context.previousBookmarkList);
+        queryClient.setQueryData(
+          ["bookmark-list", user?.pubkey],
+          context.previousBookmarkList
+        );
       }
     },
     onSuccess: () => {

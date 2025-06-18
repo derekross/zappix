@@ -42,7 +42,7 @@ interface UploadedMedia {
   blurhash?: string;
   dimensions?: string;
   alt?: string;
-  type: 'image' | 'video';
+  type: "image" | "video";
   duration?: number;
   thumbnail?: string;
 }
@@ -61,8 +61,7 @@ export function CreatePostDialog({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [postType, setPostType] = useState<'image' | 'video'>('image');
-
+  const [postType, setPostType] = useState<"image" | "video">("image");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useCurrentUser();
@@ -101,12 +100,19 @@ export function CreatePostDialog({
   };
 
   // Get video metadata
-  const getVideoMetadata = async (file: File): Promise<{ width: number; height: number; duration: number; thumbnail?: string }> => {
+  const getVideoMetadata = async (
+    file: File
+  ): Promise<{
+    width: number;
+    height: number;
+    duration: number;
+    thumbnail?: string;
+  }> => {
     return new Promise((resolve, reject) => {
       const video = document.createElement("video");
       video.src = URL.createObjectURL(file);
       video.preload = "metadata";
-      
+
       video.onloadedmetadata = () => {
         try {
           // Basic metadata without thumbnail for now to avoid segfault
@@ -121,7 +127,7 @@ export function CreatePostDialog({
       };
 
       video.onerror = () => reject(new Error("Failed to load video"));
-      
+
       // Timeout after 5 seconds
       setTimeout(() => {
         reject(new Error("Video metadata loading timeout"));
@@ -153,12 +159,16 @@ export function CreatePostDialog({
         }
 
         // Check if file type matches current post type
-        if ((postType === 'image' && !isImage) || (postType === 'video' && !isVideo)) {
+        if (
+          (postType === "image" && !isImage) ||
+          (postType === "video" && !isVideo)
+        ) {
           toast({
             title: "File type mismatch",
-            description: postType === 'video' 
-              ? "Please select only video files (MP4, WebM, MOV) for short vertical videos"
-              : `Please select only ${postType} files for this post type`,
+            description:
+              postType === "video"
+                ? "Please select only video files (MP4, WebM, MOV) for short vertical videos"
+                : `Please select only ${postType} files for this post type`,
             variant: "destructive",
           });
           continue;
@@ -194,12 +204,13 @@ export function CreatePostDialog({
 
           // Enforce short vertical video restrictions
           const maxDurationSeconds = 3 * 60; // 3 minutes = 180 seconds
-          
+
           // Check if video is vertical (height > width)
           if (videoMeta.height <= videoMeta.width) {
             toast({
               title: "Invalid video orientation",
-              description: "Only vertical videos (portrait orientation) are allowed. Please upload a vertical video.",
+              description:
+                "Only vertical videos (portrait orientation) are allowed. Please upload a vertical video.",
               variant: "destructive",
             });
             continue;
@@ -211,7 +222,9 @@ export function CreatePostDialog({
             const seconds = Math.round(videoMeta.duration % 60);
             toast({
               title: "Video too long",
-              description: `Video duration is ${minutes}:${seconds.toString().padStart(2, '0')}. Maximum allowed duration is 3:00 minutes.`,
+              description: `Video duration is ${minutes}:${seconds
+                .toString()
+                .padStart(2, "0")}. Maximum allowed duration is 3:00 minutes.`,
               variant: "destructive",
             });
             continue;
@@ -254,7 +267,7 @@ export function CreatePostDialog({
           blurhash,
           dimensions: `${dimensions.width}x${dimensions.height}`,
           alt: file.name,
-          type: isImage ? 'image' : 'video',
+          type: isImage ? "image" : "video",
           duration,
           thumbnail,
         });
@@ -265,16 +278,21 @@ export function CreatePostDialog({
       setMedia((prev) => [...prev, ...newMedia]);
 
       toast({
-        title: `${postType === 'image' ? 'Images' : 'Short vertical videos'} uploaded!`,
-        description: `${newMedia.length} ${postType === 'image' ? 'image' : 'short vertical video'}${newMedia.length !== 1 ? 's' : ''} uploaded successfully`,
+        title: `${
+          postType === "image" ? "Images" : "Short vertical videos"
+        } uploaded!`,
+        description: `${newMedia.length} ${
+          postType === "image" ? "image" : "short vertical video"
+        }${newMedia.length !== 1 ? "s" : ""} uploaded successfully`,
       });
     } catch (error) {
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: postType === 'video'
-          ? "Failed to upload short vertical videos. Please ensure they are vertical orientation and under 3 minutes."
-          : `Failed to upload ${postType}s. Please try again.`,
+        description:
+          postType === "video"
+            ? "Failed to upload short vertical videos. Please ensure they are vertical orientation and under 3 minutes."
+            : `Failed to upload ${postType}s. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -296,9 +314,10 @@ export function CreatePostDialog({
     if (!user || media.length === 0 || !content.trim()) {
       toast({
         title: "Missing required fields",
-        description: postType === 'video'
-          ? "Please add a description and at least one short vertical video"
-          : `Please add a description and at least one ${postType}`,
+        description:
+          postType === "video"
+            ? "Please add a description and at least one short vertical video"
+            : `Please add a description and at least one ${postType}`,
         variant: "destructive",
       });
       return;
@@ -308,9 +327,11 @@ export function CreatePostDialog({
       const tags: string[][] = [];
 
       // Add title tag (required for NIP-71 kind 22 videos)
-      if (postType === 'video') {
+      if (postType === "video") {
         // Use first line of content as title, or generate one
-        const title = content.split('\n')[0].trim() || `Short Video by ${user.pubkey.slice(0, 8)}`;
+        const title =
+          content.split("\n")[0].trim() ||
+          `Short Video by ${user.pubkey.slice(0, 8)}`;
         tags.push(["title", title]);
       }
 
@@ -320,7 +341,7 @@ export function CreatePostDialog({
       });
 
       // Add duration for videos
-      if (postType === 'video' && media[0].duration) {
+      if (postType === "video" && media[0].duration) {
         tags.push(["duration", media[0].duration.toString()]);
       }
 
@@ -353,7 +374,7 @@ export function CreatePostDialog({
 
       // Determine event kind based on post type
       let kind: number;
-      if (postType === 'image') {
+      if (postType === "image") {
         kind = 20; // NIP-68 image events
       } else {
         // For videos, always use kind 22 (short vertical videos)
@@ -380,9 +401,10 @@ export function CreatePostDialog({
 
       toast({
         title: "Post created!",
-        description: postType === 'video' 
-          ? "Your short vertical video has been published"
-          : `Your ${postType} post has been published`,
+        description:
+          postType === "video"
+            ? "Your short vertical video has been published"
+            : `Your ${postType} post has been published`,
       });
     } catch (error) {
       console.error("Create post error:", error);
@@ -478,12 +500,15 @@ export function CreatePostDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            {postType === 'image' ? (
+            {postType === "image" ? (
               <ImageIcon className="h-5 w-5 text-primary" />
             ) : (
               <Video className="h-5 w-5 text-primary" />
             )}
-            <span>Create {postType === 'image' ? 'Image' : 'Short Vertical Video'} Post</span>
+            <span>
+              Create {postType === "image" ? "Image" : "Short Vertical Video"}{" "}
+              Post
+            </span>
           </DialogTitle>
         </DialogHeader>
 
@@ -491,16 +516,25 @@ export function CreatePostDialog({
           {/* Post Type Selector */}
           <div className="space-y-2">
             <Label>Post Type</Label>
-            <Tabs value={postType} onValueChange={(value) => {
-              setPostType(value as 'image' | 'video');
-              setMedia([]); // Clear media when switching types
-            }}>
+            <Tabs
+              value={postType}
+              onValueChange={(value) => {
+                setPostType(value as "image" | "video");
+                setMedia([]); // Clear media when switching types
+              }}
+            >
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="image" className="flex items-center space-x-2">
+                <TabsTrigger
+                  value="image"
+                  className="flex items-center space-x-2"
+                >
                   <ImageIcon className="h-4 w-4" />
                   <span>Images</span>
                 </TabsTrigger>
-                <TabsTrigger value="video" className="flex items-center space-x-2">
+                <TabsTrigger
+                  value="video"
+                  className="flex items-center space-x-2"
+                >
                   <Video className="h-4 w-4" />
                   <span>Short Vertical Videos</span>
                 </TabsTrigger>
@@ -509,7 +543,7 @@ export function CreatePostDialog({
           </div>
 
           {/* Video Requirements Info */}
-          {postType === 'video' && (
+          {postType === "video" && (
             <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
               <div className="flex items-center space-x-2">
                 <Video className="h-5 w-5 text-primary" />
@@ -518,7 +552,9 @@ export function CreatePostDialog({
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-primary rounded-full"></div>
-                  <span>Must be vertical/portrait orientation (height &gt; width)</span>
+                  <span>
+                    Must be vertical/portrait orientation (height &gt; width)
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-primary rounded-full"></div>
@@ -529,21 +565,20 @@ export function CreatePostDialog({
                   <span>Supported formats: MP4, WebM, MOV</span>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground italic">
-                Videos will be published as NIP-71 Kind 22 (Short Video) events
-              </p>
             </div>
           )}
 
           {/* Media Upload */}
           <div className="space-y-4">
-            <Label>{postType === 'image' ? 'Images' : 'Short Vertical Videos'} *</Label>
+            <Label>
+              {postType === "image" ? "Images" : "Short Vertical Videos"} *
+            </Label>
 
             {media.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {media.map((item, index) => (
                   <div key={index} className="relative group">
-                    {item.type === 'image' ? (
+                    {item.type === "image" ? (
                       <img
                         src={item.preview}
                         alt={`Upload ${index + 1}`}
@@ -562,7 +597,10 @@ export function CreatePostDialog({
                         </div>
                         {item.duration && (
                           <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                            {Math.floor(item.duration / 60)}:{Math.round(item.duration % 60).toString().padStart(2, '0')}
+                            {Math.floor(item.duration / 60)}:
+                            {Math.round(item.duration % 60)
+                              .toString()
+                              .padStart(2, "0")}
                           </div>
                         )}
                       </div>
@@ -590,13 +628,18 @@ export function CreatePostDialog({
                 <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
                 <div>
                   <p className="font-medium">
-                    {isUploading ? "Uploading..." : `Upload ${postType === 'image' ? 'Images' : 'Short Vertical Videos'}`}
+                    {isUploading
+                      ? "Uploading..."
+                      : `Upload ${
+                          postType === "image"
+                            ? "Images"
+                            : "Short Vertical Videos"
+                        }`}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {postType === 'image' 
-                      ? 'Click to select multiple images'
-                      : 'Click to select vertical videos (max 3 minutes each)'
-                    }
+                    {postType === "image"
+                      ? "Click to select multiple images"
+                      : "Click to select vertical videos (max 3 minutes each)"}
                   </p>
                 </div>
               </div>
@@ -609,7 +652,7 @@ export function CreatePostDialog({
             <input
               ref={fileInputRef}
               type="file"
-              accept={postType === 'image' ? 'image/*' : 'video/*'}
+              accept={postType === "image" ? "image/*" : "video/*"}
               multiple
               className="hidden"
               onChange={(e) => handleFileSelect(e.target.files)}
@@ -621,7 +664,9 @@ export function CreatePostDialog({
             <Label htmlFor="content">Description *</Label>
             <Textarea
               id="content"
-              placeholder={`Tell us about your ${postType === 'image' ? 'images' : 'short vertical videos'}...`}
+              placeholder={`What's zappening with your ${
+                postType === "image" ? "images" : "short videos"
+              }...`}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="min-h-[100px]"

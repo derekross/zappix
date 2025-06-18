@@ -14,8 +14,8 @@ This client uses NIP-51 bookmark sets (kind 30003) for storing user bookmarks, s
   "content": "",
   "tags": [
     ["d", "nip-68-posts"],
-    ["title", "Bookmarked Posts"],
-    ["description", "Posts bookmarked from this application"],
+    ["title", "NIP-68 Image Bookmarks"],
+    ["description", "Images bookmarked from Zappix"],
     ["e", "event_id_1"],
     ["e", "event_id_2"]
   ]
@@ -23,11 +23,13 @@ This client uses NIP-51 bookmark sets (kind 30003) for storing user bookmarks, s
 ```
 
 **Required Tags:**
+
 - `d`: Must be "nip-68-posts" to identify this application's bookmark set
 - `title`: Human-readable title for the bookmark set
 - `description`: Description of what this bookmark set contains
 
 **Event References:**
+
 - `e` tags: Reference bookmarked events by their event ID
 - Only kind 20 (image posts) events are displayed in the bookmarks page
 
@@ -66,6 +68,7 @@ When users upload videos, this client publishes:
 - **Kind 22**: Short-form portrait video events (NIP-71 compliant)
 
 All uploaded videos are published as kind 22 events with:
+
 - Required `title` tag (auto-generated from description or user content)
 - `imeta` tags for video metadata including URL, MIME type, dimensions
 - `duration` tag with video length in seconds
@@ -96,6 +99,7 @@ Legacy vertical video events (kind 34236) use a simpler format:
 ```
 
 **Validation Rules for Kind 34236:**
+
 - Must contain a video URL (`.mp4`, `.webm`, or `.mov`) in either:
   - The `content` field, or
   - A `url` tag

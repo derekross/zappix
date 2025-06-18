@@ -45,9 +45,6 @@ export function UserProfileView({ onEditClick }: UserProfileViewProps) {
             <User className="h-6 w-6" />
             <span>Your Profile</span>
           </h2>
-          <p className="text-muted-foreground">
-            Your Nostr profile information
-          </p>
         </div>
         {onEditClick && (
           <Button

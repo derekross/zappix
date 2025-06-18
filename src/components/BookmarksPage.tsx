@@ -1,6 +1,10 @@
-import { useState } from 'react';
-import { useSeoMeta } from '@unhead/react';
-import { useBookmarks, useBookmarkList, useCreateInitialBookmarkList } from "@/hooks/useBookmarks";
+import { useState } from "react";
+import { useSeoMeta } from "@unhead/react";
+import {
+  useBookmarks,
+  useBookmarkList,
+  useCreateInitialBookmarkList,
+} from "@/hooks/useBookmarks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { ImagePost } from "./ImagePost";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,18 +40,19 @@ function BookmarksContent() {
   const { user } = useCurrentUser();
   const bookmarks = useBookmarks();
   const bookmarkList = useBookmarkList();
-  const { mutate: createInitialBookmarkList, isPending: isCreatingList } = useCreateInitialBookmarkList();
+  const { mutate: createInitialBookmarkList, isPending: isCreatingList } =
+    useCreateInitialBookmarkList();
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
 
   // Debug logging
-  console.log('BookmarksContent Debug:', {
+  console.log("BookmarksContent Debug:", {
     userPubkey: user?.pubkey,
     isLoading: bookmarks.isLoading,
     error: bookmarks.error,
     dataLength: bookmarks.data?.length,
     data: bookmarks.data,
     hasBookmarkList: !!bookmarkList.data,
-    bookmarkListLoading: bookmarkList.isLoading
+    bookmarkListLoading: bookmarkList.isLoading,
   });
 
   const handleHashtagClick = (hashtag: string) => {
@@ -126,10 +131,7 @@ function BookmarksContent() {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
-          <Button
-            variant="outline"
-            onClick={handleBackToBookmarks}
-          >
+          <Button variant="outline" onClick={handleBackToBookmarks}>
             Back to Bookmarks
           </Button>
           <div>
@@ -158,7 +160,6 @@ function BookmarksContent() {
           <Bookmark className="h-6 w-6 text-primary" />
           <span>Your Bookmarks</span>
         </h2>
-        <p className="text-muted-foreground">Your saved image posts</p>
       </div>
 
       {!bookmarks.data || bookmarks.data.length === 0 ? (
@@ -169,13 +170,12 @@ function BookmarksContent() {
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">No Bookmarks Yet</h3>
                 <p className="text-muted-foreground">
-                  {!bookmarkList.data && !bookmarkList.isLoading 
+                  {!bookmarkList.data && !bookmarkList.isLoading
                     ? "You don't have a bookmark set yet. Create one to start bookmarking posts."
-                    : "Start bookmarking image posts to see them here"
-                  }
+                    : "Start bookmarking image posts to see them here"}
                 </p>
                 {!bookmarkList.data && !bookmarkList.isLoading && (
-                  <Button 
+                  <Button
                     onClick={handleCreateBookmarkList}
                     disabled={isCreatingList}
                     className="mt-4"
@@ -197,21 +197,22 @@ function BookmarksContent() {
       ) : (
         <div className="space-y-6">
           <div className="text-center space-y-2">
-            <h3 className="text-lg font-semibold">Bookmarks (Kind 30003)</h3>
-            <p className="text-muted-foreground">
-              Your bookmark set "nip-68-posts" - {bookmarks.data.length} item{bookmarks.data.length !== 1 ? 's' : ''}
-            </p>
             {bookmarks.data.length > 0 && (
               <>
-                <div className="text-xs text-muted-foreground">
-                  Event kinds: {bookmarks.data.map(e => e.kind).join(', ')}
-                </div>
                 {bookmarkList.data && (
                   <div className="text-xs text-muted-foreground">
-                    Total bookmarks in set: {bookmarkList.data.tags.filter(([name]) => name === 'e').length}
-                    {bookmarkList.data.tags.filter(([name]) => name === 'e').length > bookmarks.data.length && (
+                    Total bookmarks in set:{" "}
+                    {
+                      bookmarkList.data.tags.filter(([name]) => name === "e")
+                        .length
+                    }
+                    {bookmarkList.data.tags.filter(([name]) => name === "e")
+                      .length > bookmarks.data.length && (
                       <span className="text-orange-600 ml-2">
-                        ({bookmarkList.data.tags.filter(([name]) => name === 'e').length - bookmarks.data.length} not found on current relays)
+                        (
+                        {bookmarkList.data.tags.filter(([name]) => name === "e")
+                          .length - bookmarks.data.length}{" "}
+                        not found on current relays)
                       </span>
                     )}
                   </div>
@@ -223,9 +224,9 @@ function BookmarksContent() {
             // For now, try to render all events, but handle different kinds appropriately
             if (post.kind === 20) {
               return (
-                <ImagePost 
-                  key={post.id} 
-                  event={post} 
+                <ImagePost
+                  key={post.id}
+                  event={post}
                   onHashtagClick={handleHashtagClick}
                 />
               );
@@ -236,13 +237,17 @@ function BookmarksContent() {
                   <CardContent className="p-4">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Kind {post.kind} Event</span>
+                        <span className="text-sm font-medium">
+                          Kind {post.kind} Event
+                        </span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(post.created_at * 1000).toLocaleDateString()}
+                          {new Date(
+                            post.created_at * 1000
+                          ).toLocaleDateString()}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {post.content || 'No content'}
+                        {post.content || "No content"}
                       </p>
                       <div className="text-xs text-muted-foreground">
                         ID: {post.id.slice(0, 16)}...
@@ -261,8 +266,8 @@ function BookmarksContent() {
 
 export function BookmarksPage() {
   useSeoMeta({
-    title: 'Your Bookmarks - Zappix',
-    description: 'View your saved image posts on Zappix.',
+    title: "Your Bookmarks - Zappix",
+    description: "View your saved image posts on Zappix.",
   });
 
   return (

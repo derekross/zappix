@@ -22,7 +22,6 @@ import { CreatePostDialog } from "./CreatePostDialog";
 
 import { SettingsPage } from "./SettingsPage";
 
-
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
@@ -40,8 +39,6 @@ export function MainLayout({ children }: MainLayoutProps) {
   const [showCreatePost, setShowCreatePost] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false);
-
-
 
   const { user } = useCurrentUser();
   const isMobile = useIsMobile();
@@ -302,8 +299,6 @@ export function MainLayout({ children }: MainLayoutProps) {
     );
   }
 
-
-
   // If children are provided, render them in the main content area
   if (children) {
     return (
@@ -535,12 +530,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsList>
 
                     <TabsContent value="global" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Global Feed</h2>
-                        <p className="text-muted-foreground">
-                          Latest image posts from all relays
-                        </p>
-                      </div>
                       <ImageFeed
                         feedType="global"
                         onHashtagClick={handleHashtagClick}
@@ -549,12 +538,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Following Feed</h2>
-                        <p className="text-muted-foreground">
-                          Latest image posts from people you follow
-                        </p>
-                      </div>
                       <ImageFeed
                         feedType="following"
                         onHashtagClick={handleHashtagClick}
@@ -588,12 +571,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsList>
 
                     <TabsContent value="global" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Global Flix</h2>
-                        <p className="text-muted-foreground">
-                          Latest vertical videos from all relays - TikTok-style feed
-                        </p>
-                      </div>
                       <VideoFeed
                         feedType="global"
                         onHashtagClick={handleHashtagClick}
@@ -602,12 +579,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Following Flix</h2>
-                        <p className="text-muted-foreground">
-                          Latest vertical videos from people you follow
-                        </p>
-                      </div>
                       <VideoFeed
                         feedType="following"
                         onHashtagClick={handleHashtagClick}
@@ -906,7 +877,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                       <div className="text-center space-y-2">
                         <h2 className="text-2xl font-bold mb-2">Global Flix</h2>
                         <p className="text-muted-foreground">
-                          Latest vertical videos from all relays - TikTok-style feed
+                          Latest vertical videos from all relays - TikTok-style
+                          feed
                         </p>
                       </div>
                       <VideoFeed
@@ -918,7 +890,9 @@ export function MainLayout({ children }: MainLayoutProps) {
 
                     <TabsContent value="following" className="space-y-6">
                       <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold mb-2">Following Flix</h2>
+                        <h2 className="text-2xl font-bold mb-2">
+                          Following Flix
+                        </h2>
                         <p className="text-muted-foreground">
                           Latest vertical videos from people you follow
                         </p>

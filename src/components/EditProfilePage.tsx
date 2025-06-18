@@ -1,11 +1,11 @@
-import { Settings, User, ArrowLeft } from 'lucide-react';
-import { useSeoMeta } from '@unhead/react';
-import { useNavigate } from 'react-router-dom';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { EditProfileForm } from './EditProfileForm';
-import { MainLayout } from './MainLayout';
+import { Settings, User, ArrowLeft } from "lucide-react";
+import { useSeoMeta } from "@unhead/react";
+import { useNavigate } from "react-router-dom";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { EditProfileForm } from "./EditProfileForm";
+import { MainLayout } from "./MainLayout";
 
 interface EditProfilePageProps {
   onBackClick?: () => void;
@@ -16,12 +16,12 @@ export function EditProfilePage({ onBackClick }: EditProfilePageProps) {
   const navigate = useNavigate();
 
   useSeoMeta({
-    title: 'Edit Profile - Zappix',
-    description: 'Edit your Nostr profile information on Zappix.',
+    title: "Edit Profile - Zappix",
+    description: "Edit your Nostr profile information on Zappix.",
   });
 
-  const handleBackClick = onBackClick || (() => navigate('/profile'));
-  
+  const handleBackClick = onBackClick || (() => navigate("/profile"));
+
   if (!user) {
     return (
       <Card className="border-dashed">
@@ -58,13 +58,10 @@ export function EditProfilePage({ onBackClick }: EditProfilePageProps) {
               <Settings className="h-6 w-6" />
               <span>Edit Profile</span>
             </h2>
-            <p className="text-muted-foreground">
-              Update your Nostr profile information
-            </p>
           </div>
         </div>
       </div>
-      
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
