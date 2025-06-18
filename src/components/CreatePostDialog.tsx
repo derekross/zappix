@@ -115,23 +115,45 @@ export function CreatePostDialog({
 
       video.onloadedmetadata = () => {
         try {
-          // Basic metadata without thumbnail for now to avoid segfault
+          // Ensure we have valid dimensions
+          const width = video.videoWidth;
+          const height = video.videoHeight;
+          const duration = video.duration;
+
+          // Validate that we got actual metadata
+          if (!width || !height || width <= 0 || height <= 0) {
+            reject(new Error("Could not determine video dimensions"));
+            return;
+          }
+
+          if (isNaN(duration) || duration <= 0) {
+            reject(new Error("Could not determine video duration"));
+            return;
+          }
+
           resolve({
-            width: video.videoWidth || 1920,
-            height: video.videoHeight || 1080,
-            duration: Math.round(video.duration) || 0,
+            width,
+            height,
+            duration: Math.round(duration),
           });
         } catch (error) {
           reject(error);
+        } finally {
+          // Clean up the object URL
+          URL.revokeObjectURL(video.src);
         }
       };
 
-      video.onerror = () => reject(new Error("Failed to load video"));
+      video.onerror = () => {
+        URL.revokeObjectURL(video.src);
+        reject(new Error("Failed to load video"));
+      };
 
-      // Timeout after 5 seconds
+      // Timeout after 10 seconds (increased from 5)
       setTimeout(() => {
+        URL.revokeObjectURL(video.src);
         reject(new Error("Video metadata loading timeout"));
-      }, 5000);
+      }, 10000);
     });
   };
 
@@ -174,6 +196,26 @@ export function CreatePostDialog({
           continue;
         }
 
+        // Additional validation for video file types
+        if (isVideo) {
+          const supportedVideoTypes = [
+            'video/mp4',
+            'video/webm', 
+            'video/quicktime', // .mov files
+            'video/x-msvideo', // .avi files
+            'video/ogg'
+          ];
+          
+          if (!supportedVideoTypes.includes(file.type)) {
+            toast({
+              title: "Unsupported video format",
+              description: `File type "${file.type}" is not supported. Please use MP4, WebM, or MOV format.`,
+              variant: "destructive",
+            });
+            continue;
+          }
+        }
+
         // Create preview URL
         const preview = URL.createObjectURL(file);
 
@@ -197,34 +239,52 @@ export function CreatePostDialog({
           );
         } else {
           // Get video metadata
-          const videoMeta = await getVideoMetadata(file);
-          dimensions = { width: videoMeta.width, height: videoMeta.height };
-          duration = videoMeta.duration;
-          thumbnail = videoMeta.thumbnail;
+          try {
+            const videoMeta = await getVideoMetadata(file);
+            dimensions = { width: videoMeta.width, height: videoMeta.height };
+            duration = videoMeta.duration;
+            thumbnail = videoMeta.thumbnail;
 
-          // Enforce short vertical video restrictions
-          const maxDurationSeconds = 3 * 60; // 3 minutes = 180 seconds
+            // Enforce short vertical video restrictions
+            const maxDurationSeconds = 3 * 60; // 3 minutes = 180 seconds
 
-          // Check if video is vertical (height > width)
-          if (videoMeta.height <= videoMeta.width) {
-            toast({
-              title: "Invalid video orientation",
-              description:
-                "Only vertical videos (portrait orientation) are allowed. Please upload a vertical video.",
-              variant: "destructive",
+            console.log(`Video metadata for ${file.name}:`, {
+              width: videoMeta.width,
+              height: videoMeta.height,
+              duration: videoMeta.duration,
+              isVertical: videoMeta.height > videoMeta.width,
+              aspectRatio: (videoMeta.height / videoMeta.width).toFixed(2)
             });
-            continue;
-          }
 
-          // Check if video duration is within limit
-          if (videoMeta.duration > maxDurationSeconds) {
-            const minutes = Math.floor(videoMeta.duration / 60);
-            const seconds = Math.round(videoMeta.duration % 60);
+            // Check if video is vertical (height > width)
+            if (videoMeta.height <= videoMeta.width) {
+              const aspectRatio = (videoMeta.width / videoMeta.height).toFixed(2);
+              toast({
+                title: "Invalid video orientation",
+                description: `Video must be vertical (portrait). Current aspect ratio: ${aspectRatio}:1 (landscape). Please upload a vertical video where height > width.`,
+                variant: "destructive",
+              });
+              continue;
+            }
+
+            // Check if video duration is within limit
+            if (videoMeta.duration > maxDurationSeconds) {
+              const minutes = Math.floor(videoMeta.duration / 60);
+              const seconds = Math.round(videoMeta.duration % 60);
+              toast({
+                title: "Video too long",
+                description: `Video duration is ${minutes}:${seconds
+                  .toString()
+                  .padStart(2, "0")}. Maximum allowed duration is 3:00 minutes.`,
+                variant: "destructive",
+              });
+              continue;
+            }
+          } catch (metadataError) {
+            console.error("Failed to get video metadata:", metadataError);
             toast({
-              title: "Video too long",
-              description: `Video duration is ${minutes}:${seconds
-                .toString()
-                .padStart(2, "0")}. Maximum allowed duration is 3:00 minutes.`,
+              title: "Video processing failed",
+              description: `Could not process video "${file.name}". Please ensure it's a valid video file.`,
               variant: "destructive",
             });
             continue;
@@ -287,12 +347,13 @@ export function CreatePostDialog({
       });
     } catch (error) {
       console.error("Upload error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
       toast({
         title: "Upload failed",
         description:
           postType === "video"
-            ? "Failed to upload short vertical videos. Please ensure they are vertical orientation and under 3 minutes."
-            : `Failed to upload ${postType}s. Please try again.`,
+            ? `Failed to upload short vertical videos: ${errorMessage}. Please ensure they are vertical orientation and under 3 minutes.`
+            : `Failed to upload ${postType}s: ${errorMessage}. Please try again.`,
         variant: "destructive",
       });
     } finally {
