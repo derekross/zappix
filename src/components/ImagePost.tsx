@@ -98,7 +98,21 @@ export function ImagePost({
       const dimPart = tag.find((part) => part.startsWith("dim "));
       const dimensions = dimPart?.replace("dim ", "");
 
-      return { url, alt, dimensions };
+      // Parse dimensions to calculate aspect ratio
+      let aspectRatio = 4/3; // Default fallback
+      let width = 0;
+      let height = 0;
+      
+      if (dimensions) {
+        const [w, h] = dimensions.split('x').map(Number);
+        if (w && h && w > 0 && h > 0) {
+          width = w;
+          height = h;
+          aspectRatio = w / h;
+        }
+      }
+
+      return { url, alt, dimensions, aspectRatio, width, height };
     })
     .filter((img) => img.url);
 
@@ -118,6 +132,40 @@ export function ImagePost({
 
   // Create npub for linking to the user profile
   const npub = nip19.npubEncode(event.pubkey);
+
+  // Helper function to get container styles based on aspect ratio
+  const getImageContainerStyle = (aspectRatio: number) => {
+    // For very wide images (panoramic), limit height
+    if (aspectRatio > 2.5) {
+      return "h-[300px] w-full";
+    }
+    // For very tall images (portrait), limit height
+    if (aspectRatio < 0.6) {
+      return "h-[600px] w-full";
+    }
+    // For normal aspect ratios, use the actual ratio with a max height
+    return `max-h-[500px] w-full`;
+  };
+
+  // Helper function to get aspect ratio class
+  const getAspectRatioClass = (aspectRatio: number) => {
+    // For very wide or very tall images, don't use aspect ratio (use height limits instead)
+    if (aspectRatio > 2.5 || aspectRatio < 0.6) {
+      return "";
+    }
+    
+    // For common aspect ratios, use Tailwind classes
+    if (Math.abs(aspectRatio - 1) < 0.1) return "aspect-square";
+    if (Math.abs(aspectRatio - 4/3) < 0.1) return "aspect-[4/3]";
+    if (Math.abs(aspectRatio - 3/2) < 0.1) return "aspect-[3/2]";
+    if (Math.abs(aspectRatio - 16/9) < 0.1) return "aspect-video";
+    if (Math.abs(aspectRatio - 3/4) < 0.1) return "aspect-[3/4]";
+    if (Math.abs(aspectRatio - 2/3) < 0.1) return "aspect-[2/3]";
+    
+    // For other ratios, calculate a custom aspect ratio
+    const ratio = Math.round(aspectRatio * 100) / 100;
+    return `aspect-[${Math.round(ratio * 100)}/100]`;
+  };
 
   // Handle carousel slide changes
   useEffect(() => {
@@ -249,10 +297,14 @@ export function ImagePost({
 
         {/* Images */}
         {images.length === 1 ? (
-          // Single image - display as before
+          // Single image - display with dynamic aspect ratio
           <div className="relative">
             <div
-              className="relative aspect-[4/3] max-h-[500px] overflow-hidden cursor-pointer group"
+              className={cn(
+                "relative overflow-hidden cursor-pointer group",
+                getAspectRatioClass(images[0].aspectRatio),
+                getImageContainerStyle(images[0].aspectRatio)
+              )}
               onClick={handleImageClick}
             >
               <img
@@ -302,7 +354,11 @@ export function ImagePost({
                 {images.map((image, index) => (
                   <CarouselItem key={index}>
                     <div
-                      className="relative aspect-[4/3] max-h-[500px] overflow-hidden cursor-pointer group"
+                      className={cn(
+                        "relative overflow-hidden cursor-pointer group",
+                        getAspectRatioClass(image.aspectRatio),
+                        getImageContainerStyle(image.aspectRatio)
+                      )}
                       onClick={handleImageClick}
                     >
                       <img

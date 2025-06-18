@@ -35,6 +35,34 @@ const mockEventMultipleImages: NostrEvent = {
   sig: 'test-signature',
 };
 
+const mockEventWithDimensions: NostrEvent = {
+  id: 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+  pubkey: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+  created_at: Math.floor(Date.now() / 1000),
+  kind: 20,
+  content: 'Test image post with dimensions',
+  tags: [
+    ['title', 'Portrait Image'],
+    ['imeta', 'url https://example.com/portrait.jpg', 'alt Portrait image', 'dim 600x800'],
+    ['t', 'portrait'],
+  ],
+  sig: 'test-signature',
+};
+
+const mockEventWideImage: NostrEvent = {
+  id: 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+  pubkey: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+  created_at: Math.floor(Date.now() / 1000),
+  kind: 20,
+  content: 'Test panoramic image',
+  tags: [
+    ['title', 'Panoramic Image'],
+    ['imeta', 'url https://example.com/panoramic.jpg', 'alt Panoramic image', 'dim 1600x400'],
+    ['t', 'landscape'],
+  ],
+  sig: 'test-signature',
+};
+
 describe('ImagePost', () => {
   it('renders hashtag badges as clickable when onHashtagClick is provided', () => {
     const mockHashtagClick = vi.fn();
@@ -204,5 +232,43 @@ describe('ImagePost', () => {
     expect(screen.getByText('Swift Falcon')).toBeInTheDocument(); // Generated name from genUserName
     expect(screen.getByText('S')).toBeInTheDocument(); // Avatar fallback letter
     expect(screen.getByText(new Date(mockEventMultipleImages.created_at * 1000).toLocaleDateString())).toBeInTheDocument();
+  });
+
+  it('applies correct aspect ratio classes for portrait images', () => {
+    const { container } = render(
+      <TestApp>
+        <ImagePost event={mockEventWithDimensions} />
+      </TestApp>
+    );
+
+    // Check that the image container has the correct aspect ratio class for portrait (3/4 ratio)
+    const imageContainer = container.querySelector('div[class*="aspect-"]');
+    expect(imageContainer).toBeInTheDocument();
+    expect(imageContainer?.className).toMatch(/aspect-\[3\/4\]/);
+  });
+
+  it('applies height limits for very wide panoramic images', () => {
+    const { container } = render(
+      <TestApp>
+        <ImagePost event={mockEventWideImage} />
+      </TestApp>
+    );
+
+    // Check that very wide images get height limits instead of aspect ratio
+    const imageContainer = container.querySelector('div[class*="h-[300px]"]');
+    expect(imageContainer).toBeInTheDocument();
+  });
+
+  it('falls back to default aspect ratio when no dimensions are provided', () => {
+    const { container } = render(
+      <TestApp>
+        <ImagePost event={mockEvent} />
+      </TestApp>
+    );
+
+    // Check that images without dimensions get the default 4/3 aspect ratio
+    const imageContainer = container.querySelector('div[class*="aspect-"]');
+    expect(imageContainer).toBeInTheDocument();
+    expect(imageContainer?.className).toMatch(/aspect-\[4\/3\]/);
   });
 });

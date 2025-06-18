@@ -34,8 +34,19 @@ function ImageGridItem({ event }: { event: NostrEvent }) {
     const url = urlPart?.replace('url ', '');
     const altPart = tag.find(part => part.startsWith('alt '));
     const alt = altPart?.replace('alt ', '');
+    const dimPart = tag.find(part => part.startsWith('dim '));
+    const dimensions = dimPart?.replace('dim ', '');
+
+    // Parse dimensions to calculate aspect ratio
+    let aspectRatio = 1; // Default to square
+    if (dimensions) {
+      const [w, h] = dimensions.split('x').map(Number);
+      if (w && h && w > 0 && h > 0) {
+        aspectRatio = w / h;
+      }
+    }
     
-    return { url, alt };
+    return { url, alt, aspectRatio };
   }).filter(img => img.url);
 
   if (images.length === 0) return null;
@@ -54,15 +65,22 @@ function ImageGridItem({ event }: { event: NostrEvent }) {
     navigate(`/${nevent}`);
   };
 
+  // Determine if image should use object-contain (for very non-square images)
+  const isVeryNonSquare = firstImage.aspectRatio < 0.7 || firstImage.aspectRatio > 1.4;
+  const objectFit = isVeryNonSquare ? 'object-contain' : 'object-cover';
+
   return (
     <div 
-      className="relative aspect-square overflow-hidden rounded-md cursor-pointer group"
+      className="relative aspect-square overflow-hidden rounded-md cursor-pointer group bg-muted"
       onClick={handleClick}
     >
       <img
         src={firstImage.url}
         alt={firstImage.alt || title}
-        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+        className={cn(
+          "w-full h-full transition-transform duration-200 group-hover:scale-105",
+          objectFit
+        )}
         loading="lazy"
       />
       {/* Overlay on hover */}
