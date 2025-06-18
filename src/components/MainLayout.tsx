@@ -8,6 +8,7 @@ import {
   Plus,
   Hash,
   MapPin,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -15,6 +16,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoginArea } from "@/components/auth/LoginArea";
 import { ImageFeed } from "./ImageFeed";
+import { VideoFeed } from "./VideoFeed";
 import { HashtagGrid } from "./HashtagGrid";
 import { CreatePostDialog } from "./CreatePostDialog";
 
@@ -67,6 +69,11 @@ export function MainLayout({ children }: MainLayoutProps) {
         setSelectedHashtag(null);
         setSelectedLocation(null);
         break;
+      case "/videos":
+        setActiveMainTab("videos");
+        setSelectedHashtag(null);
+        setSelectedLocation(null);
+        break;
       case "/discover":
         setActiveMainTab("discover");
         setSelectedHashtag(null);
@@ -84,6 +91,12 @@ export function MainLayout({ children }: MainLayoutProps) {
       case "home":
         navigate("/home");
         setActiveMainTab("home");
+        setSelectedHashtag(null);
+        setSelectedLocation(null);
+        break;
+      case "videos":
+        navigate("/videos");
+        setActiveMainTab("videos");
         setSelectedHashtag(null);
         setSelectedLocation(null);
         break;
@@ -230,6 +243,17 @@ export function MainLayout({ children }: MainLayoutProps) {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowSettings(false);
+                      navigate("/videos");
+                    }}
+                  >
+                    <Video className="mr-2 h-4 w-4" />
+                    Videos
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setShowSettings(false);
                       navigate("/discover");
                     }}
                   >
@@ -319,6 +343,16 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => navigate("/videos")}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <Video className="h-5 w-5" />
+                  <span className="text-xs">Videos</span>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => navigate("/discover")}
                   className="flex flex-col items-center gap-1"
                 >
@@ -377,6 +411,14 @@ export function MainLayout({ children }: MainLayoutProps) {
                   >
                     <Home className="mr-2 h-4 w-4" />
                     Home
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => navigate("/videos")}
+                  >
+                    <Video className="mr-2 h-4 w-4" />
+                    Videos
                   </Button>
                   <Button
                     variant="ghost"
@@ -521,6 +563,20 @@ export function MainLayout({ children }: MainLayoutProps) {
                   </Tabs>
                 </TabsContent>
 
+                <TabsContent value="videos" className="space-y-6">
+                  <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-bold">Vertical Videos</h2>
+                    <p className="text-muted-foreground">
+                      Latest short-form vertical videos from all relays
+                    </p>
+                  </div>
+                  <VideoFeed
+                    feedType="global"
+                    onHashtagClick={handleHashtagClick}
+                    onLocationClick={handleLocationClick}
+                  />
+                </TabsContent>
+
                 <TabsContent value="discover" className="space-y-6">
                   <div className="text-center space-y-2">
                     <h2 className="text-2xl font-bold">Discover</h2>
@@ -611,6 +667,16 @@ export function MainLayout({ children }: MainLayoutProps) {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => handleTabChange("videos")}
+                className="flex flex-col items-center gap-1"
+              >
+                <Video className="h-5 w-5" />
+                <span className="text-xs">Videos</span>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => handleTabChange("discover")}
                 className="flex flex-col items-center gap-1"
               >
@@ -669,6 +735,15 @@ export function MainLayout({ children }: MainLayoutProps) {
                 >
                   <Home className="mr-2 h-4 w-4" />
                   Home
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => handleTabChange("videos")}
+                >
+                  <Video className="mr-2 h-4 w-4" />
+                  Videos
                 </Button>
 
                 <Button
@@ -762,6 +837,20 @@ export function MainLayout({ children }: MainLayoutProps) {
                       />
                     </TabsContent>
                   </Tabs>
+                </TabsContent>
+
+                <TabsContent value="videos" className="space-y-6">
+                  <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-bold mb-2">Vertical Videos</h2>
+                    <p className="text-muted-foreground">
+                      Latest short-form vertical videos from all relays
+                    </p>
+                  </div>
+                  <VideoFeed
+                    feedType="global"
+                    onHashtagClick={handleHashtagClick}
+                    onLocationClick={handleLocationClick}
+                  />
                 </TabsContent>
 
                 <TabsContent value="discover" className="space-y-6">

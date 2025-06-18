@@ -1,11 +1,33 @@
 import { useSeoMeta } from '@unhead/react';
+import { useLocation } from 'react-router-dom';
 import { MainLayout } from "@/components/MainLayout";
 
 const Index = () => {
-  useSeoMeta({
-    title: 'Zappix - Social Image Sharing on Nostr',
-    description: 'Share and discover amazing images on the decentralized Nostr network. Built with React, TailwindCSS, and Nostrify.',
-  });
+  const location = useLocation();
+  
+  // Dynamic SEO based on the current route
+  const getSeoMeta = () => {
+    switch (location.pathname) {
+      case '/videos':
+        return {
+          title: 'Vertical Videos - Zappix',
+          description: 'Discover and share short-form vertical videos on the decentralized Nostr network. TikTok-style content on Web3.',
+        };
+      case '/discover':
+        return {
+          title: 'Discover - Zappix',
+          description: 'Explore trending hashtags and discover new content on the decentralized Nostr network.',
+        };
+      default:
+        return {
+          title: 'Zappix - Social Media on Nostr',
+          description: 'Share and discover amazing images and videos on the decentralized Nostr network. Built with React, TailwindCSS, and Nostrify.',
+        };
+    }
+  };
+
+  const seoMeta = getSeoMeta();
+  useSeoMeta(seoMeta);
 
   return <MainLayout key="main-layout" />;
 };

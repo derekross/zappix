@@ -15,12 +15,18 @@ export function AppRouter() {
       <Routes>
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Index />} />
+        <Route path="/videos" element={<Index />} />
         <Route path="/discover" element={<Index />} />
         <Route path="/location/:location" element={<Index />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/profile/edit" element={<EditProfilePage />} />
         <Route path="/bookmarks" element={<BookmarksPage />} />
-        <Route path="/:nip19Id" element={<PostPage />} />
+        <Route path="/404" element={<NotFound />} />
+        <Route path="/npub*" element={<PostPage />} />
+        <Route path="/note*" element={<PostPage />} />
+        <Route path="/nevent*" element={<PostPage />} />
+        <Route path="/naddr*" element={<PostPage />} />
+        <Route path="/nprofile*" element={<PostPage />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

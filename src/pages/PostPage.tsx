@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImagePost } from "@/components/ImagePost";
+import { VideoPost } from "@/components/VideoPost";
 import { ImagePostSkeleton } from "@/components/ImagePostSkeleton";
 import { MainLayout } from "@/components/MainLayout";
 
@@ -54,7 +55,7 @@ const PostPage = () => {
         [
           {
             ids: [decodedQuery.data.data.id],
-            kinds: [20],
+            kinds: [20, 22, 34236], // Support image and both video kinds
             limit: 1,
           },
         ],
@@ -88,11 +89,19 @@ const PostPage = () => {
           </CardContent>
         </Card>
       ) : (
-        <ImagePost
-          event={postQuery.data}
-          onHashtagClick={(hashtag) => navigate(`/hashtag/${hashtag}`)}
-          onLocationClick={handleLocationClick}
-        />
+        [22, 34236].includes(postQuery.data.kind) ? (
+          <VideoPost
+            event={postQuery.data}
+            onHashtagClick={(hashtag) => navigate(`/hashtag/${hashtag}`)}
+            onLocationClick={handleLocationClick}
+          />
+        ) : (
+          <ImagePost
+            event={postQuery.data}
+            onHashtagClick={(hashtag) => navigate(`/hashtag/${hashtag}`)}
+            onLocationClick={handleLocationClick}
+          />
+        )
       )}
     </div>
   );

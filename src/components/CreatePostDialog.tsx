@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Hash,
   Image as ImageIcon,
+  Video,
   MapPin,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -23,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/useToast";
 import { encode } from "blurhash";
 import { encode as encodeGeohash } from "ngeohash";
@@ -32,7 +34,7 @@ interface CreatePostDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface UploadedImage {
+interface UploadedMedia {
   file: File;
   url: string;
   tags: string[][];
@@ -40,6 +42,9 @@ interface UploadedImage {
   blurhash?: string;
   dimensions?: string;
   alt?: string;
+  type: 'image' | 'video';
+  duration?: number;
+  thumbnail?: string;
 }
 
 export function CreatePostDialog({
@@ -52,10 +57,12 @@ export function CreatePostDialog({
   const [geohash, setGeohash] = useState("");
   const [contentWarning, setContentWarning] = useState("");
   const [hasContentWarning, setHasContentWarning] = useState(false);
-  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [media, setMedia] = useState<UploadedMedia[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [postType, setPostType] = useState<'image' | 'video'>('image');
+  const [videoKind, setVideoKind] = useState<22 | 34236>(22);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useCurrentUser();
@@ -93,6 +100,35 @@ export function CreatePostDialog({
     });
   };
 
+  // Get video metadata
+  const getVideoMetadata = async (file: File): Promise<{ width: number; height: number; duration: number; thumbnail?: string }> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.src = URL.createObjectURL(file);
+      video.preload = "metadata";
+      
+      video.onloadedmetadata = () => {
+        try {
+          // Basic metadata without thumbnail for now to avoid segfault
+          resolve({
+            width: video.videoWidth || 1920,
+            height: video.videoHeight || 1080,
+            duration: Math.round(video.duration) || 0,
+          });
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      video.onerror = () => reject(new Error("Failed to load video"));
+      
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        reject(new Error("Video metadata loading timeout"));
+      }, 5000);
+    });
+  };
+
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
@@ -100,15 +136,27 @@ export function CreatePostDialog({
     setUploadProgress(0);
 
     try {
-      const newImages: UploadedImage[] = [];
+      const newMedia: UploadedMedia[] = [];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        const isImage = file.type.startsWith("image/");
+        const isVideo = file.type.startsWith("video/");
 
-        if (!file.type.startsWith("image/")) {
+        if (!isImage && !isVideo) {
           toast({
             title: "Invalid file type",
-            description: "Please select only image files",
+            description: "Please select only image or video files",
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        // Check if file type matches current post type
+        if ((postType === 'image' && !isImage) || (postType === 'video' && !isVideo)) {
+          toast({
+            title: "File type mismatch",
+            description: `Please select only ${postType} files for this post type`,
             variant: "destructive",
           });
           continue;
@@ -117,18 +165,41 @@ export function CreatePostDialog({
         // Create preview URL
         const preview = URL.createObjectURL(file);
 
-        // Generate blurhash
-        const blurhash = await generateBlurhash(file);
+        let dimensions: { width: number; height: number };
+        let duration: number | undefined;
+        let thumbnail: string | undefined;
+        let blurhash: string | undefined;
 
-        // Get image dimensions
-        const dimensions = await new Promise<{ width: number; height: number }>(
-          (resolve) => {
-            const img = new Image();
-            img.onload = () =>
-              resolve({ width: img.width, height: img.height });
-            img.src = preview;
+        if (isImage) {
+          // Generate blurhash for images
+          blurhash = await generateBlurhash(file);
+
+          // Get image dimensions
+          dimensions = await new Promise<{ width: number; height: number }>(
+            (resolve) => {
+              const img = new Image();
+              img.onload = () =>
+                resolve({ width: img.width, height: img.height });
+              img.src = preview;
+            }
+          );
+        } else {
+          // Get video metadata
+          const videoMeta = await getVideoMetadata(file);
+          dimensions = { width: videoMeta.width, height: videoMeta.height };
+          duration = videoMeta.duration;
+          thumbnail = videoMeta.thumbnail;
+
+          // Validate that video is vertical (height > width) for kind 22
+          if (videoMeta.height <= videoMeta.width) {
+            toast({
+              title: "Invalid video orientation",
+              description: "Only vertical videos (portrait orientation) are supported",
+              variant: "destructive",
+            });
+            continue;
           }
-        );
+        }
 
         // Upload file
         const tags = await uploadFile(file);
@@ -139,13 +210,24 @@ export function CreatePostDialog({
           "imeta",
           `url ${url}`,
           `m ${file.type}`,
-          `blurhash ${blurhash}`,
           `dim ${dimensions.width}x${dimensions.height}`,
           `alt ${file.name}`,
-          ...tags.slice(1).map((tag) => tag[1]), // Include any additional tags from uploadFile
         ];
 
-        newImages.push({
+        // Add blurhash for images
+        if (blurhash) {
+          imetaTag.push(`blurhash ${blurhash}`);
+        }
+
+        // Add thumbnail for videos (if available)
+        if (thumbnail) {
+          imetaTag.push(`image ${thumbnail}`);
+        }
+
+        // Include any additional tags from uploadFile
+        imetaTag.push(...tags.slice(1).map((tag) => tag[1]));
+
+        newMedia.push({
           file,
           url,
           tags: [imetaTag],
@@ -153,22 +235,25 @@ export function CreatePostDialog({
           blurhash,
           dimensions: `${dimensions.width}x${dimensions.height}`,
           alt: file.name,
+          type: isImage ? 'image' : 'video',
+          duration,
+          thumbnail,
         });
 
         setUploadProgress(((i + 1) / files.length) * 100);
       }
 
-      setImages((prev) => [...prev, ...newImages]);
+      setMedia((prev) => [...prev, ...newMedia]);
 
       toast({
-        title: "Images uploaded!",
-        description: `${newImages.length} image(s) uploaded successfully`,
+        title: `${postType === 'image' ? 'Images' : 'Videos'} uploaded!`,
+        description: `${newMedia.length} ${postType}(s) uploaded successfully`,
       });
     } catch (error) {
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: "Failed to upload images. Please try again.",
+        description: `Failed to upload ${postType}s. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -177,20 +262,20 @@ export function CreatePostDialog({
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => {
-      const newImages = [...prev];
-      URL.revokeObjectURL(newImages[index].preview);
-      newImages.splice(index, 1);
-      return newImages;
+  const removeMedia = (index: number) => {
+    setMedia((prev) => {
+      const newMedia = [...prev];
+      URL.revokeObjectURL(newMedia[index].preview);
+      newMedia.splice(index, 1);
+      return newMedia;
     });
   };
 
   const handleSubmit = async () => {
-    if (!user || images.length === 0 || !content.trim()) {
+    if (!user || media.length === 0 || !content.trim()) {
       toast({
         title: "Missing required fields",
-        description: "Please add a description and at least one image",
+        description: `Please add a description and at least one ${postType}`,
         variant: "destructive",
       });
       return;
@@ -199,10 +284,22 @@ export function CreatePostDialog({
     try {
       const tags: string[][] = [];
 
-      // Add image metadata tags
-      images.forEach((image) => {
-        tags.push(...image.tags);
+      // Add title tag (required for NIP-71 kind 22 videos)
+      if (postType === 'video' && videoKind === 22) {
+        // Use first line of content as title, or generate one
+        const title = content.split('\n')[0].trim() || `Video by ${user.pubkey.slice(0, 8)}`;
+        tags.push(["title", title]);
+      }
+
+      // Add media metadata tags
+      media.forEach((item) => {
+        tags.push(...item.tags);
       });
+
+      // Add duration for videos
+      if (postType === 'video' && media[0].duration) {
+        tags.push(["duration", media[0].duration.toString()]);
+      }
 
       // Add hashtags
       if (hashtags.trim()) {
@@ -231,11 +328,17 @@ export function CreatePostDialog({
         tags.push(["content-warning", contentWarning.trim()]);
       }
 
-      // Add media type tag
-      tags.push(["m", images[0].file.type]);
+      // Determine event kind based on post type
+      let kind: number;
+      if (postType === 'image') {
+        kind = 20; // NIP-68 image events
+      } else {
+        // For videos, use the selected video kind
+        kind = videoKind;
+      }
 
       createEvent({
-        kind: 20,
+        kind,
         content: content.trim(),
         tags,
       });
@@ -247,13 +350,14 @@ export function CreatePostDialog({
       setGeohash("");
       setContentWarning("");
       setHasContentWarning(false);
-      setImages([]);
+      setMedia([]);
+      setVideoKind(22); // Reset to default video kind
 
       onOpenChange(false);
 
       toast({
         title: "Post created!",
-        description: "Your image post has been published",
+        description: `Your ${postType} post has been published`,
       });
     } catch (error) {
       console.error("Create post error:", error);
@@ -349,30 +453,89 @@ export function CreatePostDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <ImageIcon className="h-5 w-5 text-primary" />
-            <span>Create Image Post</span>
+            {postType === 'image' ? (
+              <ImageIcon className="h-5 w-5 text-primary" />
+            ) : (
+              <Video className="h-5 w-5 text-primary" />
+            )}
+            <span>Create {postType === 'image' ? 'Image' : 'Vertical Video'} Post</span>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Image Upload */}
-          <div className="space-y-4">
-            <Label>Images *</Label>
+          {/* Post Type Selector */}
+          <div className="space-y-2">
+            <Label>Post Type</Label>
+            <Tabs value={postType} onValueChange={(value) => {
+              setPostType(value as 'image' | 'video');
+              setMedia([]); // Clear media when switching types
+            }}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="image" className="flex items-center space-x-2">
+                  <ImageIcon className="h-4 w-4" />
+                  <span>Images</span>
+                </TabsTrigger>
+                <TabsTrigger value="video" className="flex items-center space-x-2">
+                  <Video className="h-4 w-4" />
+                  <span>Vertical Videos</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-            {images.length > 0 && (
+          {/* Video Kind Selector (only shown for videos) */}
+          {postType === 'video' && (
+            <div className="space-y-2">
+              <Label htmlFor="video-kind">Video Type</Label>
+              <select
+                id="video-kind"
+                value={videoKind}
+                onChange={(e) => setVideoKind(parseInt(e.target.value) as 22 | 34236)}
+                className="w-full p-2 border border-input rounded-md bg-background"
+              >
+                <option value={22}>Short Video (Kind 22)</option>
+                <option value={34236}>Vertical Video (Kind 34236)</option>
+              </select>
+            </div>
+          )}
+
+          {/* Media Upload */}
+          <div className="space-y-4">
+            <Label>{postType === 'image' ? 'Images' : 'Vertical Videos'} *</Label>
+
+            {media.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {images.map((image, index) => (
+                {media.map((item, index) => (
                   <div key={index} className="relative group">
-                    <img
-                      src={image.preview}
-                      alt={`Upload ${index + 1}`}
-                      className="w-full aspect-square object-cover rounded-lg"
-                    />
+                    {item.type === 'image' ? (
+                      <img
+                        src={item.preview}
+                        alt={`Upload ${index + 1}`}
+                        className="w-full aspect-square object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-black">
+                        <video
+                          src={item.preview}
+                          className="w-full h-full object-cover"
+                          muted
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Video className="h-8 w-8 text-white opacity-80" />
+                        </div>
+                        {item.duration && (
+                          <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                            {Math.floor(item.duration / 60)}:{(item.duration % 60).toString().padStart(2, '0')}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <Button
                       variant="destructive"
                       size="sm"
                       className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => removeImage(index)}
+                      onClick={() => removeMedia(index)}
                     >
                       <X className="h-3 w-3" />
                     </Button>
@@ -391,10 +554,10 @@ export function CreatePostDialog({
                 <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
                 <div>
                   <p className="font-medium">
-                    {isUploading ? "Uploading..." : "Upload Images"}
+                    {isUploading ? "Uploading..." : `Upload ${postType === 'image' ? 'Images' : 'Vertical Videos'}`}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Click to select multiple images
+                    Click to select multiple {postType === 'image' ? 'images' : 'vertical videos'}
                   </p>
                 </div>
               </div>
@@ -407,7 +570,7 @@ export function CreatePostDialog({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={postType === 'image' ? 'image/*' : 'video/*'}
               multiple
               className="hidden"
               onChange={(e) => handleFileSelect(e.target.files)}
@@ -419,7 +582,7 @@ export function CreatePostDialog({
             <Label htmlFor="content">Description *</Label>
             <Textarea
               id="content"
-              placeholder="Tell us about your images..."
+              placeholder={`Tell us about your ${postType === 'image' ? 'images' : 'vertical videos'}...`}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="min-h-[100px]"
@@ -504,7 +667,7 @@ export function CreatePostDialog({
             <Button
               onClick={handleSubmit}
               disabled={
-                !user || images.length === 0 || !content.trim() || isUploading
+                !user || media.length === 0 || !content.trim() || isUploading
               }
               className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
             >
