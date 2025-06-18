@@ -62,7 +62,7 @@ export function CreatePostDialog({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [postType, setPostType] = useState<'image' | 'video'>('image');
-  const [videoKind, setVideoKind] = useState<22 | 34236>(22);
+  const [videoKind, setVideoKind] = useState<21 | 22>(22);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useCurrentUser();
@@ -490,11 +490,11 @@ export function CreatePostDialog({
               <select
                 id="video-kind"
                 value={videoKind}
-                onChange={(e) => setVideoKind(parseInt(e.target.value) as 22 | 34236)}
+                onChange={(e) => setVideoKind(parseInt(e.target.value) as 21 | 22)}
                 className="w-full p-2 border border-input rounded-md bg-background"
               >
                 <option value={22}>Short Video (Kind 22)</option>
-                <option value={34236}>Vertical Video (Kind 34236)</option>
+                <option value={21}>Normal Video (Kind 21)</option>
               </select>
             </div>
           )}

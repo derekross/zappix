@@ -38,9 +38,14 @@ export function ImageFeed({
 
   const posts = feedType === "following" ? followingPosts : globalPosts;
 
-  // Flatten all pages into a single array of posts
+  // Flatten all pages into a single array of posts and deduplicate
   const allPosts = useMemo(() => {
-    return posts.data?.pages?.flatMap((page) => page.events) || [];
+    const flattenedPosts = posts.data?.pages?.flatMap((page) => page.events) || [];
+    
+    // Deduplicate posts by ID to prevent duplicate keys
+    return flattenedPosts.filter(
+      (post, index, self) => index === self.findIndex((p) => p.id === post.id)
+    );
   }, [posts.data]);
 
   // Extract unique author pubkeys for prefetching

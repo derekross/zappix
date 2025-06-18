@@ -2,24 +2,17 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { NPool, NRelay1 } from "@nostrify/nostrify";
 import type { NostrEvent } from "@nostrify/nostrify";
 
-// Validator function for vertical video events (kind 22 and 34236)
+// Validator function for video events (kind 21 and 22)
 function validateVideoEvent(event: NostrEvent): boolean {
-  // Check if it's a vertical video event kind (22 for NIP-71 short videos, 34236 for additional vertical videos)
-  if (![22, 34236].includes(event.kind)) return false;
+  // Check if it's a video event kind (21 for NIP-71 normal videos, 22 for short videos)
+  if (![21, 22].includes(event.kind)) return false;
 
   // Check for required tags according to NIP-71
   const title = event.tags.find(([name]) => name === "title")?.[1];
   const imeta = event.tags.find(([name]) => name === "imeta");
 
-  // Video events require 'title' tag
+  // For both kind 21 and 22 (NIP-71), title is required
   if (!title) return false;
-
-  // For kind 22 (NIP-71), title and imeta are required
-  // For kind 34236, we'll be more lenient and only require imeta
-  if (event.kind === 22) {
-    // NIP-71 requires title tag
-    if (!title) return false;
-  }
 
   // Should have imeta tag with video content
   if (!imeta) return false;
@@ -38,8 +31,10 @@ function getDiscoveryPool() {
   if (!discoveryPool) {
     const relayUrls = [
       "wss://relay.nostr.band",
-      "wss://relay.damus.io",
+      "wss://relay.damus.io", 
       "wss://relay.primal.net",
+      "wss://nos.lol",
+      "wss://relay.snort.social",
     ];
     discoveryPool = new NPool({
       open(url: string) {
@@ -52,7 +47,7 @@ function getDiscoveryPool() {
         }
         return relayMap;
       },
-      eventRouter: () => relayUrls.slice(0, 2),
+      eventRouter: () => relayUrls.slice(0, 3),
     });
   }
   return discoveryPool;
@@ -64,8 +59,10 @@ function getOutboxPool() {
   if (!outboxPool) {
     const relayUrls = [
       "wss://relay.nostr.band",
-      "wss://relay.damus.io",
+      "wss://relay.damus.io", 
       "wss://relay.primal.net",
+      "wss://nos.lol",
+      "wss://relay.snort.social",
     ];
     outboxPool = new NPool({
       open(url: string) {
@@ -78,7 +75,7 @@ function getOutboxPool() {
         }
         return relayMap;
       },
-      eventRouter: () => relayUrls.slice(0, 2),
+      eventRouter: () => relayUrls.slice(0, 3),
     });
   }
   return outboxPool;
@@ -97,7 +94,7 @@ export function useVideoPosts(hashtag?: string, location?: string) {
         "#t"?: string[];
         until?: number;
       } = {
-        kinds: [22, 34236], // Vertical videos (NIP-71 short videos and kind 34236)
+        kinds: [21, 22], // Video events (NIP-71 normal and short videos)
         limit: 20,
       };
 
@@ -113,6 +110,33 @@ export function useVideoPosts(hashtag?: string, location?: string) {
         const events = await discoveryPool.query([filter], { signal: querySignal });
         let validEvents = events.filter(validateVideoEvent);
 
+        // For vertical video feed, filter to only show vertical videos
+        // Kind 22 is specifically for short-form portrait videos
+        // For kind 21, check dimensions to see if it's vertical
+        validEvents = validEvents.filter(event => {
+          if (event.kind === 22) {
+            // Kind 22 is specifically for short-form portrait videos
+            return true;
+          }
+          
+          if (event.kind === 21) {
+            // For kind 21, check if dimensions indicate vertical video
+            const imetaTags = event.tags.filter(([name]) => name === "imeta");
+            return imetaTags.some(tag => {
+              const dimPart = tag.find((part) => part.startsWith("dim "));
+              if (dimPart) {
+                const dimensions = dimPart.replace("dim ", "");
+                const [width, height] = dimensions.split("x").map(Number);
+                // Consider it vertical if height > width
+                return height > width;
+              }
+              return false;
+            });
+          }
+          
+          return false;
+        });
+
         // Filter by location if specified
         if (location) {
           validEvents = validEvents.filter(event => 
@@ -124,9 +148,12 @@ export function useVideoPosts(hashtag?: string, location?: string) {
           );
         }
 
-        const sortedEvents = validEvents
-          .sort((a, b) => b.created_at - a.created_at)
-          .filter((event, index, self) => index === self.findIndex(e => e.id === event.id));
+        // Deduplicate by ID first, then sort by created_at
+        const uniqueEvents = validEvents.filter(
+          (event, index, self) => index === self.findIndex(e => e.id === event.id)
+        );
+        
+        const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
         return {
           events: sortedEvents,
@@ -160,7 +187,7 @@ export function useFollowingVideoPosts(followingPubkeys: string[]) {
           limit: number;
           until?: number;
         } = {
-          kinds: [22, 34236], // Vertical videos (NIP-71 short videos and kind 34236)
+          kinds: [21, 22], // Video events (NIP-71 normal and short videos)
           authors: followingPubkeys,
           limit: 10, // Smaller initial page size for faster loading
         };
@@ -174,25 +201,39 @@ export function useFollowingVideoPosts(followingPubkeys: string[]) {
           signal: querySignal,
         });
 
-        console.log("Following video feed raw events received:", events.length);
+        let validEvents = events.filter(validateVideoEvent);
 
-        const validEvents = events.filter(validateVideoEvent);
-        console.log("Following video feed valid events:", validEvents.length);
+        // For vertical video feed, filter to only show vertical videos
+        validEvents = validEvents.filter(event => {
+          if (event.kind === 22) {
+            // Kind 22 is specifically for short-form portrait videos
+            return true;
+          }
+          
+          if (event.kind === 21) {
+            // For kind 21, check if dimensions indicate vertical video
+            const imetaTags = event.tags.filter(([name]) => name === "imeta");
+            return imetaTags.some(tag => {
+              const dimPart = tag.find((part) => part.startsWith("dim "));
+              if (dimPart) {
+                const dimensions = dimPart.replace("dim ", "");
+                const [width, height] = dimensions.split("x").map(Number);
+                // Consider it vertical if height > width
+                return height > width;
+              }
+              return false;
+            });
+          }
+          
+          return false;
+        });
 
-        // Log unique authors found
-        const uniqueAuthors = [...new Set(validEvents.map((e) => e.pubkey))];
-        console.log(
-          "Following video feed unique authors found:",
-          uniqueAuthors.length
+        // Deduplicate by ID first, then sort by created_at
+        const uniqueEvents = validEvents.filter(
+          (event, index, self) => index === self.findIndex((e) => e.id === event.id)
         );
-
-        // Sort by created_at and deduplicate by ID
-        const sortedEvents = validEvents
-          .sort((a, b) => b.created_at - a.created_at)
-          .filter(
-            (event, index, self) =>
-              index === self.findIndex((e) => e.id === event.id)
-          );
+        
+        const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
         return {
           events: sortedEvents,
@@ -223,15 +264,13 @@ export function useHashtagVideoPosts(hashtags: string[], limit = 3) {
       const discoveryPool = getDiscoveryPool();
 
       // Hashtag feeds use discovery relays only (no outbox model)
-      console.log("Querying hashtag video feeds using shared discovery pool...");
-
       // Query for each hashtag
       const hashtagResults = await Promise.all(
         hashtags.map(async (hashtag) => {
           const events = await discoveryPool.query(
             [
               {
-                kinds: [22, 34236], // Vertical videos (NIP-71 short videos and kind 34236)
+                kinds: [21, 22], // Video events (NIP-71 normal and short videos)
                 "#t": [hashtag],
                 limit,
               },

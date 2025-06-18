@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useInView } from "react-intersection-observer";
 import { VideoPost } from "./VideoPost";
 import { VideoPostSkeleton } from "./VideoPostSkeleton";
@@ -42,8 +42,15 @@ export function VideoFeed({
     }
   }, [inView, query]);
 
-  // Get all events from all pages
-  const allEvents = query.data?.pages?.flatMap((page) => page.events) || [];
+  // Get all events from all pages and deduplicate
+  const uniqueEvents = useMemo(() => {
+    const allEvents = query.data?.pages?.flatMap((page) => page.events) || [];
+    
+    // Deduplicate events by ID to prevent duplicate keys
+    return allEvents.filter(
+      (event, index, self) => index === self.findIndex((e) => e.id === event.id)
+    );
+  }, [query.data?.pages]);
 
   // Show loading skeleton for initial load
   if (query.isLoading) {
@@ -74,7 +81,7 @@ export function VideoFeed({
   }
 
   // Show empty state
-  if (allEvents.length === 0) {
+  if (uniqueEvents.length === 0) {
     return (
       <div className="col-span-full">
         <Card className="border-dashed">
@@ -99,7 +106,7 @@ export function VideoFeed({
   return (
     <div className="space-y-6">
       {/* Video Posts */}
-      {allEvents.map((event) => (
+      {uniqueEvents.map((event) => (
         <VideoPost
           key={event.id}
           event={event}
@@ -119,7 +126,7 @@ export function VideoFeed({
       )}
 
       {/* End of feed indicator */}
-      {!query.hasNextPage && allEvents.length > 0 && (
+      {!query.hasNextPage && uniqueEvents.length > 0 && (
         <div className="text-center py-8">
           <p className="text-muted-foreground text-sm">
             You've reached the end of the feed

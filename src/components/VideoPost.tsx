@@ -173,7 +173,7 @@ export function VideoPost({
           eventId: event.id,
           authorPubkey: event.pubkey,
           reaction: "+",
-          kind: event.kind.toString(), // Support both kind 22 and 34236
+          kind: event.kind.toString(), // Support both kind 21 and 22
         });
       }
     } catch {
