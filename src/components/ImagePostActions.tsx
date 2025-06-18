@@ -94,25 +94,56 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
   };
 
   const handleToggleBookmark = async () => {
+    console.log("[UI] Bookmark toggle clicked for event:", event.id);
+    console.log("[UI] Current bookmark status:", isBookmarked.data);
+    
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to bookmark posts",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (toggleBookmark.isPending) {
+      console.log("[UI] Bookmark toggle already in progress, ignoring click");
+      return;
+    }
+    
     try {
-      await toggleBookmark.mutateAsync({
-        eventId: event.id,
-        isBookmarked: isBookmarked.data || false,
+      console.log("[UI] Starting bookmark toggle mutation");
+      
+      // Show immediate feedback
+      const wasBookmarked = isBookmarked.data || false;
+      toast({
+        title: wasBookmarked
+          ? "Removing from bookmarks..."
+          : "Adding to bookmarks...",
+        description: "Please wait while we update your bookmarks",
       });
 
+      await toggleBookmark.mutateAsync({
+        eventId: event.id,
+        isBookmarked: wasBookmarked,
+      });
+
+      console.log("[UI] Bookmark toggle successful");
+
       toast({
-        title: isBookmarked.data
+        title: wasBookmarked
           ? "Removed from bookmarks"
           : "Added to bookmarks",
-        description: isBookmarked.data
+        description: wasBookmarked
           ? "Post removed from your bookmarks"
           : "Post saved to your bookmarks",
       });
       onClose();
-    } catch {
+    } catch (error) {
+      console.error("[UI] Bookmark toggle error:", error);
       toast({
         title: "Error",
-        description: "Failed to update bookmark",
+        description: error instanceof Error ? error.message : "Failed to update bookmark",
         variant: "destructive",
       });
     }
@@ -162,6 +193,8 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
     onClose();
   };
 
+  const isBookmarkDisabled = !user || toggleBookmark.isPending || isBookmarked.isLoading;
+
   return (
     <>
       <DropdownMenuItem onClick={handleCopyNevent}>
@@ -179,15 +212,23 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
           <DropdownMenuSeparator />
 
           <DropdownMenuItem
-            onClick={handleToggleBookmark}
-            disabled={toggleBookmark.isPending}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleToggleBookmark();
+            }}
+            disabled={isBookmarkDisabled}
           >
             <Bookmark
               className={`h-4 w-4 mr-2 ${
                 isBookmarked.data ? "fill-current text-primary" : ""
               }`}
             />
-            {isBookmarked.data ? "Remove bookmark" : "Add bookmark"}
+            {isBookmarked.isLoading 
+              ? "Loading..." 
+              : isBookmarked.data 
+                ? "Remove bookmark" 
+                : "Add bookmark"}
           </DropdownMenuItem>
 
           {!isOwnPost && (

@@ -1,9 +1,11 @@
+import { useSeoMeta } from '@unhead/react';
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { ImagePost } from "./ImagePost";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Bookmark } from "lucide-react";
+import { MainLayout } from "./MainLayout";
 
 function BookmarkSkeleton() {
   return (
@@ -27,7 +29,7 @@ function BookmarkSkeleton() {
   );
 }
 
-export function BookmarksPage() {
+function BookmarksContent() {
   const { user } = useCurrentUser();
   const bookmarks = useBookmarks();
 
@@ -119,5 +121,18 @@ export function BookmarksPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export function BookmarksPage() {
+  useSeoMeta({
+    title: 'Your Bookmarks - Zappix',
+    description: 'View your saved image posts on Zappix.',
+  });
+
+  return (
+    <MainLayout>
+      <BookmarksContent />
+    </MainLayout>
   );
 }

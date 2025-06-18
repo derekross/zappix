@@ -4,6 +4,9 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import Index from "./pages/Index";
 import PostPage from "./pages/PostPage";
 import NotFound from "./pages/NotFound";
+import { ProfilePage } from "./components/ProfilePage";
+import { EditProfilePage } from "./components/EditProfilePage";
+import { BookmarksPage } from "./components/BookmarksPage";
 
 export function AppRouter() {
   return (
@@ -14,6 +17,9 @@ export function AppRouter() {
         <Route path="/home" element={<Index />} />
         <Route path="/discover" element={<Index />} />
         <Route path="/location/:location" element={<Index />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/profile/edit" element={<EditProfilePage />} />
+        <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/:nip19Id" element={<PostPage />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />

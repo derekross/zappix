@@ -17,10 +17,10 @@ import { LoginArea } from "@/components/auth/LoginArea";
 import { ImageFeed } from "./ImageFeed";
 import { HashtagGrid } from "./HashtagGrid";
 import { CreatePostDialog } from "./CreatePostDialog";
-import { BookmarksPage } from "./BookmarksPage";
+
 import { SettingsPage } from "./SettingsPage";
-import { ProfilePage } from "./ProfilePage";
-import { EditProfilePage } from "./EditProfilePage";
+
+
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
@@ -35,10 +35,10 @@ export function MainLayout({ children }: MainLayoutProps) {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [previousTab, setPreviousTab] = useState<string>("discover"); // Track where user came from
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const [showBookmarks, setShowBookmarks] = useState(false);
+
   const [showSettings, setShowSettings] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showEditProfile, setShowEditProfile] = useState(false);
+
+
 
   const { user } = useCurrentUser();
   const isMobile = useIsMobile();
@@ -164,293 +164,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     }
   };
 
-  // Special layouts for bookmarks, settings, and profile pages
-  if (showProfile)
-    return (
-      <div className="min-h-screen bg-background">
-        {isMobile ? (
-          // Mobile layout with header
-          <>
-            <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="container flex h-14 items-center justify-between">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setShowProfile(false);
-                    scrollToTop();
-                  }}
-                  className="font-bold text-lg"
-                >
-                  ← Zappix
-                </Button>
-              </div>
-            </header>
-            <main className="container py-6 pb-20">
-              <ProfilePage
-                onEditClick={() => {
-                  setShowProfile(false);
-                  setShowEditProfile(true);
-                }}
-              />
-            </main>
-          </>
-        ) : (
-          // Desktop layout with sidebar
-          <div className="flex">
-            {/* Left Sidebar */}
-            <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="flex h-full flex-col">
-                {/* Logo */}
-                <div className="flex h-14 items-center border-b px-6">
-                  <button
-                    onClick={() => {
-                      setShowProfile(false);
-                      scrollToTop();
-                    }}
-                    className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
-                  >
-                    <Camera className="h-6 w-6 text-primary" />
-                    <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                      Zappix
-                    </h1>
-                  </button>
-                </div>
-
-                {/* Navigation */}
-                <nav className="flex-1 space-y-2 p-4">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setShowProfile(false);
-                      setActiveMainTab("home");
-                    }}
-                  >
-                    <Home className="mr-2 h-4 w-4" />
-                    Home
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setShowProfile(false);
-                      setActiveMainTab("discover");
-                    }}
-                  >
-                    <Search className="mr-2 h-4 w-4" />
-                    Discover
-                  </Button>
-                </nav>
-
-                {/* User Area */}
-                <div className="border-t p-4">
-                  {user && (
-                    <Button
-                      onClick={() => setShowCreatePost(true)}
-                      className="w-full mb-4 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Post
-                    </Button>
-                  )}
-                  <LoginArea
-                    className="w-full"
-                    onSettingsClick={() => setShowSettings(true)}
-                    onBookmarksClick={() => setShowBookmarks(true)}
-                    onProfileClick={() => setShowProfile(true)}
-                  />
-                </div>
-              </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="ml-64 flex-1 p-6">
-              <div className="max-w-4xl mx-auto">
-                <ProfilePage
-                  onEditClick={() => {
-                    setShowProfile(false);
-                    setShowEditProfile(true);
-                  }}
-                />
-              </div>
-            </main>
-          </div>
-        )}
-      </div>
-    );
-
-  if (showBookmarks) {
-    return (
-      <div className="min-h-screen bg-background">
-        {isMobile ? (
-          // Mobile layout with header
-          <>
-            <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="container flex h-14 items-center justify-center">
-                <button
-                  onClick={scrollToTop}
-                  className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
-                >
-                  <Camera className="h-6 w-6 text-primary" />
-                  <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    Zappix
-                  </h1>
-                </button>
-              </div>
-            </header>
-            <main className="container py-6 pb-20">
-              <BookmarksPage />
-            </main>
-
-            {/* Mobile Bottom Navigation */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="flex justify-around items-center py-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowBookmarks(false);
-                    handleTabChange("home");
-                  }}
-                  className="flex flex-col items-center gap-1"
-                >
-                  <Home className="h-5 w-5" />
-                  <span className="text-xs">Home</span>
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowBookmarks(false);
-                    handleTabChange("discover");
-                  }}
-                  className="flex flex-col items-center gap-1"
-                >
-                  <Search className="h-5 w-5" />
-                  <span className="text-xs">Discover</span>
-                </Button>
-
-                {user && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowBookmarks(false);
-                      setShowCreatePost(true);
-                    }}
-                    className="flex flex-col items-center gap-1"
-                  >
-                    <Plus className="h-5 w-5" />
-                    <span className="text-xs">Post</span>
-                  </Button>
-                )}
-
-                <div className="flex flex-col items-center">
-                  <LoginArea
-                    className="max-w-none"
-                    onSettingsClick={() => setShowSettings(true)}
-                    onBookmarksClick={() => setShowBookmarks(true)}
-                    onProfileClick={() => setShowProfile(true)}
-                  />
-                </div>
-              </div>
-            </div>
-          </>
-        ) : (
-          // Desktop layout with sidebar
-          <div className="flex">
-            {/* Left Sidebar */}
-            <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="flex h-full flex-col">
-                {/* Logo */}
-                <div className="flex h-14 items-center border-b px-6">
-                  <button
-                    onClick={scrollToTop}
-                    className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
-                  >
-                    <Camera className="h-6 w-6 text-primary" />
-                    <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                      Zappix
-                    </h1>
-                  </button>
-                </div>
-
-                {/* Navigation */}
-                <nav className="flex-1 space-y-2 p-4">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setShowBookmarks(false);
-                      setActiveMainTab("home");
-                    }}
-                  >
-                    <Home className="mr-2 h-4 w-4" />
-                    Home
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setShowBookmarks(false);
-                      setActiveMainTab("discover");
-                    }}
-                  >
-                    <Search className="mr-2 h-4 w-4" />
-                    Discover
-                  </Button>
-                </nav>
-
-                {/* User Area */}
-                <div className="border-t p-4">
-                  {user && (
-                    <Button
-                      onClick={() => setShowCreatePost(true)}
-                      className="w-full mb-4 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Post
-                    </Button>
-                  )}
-                  <LoginArea
-                    className="w-full"
-                    onSettingsClick={() => setShowSettings(true)}
-                    onBookmarksClick={() => setShowBookmarks(true)}
-                    onProfileClick={() => setShowProfile(true)}
-                  />
-                </div>
-              </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="ml-64 flex-1 p-6">
-              <div className="max-w-4xl mx-auto">
-                <BookmarksPage />
-              </div>
-            </main>
-
-            {/* Footer */}
-            <footer className="ml-64 border-t py-6">
-              <div className="container text-center text-sm text-muted-foreground">
-                <p>
-                  Vibed with{" "}
-                  <a
-                    href="https://soapbox.pub/tools/mkstack/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    MKStack
-                  </a>
-                </p>
-              </div>
-            </footer>
-          </div>
-        )}
-      </div>
-    );
-  }
+  // Special layouts for settings pages
 
   if (showSettings) {
     return (
@@ -483,7 +197,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="flex h-full flex-col">
                 {/* Logo */}
-                <div className="flex h-14 items-center border-b px-6">
+                <div className="flex h-14 items-center px-4">
                   <button
                     onClick={() => {
                       setShowSettings(false);
@@ -499,13 +213,13 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 space-y-2 p-4">
+                <nav className="flex-1 space-y-1 px-2">
                   <Button
                     variant="ghost"
                     className="w-full justify-start"
                     onClick={() => {
                       setShowSettings(false);
-                      setActiveMainTab("home");
+                      navigate("/home");
                     }}
                   >
                     <Home className="mr-2 h-4 w-4" />
@@ -516,30 +230,30 @@ export function MainLayout({ children }: MainLayoutProps) {
                     className="w-full justify-start"
                     onClick={() => {
                       setShowSettings(false);
-                      setActiveMainTab("discover");
+                      navigate("/discover");
                     }}
                   >
                     <Search className="mr-2 h-4 w-4" />
                     Discover
                   </Button>
-                </nav>
-
-                {/* User Area */}
-                <div className="border-t p-4">
                   {user && (
                     <Button
+                      variant="ghost"
+                      className="w-full justify-start"
                       onClick={() => setShowCreatePost(true)}
-                      className="w-full mb-4 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
                     >
                       <Plus className="mr-2 h-4 w-4" />
-                      Create Post
+                      Post
                     </Button>
                   )}
+                </nav>
+
+                {/* Account Area */}
+                <div className="p-2">
                   <LoginArea
-                    className="w-full"
                     onSettingsClick={() => setShowSettings(true)}
-                    onBookmarksClick={() => setShowBookmarks(true)}
-                    onProfileClick={() => setShowProfile(true)}
+                    onBookmarksClick={() => navigate("/bookmarks")}
+                    onProfileClick={() => navigate("/profile")}
                   />
                 </div>
               </div>
@@ -563,122 +277,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     );
   }
 
-  if (showEditProfile) {
-    return (
-      <div className="min-h-screen bg-background">
-        {isMobile ? (
-          // Mobile layout with header
-          <>
-            <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="container flex h-14 items-center justify-between">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setShowEditProfile(false);
-                    setShowProfile(true);
-                    scrollToTop();
-                  }}
-                  className="font-bold text-lg"
-                >
-                  ← Your Profile
-                </Button>
-              </div>
-            </header>
-            <main className="container py-6 pb-20">
-              <EditProfilePage
-                onBackClick={() => {
-                  setShowEditProfile(false);
-                  setShowProfile(true);
-                }}
-              />
-            </main>
-          </>
-        ) : (
-          // Desktop layout with sidebar
-          <div className="flex">
-            {/* Left Sidebar */}
-            <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="flex h-full flex-col">
-                {/* Logo */}
-                <div className="flex h-14 items-center border-b px-6">
-                  <button
-                    onClick={() => {
-                      setShowEditProfile(false);
-                      setShowProfile(true);
-                      scrollToTop();
-                    }}
-                    className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
-                  >
-                    <Camera className="h-6 w-6 text-primary" />
-                    <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                      Zappix
-                    </h1>
-                  </button>
-                </div>
 
-                {/* Navigation */}
-                <nav className="flex-1 space-y-2 p-4">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setShowEditProfile(false);
-                      setActiveMainTab("home");
-                    }}
-                  >
-                    <Home className="mr-2 h-4 w-4" />
-                    Home
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setShowEditProfile(false);
-                      setActiveMainTab("discover");
-                    }}
-                  >
-                    <Search className="mr-2 h-4 w-4" />
-                    Discover
-                  </Button>
-                </nav>
-
-                {/* User Area */}
-                <div className="border-t p-4">
-                  {user && (
-                    <Button
-                      onClick={() => setShowCreatePost(true)}
-                      className="w-full mb-4 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Post
-                    </Button>
-                  )}
-                  <LoginArea
-                    className="w-full"
-                    onSettingsClick={() => setShowSettings(true)}
-                    onBookmarksClick={() => setShowBookmarks(true)}
-                    onProfileClick={() => setShowProfile(true)}
-                  />
-                </div>
-              </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="ml-64 flex-1 p-6">
-              <div className="max-w-4xl mx-auto">
-                <EditProfilePage
-                  onBackClick={() => {
-                    setShowEditProfile(false);
-                    setShowProfile(true);
-                  }}
-                />
-              </div>
-            </main>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   // If children are provided, render them in the main content area
   if (children) {
@@ -710,7 +309,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleTabChange("home")}
+                  onClick={() => navigate("/home")}
                   className="flex flex-col items-center gap-1"
                 >
                   <Home className="h-5 w-5" />
@@ -720,7 +319,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleTabChange("discover")}
+                  onClick={() => navigate("/discover")}
                   className="flex flex-col items-center gap-1"
                 >
                   <Search className="h-5 w-5" />
@@ -743,8 +342,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                   <LoginArea
                     className="max-w-none"
                     onSettingsClick={() => setShowSettings(true)}
-                    onBookmarksClick={() => setShowBookmarks(true)}
-                    onProfileClick={() => setShowProfile(true)}
+                    onBookmarksClick={() => navigate("/bookmarks")}
+                    onProfileClick={() => navigate("/profile")}
                   />
                 </div>
               </div>
@@ -757,7 +356,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="flex h-full flex-col">
                 {/* Logo */}
-                <div className="flex h-14 items-center border-b px-6">
+                <div className="flex h-14 items-center px-4">
                   <button
                     onClick={scrollToTop}
                     className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
@@ -770,46 +369,41 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 space-y-2 p-4">
+                <nav className="flex-1 space-y-1 px-2">
                   <Button
-                    variant={activeMainTab === "home" ? "secondary" : "ghost"}
+                    variant="ghost"
                     className="w-full justify-start"
-                    onClick={() => setActiveMainTab("home")}
+                    onClick={() => navigate("/home")}
                   >
                     <Home className="mr-2 h-4 w-4" />
                     Home
                   </Button>
                   <Button
-                    variant={
-                      activeMainTab === "discover" ||
-                      activeMainTab === "hashtag-detail"
-                        ? "secondary"
-                        : "ghost"
-                    }
+                    variant="ghost"
                     className="w-full justify-start"
-                    onClick={() => setActiveMainTab("discover")}
+                    onClick={() => navigate("/discover")}
                   >
                     <Search className="mr-2 h-4 w-4" />
                     Discover
                   </Button>
-                </nav>
-
-                {/* User Area */}
-                <div className="border-t p-4">
                   {user && (
                     <Button
+                      variant="ghost"
+                      className="w-full justify-start"
                       onClick={() => setShowCreatePost(true)}
-                      className="w-full mb-4 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
                     >
                       <Plus className="mr-2 h-4 w-4" />
-                      Create Post
+                      Post
                     </Button>
                   )}
+                </nav>
+
+                {/* Account Area */}
+                <div className="p-2">
                   <LoginArea
-                    className="w-full"
                     onSettingsClick={() => setShowSettings(true)}
-                    onBookmarksClick={() => setShowBookmarks(true)}
-                    onProfileClick={() => setShowProfile(true)}
+                    onBookmarksClick={() => navigate("/bookmarks")}
+                    onProfileClick={() => navigate("/profile")}
                   />
                 </div>
               </div>
@@ -837,6 +431,11 @@ export function MainLayout({ children }: MainLayoutProps) {
             </div>
           </footer>
         )}
+
+        <CreatePostDialog
+          open={showCreatePost}
+          onOpenChange={setShowCreatePost}
+        />
       </div>
     );
   }
@@ -1034,8 +633,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <LoginArea
                   className="max-w-none"
                   onSettingsClick={() => setShowSettings(true)}
-                  onBookmarksClick={() => setShowBookmarks(true)}
-                  onProfileClick={() => setShowProfile(true)}
+                  onBookmarksClick={() => navigate("/bookmarks")}
+                  onProfileClick={() => navigate("/profile")}
                 />
               </div>
             </div>
@@ -1096,8 +695,8 @@ export function MainLayout({ children }: MainLayoutProps) {
               <div className="p-2">
                 <LoginArea
                   onSettingsClick={() => setShowSettings(true)}
-                  onBookmarksClick={() => setShowBookmarks(true)}
-                  onProfileClick={() => setShowProfile(true)}
+                  onBookmarksClick={() => navigate("/bookmarks")}
+                  onProfileClick={() => navigate("/profile")}
                 />
               </div>
             </div>
@@ -1123,24 +722,38 @@ export function MainLayout({ children }: MainLayoutProps) {
                         className="flex items-center space-x-2"
                       >
                         <Globe className="h-4 w-4" />
-                        <span>Global</span>
+                        <span className="hidden sm:inline">Global</span>
                       </TabsTrigger>
                       <TabsTrigger
                         value="following"
                         className="flex items-center space-x-2"
                       >
                         <Users className="h-4 w-4" />
-                        <span>Following</span>
+                        <span className="hidden sm:inline">Following</span>
                       </TabsTrigger>
                     </TabsList>
-                    <TabsContent value="global">
+
+                    <TabsContent value="global" className="space-y-6">
+                      <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-bold">Global Feed</h2>
+                        <p className="text-muted-foreground">
+                          Latest image posts from all relays
+                        </p>
+                      </div>
                       <ImageFeed
                         feedType="global"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}
                       />
                     </TabsContent>
-                    <TabsContent value="following">
+
+                    <TabsContent value="following" className="space-y-6">
+                      <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-bold">Following Feed</h2>
+                        <p className="text-muted-foreground">
+                          Latest image posts from people you follow
+                        </p>
+                      </div>
                       <ImageFeed
                         feedType="following"
                         onHashtagClick={handleHashtagClick}

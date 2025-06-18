@@ -48,7 +48,7 @@ function HashtagCardSkeleton() {
 
 export function HashtagGrid({
   onHashtagClick,
-  onLocationClick,
+  onLocationClick: _onLocationClick,
 }: HashtagGridProps) {
   const [searchInput, setSearchInput] = useState("");
   const hashtagPosts = useHashtagImagePosts(FEATURED_HASHTAGS, 3);

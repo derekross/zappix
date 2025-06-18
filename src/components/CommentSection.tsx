@@ -50,7 +50,6 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
 
   const likeCount = reactions.data?.["+"]?.count || 0;
   const hasLiked = reactions.data?.["+"]?.hasReacted || false;
-  const zapCount = zaps.data?.count || 0;
   const zapTotal = zaps.data?.totalSats || 0;
 
   const handleReply = async () => {
@@ -166,7 +165,6 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
             <ZapButton
               eventId={comment.id}
               authorPubkey={comment.pubkey}
-              zapCount={zapCount}
               zapTotal={zapTotal}
               size="sm"
             />

@@ -31,7 +31,7 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
 
         // The NostrProvider with outbox model will automatically route this event
         // to the user's write relays and any mentioned users' read relays
-        await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+        await nostr.event(event, { signal: AbortSignal.timeout(15000) });
         return event;
       } else {
         throw new Error("User is not logged in");

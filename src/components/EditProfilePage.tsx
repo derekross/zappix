@@ -1,8 +1,11 @@
 import { Settings, User, ArrowLeft } from 'lucide-react';
+import { useSeoMeta } from '@unhead/react';
+import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EditProfileForm } from './EditProfileForm';
+import { MainLayout } from './MainLayout';
 
 interface EditProfilePageProps {
   onBackClick?: () => void;
@@ -10,6 +13,14 @@ interface EditProfilePageProps {
 
 export function EditProfilePage({ onBackClick }: EditProfilePageProps) {
   const { user } = useCurrentUser();
+  const navigate = useNavigate();
+
+  useSeoMeta({
+    title: 'Edit Profile - Zappix',
+    description: 'Edit your Nostr profile information on Zappix.',
+  });
+
+  const handleBackClick = onBackClick || (() => navigate('/profile'));
   
   if (!user) {
     return (
@@ -29,21 +40,19 @@ export function EditProfilePage({ onBackClick }: EditProfilePageProps) {
     );
   }
 
-  return (
+  const content = (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          {onBackClick && (
-            <Button
-              onClick={onBackClick}
-              variant="outline"
-              size="sm"
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back to Profile</span>
-            </Button>
-          )}
+          <Button
+            onClick={handleBackClick}
+            variant="outline"
+            size="sm"
+            className="flex items-center space-x-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to Profile</span>
+          </Button>
           <div className="space-y-1">
             <h2 className="text-2xl font-bold flex items-center space-x-2">
               <Settings className="h-6 w-6" />
@@ -69,4 +78,12 @@ export function EditProfilePage({ onBackClick }: EditProfilePageProps) {
       </Card>
     </div>
   );
+
+  // If onBackClick is provided, render without MainLayout (for embedded use)
+  if (onBackClick) {
+    return content;
+  }
+
+  // Otherwise, render with MainLayout (for route use)
+  return <MainLayout>{content}</MainLayout>;
 }
