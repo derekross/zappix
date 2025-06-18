@@ -5,6 +5,7 @@ import { VideoPostSkeleton } from "./VideoPostSkeleton";
 import { useAllVideoPosts, useFollowingAllVideoPosts } from "@/hooks/useAllVideoPosts";
 import { useFollowing } from "@/hooks/useFollowing";
 import { Card, CardContent } from "@/components/ui/card";
+import { VideoFeedProvider } from "@/contexts/VideoFeedContext";
 
 interface VideoFeedProps {
   feedType: "global" | "following";
@@ -128,35 +129,37 @@ export function VideoFeed({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Video Posts */}
-      {uniqueEvents.map((event) => (
-        <VideoPost
-          key={event.id}
-          event={event}
-          onHashtagClick={onHashtagClick}
-          onLocationClick={onLocationClick}
-        />
-      ))}
+    <VideoFeedProvider>
+      <div className="space-y-6">
+        {/* Video Posts */}
+        {uniqueEvents.map((event) => (
+          <VideoPost
+            key={event.id}
+            event={event}
+            onHashtagClick={onHashtagClick}
+            onLocationClick={onLocationClick}
+          />
+        ))}
 
-      {/* Loading indicator for pagination */}
-      {query.hasNextPage && (
-        <div ref={ref} className="space-y-6">
-          {query.isFetchingNextPage &&
-            Array.from({ length: 2 }).map((_, i) => (
-              <VideoPostSkeleton key={`loading-${i}`} />
-            ))}
-        </div>
-      )}
+        {/* Loading indicator for pagination */}
+        {query.hasNextPage && (
+          <div ref={ref} className="space-y-6">
+            {query.isFetchingNextPage &&
+              Array.from({ length: 2 }).map((_, i) => (
+                <VideoPostSkeleton key={`loading-${i}`} />
+              ))}
+          </div>
+        )}
 
-      {/* End of feed indicator */}
-      {!query.hasNextPage && uniqueEvents.length > 0 && (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground text-sm">
-            You've reached the end of the feed
-          </p>
-        </div>
-      )}
-    </div>
+        {/* End of feed indicator */}
+        {!query.hasNextPage && uniqueEvents.length > 0 && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground text-sm">
+              You've reached the end of the feed
+            </p>
+          </div>
+        )}
+      </div>
+    </VideoFeedProvider>
   );
 }

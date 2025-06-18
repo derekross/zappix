@@ -7,7 +7,6 @@ import {
   Hash,
   Eye,
   Play,
-  Pause,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -38,6 +37,8 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { nip19 } from "nostr-tools";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useVideoFeedContext } from "@/contexts/VideoFeedContext";
+import { useInView } from "react-intersection-observer";
 
 interface VideoPostProps {
   event: NostrEvent;
@@ -56,14 +57,30 @@ export function VideoPost({
   const [showActions, setShowActions] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
+  const [manuallyPaused, setManuallyPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+
+  // Use video feed context for auto-play management
+  const { 
+    currentlyPlayingId, 
+    setCurrentlyPlayingId, 
+    globalMuteState, 
+    setGlobalMuteState 
+  } = useVideoFeedContext();
+
+  // Local mute state that syncs with global state
+  const [isMuted, setIsMuted] = useState(globalMuteState);
+
+  // Intersection observer for auto-play
+  const { ref: containerRef, inView } = useInView({
+    threshold: 0.5, // Video needs to be 50% visible to auto-play
+    rootMargin: "0px",
+  });
 
   const { user } = useCurrentUser();
   const { toast } = useToast();
@@ -201,14 +218,20 @@ export function VideoPost({
     // Toggle play/pause when clicking on the video
     if (videoRef.current && videoLoaded) {
       if (isPlaying) {
+        // User manually paused the video
+        setManuallyPaused(true);
         videoRef.current.pause();
+        setCurrentlyPlayingId(null);
       } else {
+        // User manually played the video
+        setManuallyPaused(false);
+        setCurrentlyPlayingId(event.id);
+        videoRef.current.muted = globalMuteState;
         videoRef.current.play().catch(() => {
           // Handle play promise rejection
-          setIsPlaying(false);
+          setCurrentlyPlayingId(null);
         });
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
@@ -221,8 +244,24 @@ export function VideoPost({
 
   const handlePlayPause = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // This function is now redundant since video click handles play/pause
-    handleVideoClick(e);
+    // Toggle play/pause when clicking the play button
+    if (videoRef.current && videoLoaded) {
+      if (isPlaying) {
+        // User manually paused the video
+        setManuallyPaused(true);
+        videoRef.current.pause();
+        setCurrentlyPlayingId(null);
+      } else {
+        // User manually played the video
+        setManuallyPaused(false);
+        setCurrentlyPlayingId(event.id);
+        videoRef.current.muted = globalMuteState;
+        videoRef.current.play().catch(() => {
+          // Handle play promise rejection
+          setCurrentlyPlayingId(null);
+        });
+      }
+    }
   };
 
   const handleTitleClick = (e: React.MouseEvent) => {
@@ -233,9 +272,14 @@ export function VideoPost({
 
   const handleMuteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const newMutedState = !isMuted;
+    
+    // Update global mute state so all videos use the same setting
+    setGlobalMuteState(newMutedState);
+    setIsMuted(newMutedState);
+    
     if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
+      videoRef.current.muted = newMutedState;
     }
   };
 
@@ -296,26 +340,50 @@ export function VideoPost({
     }
   };
 
-  // Intersection observer to load video when visible
+  // Sync local mute state with global state
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setShouldLoadVideo(true);
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
+    setIsMuted(globalMuteState);
+    if (videoRef.current) {
+      videoRef.current.muted = globalMuteState;
     }
+  }, [globalMuteState]);
 
-    return () => observer.disconnect();
-  }, []);
+  // Auto-play logic based on intersection observer
+  useEffect(() => {
+    if (!videoRef.current || !videoLoaded || videoError) return;
+
+    const video = videoRef.current;
+    const isCurrentlyPlaying = currentlyPlayingId === event.id;
+
+    if (inView && !isCurrentlyPlaying && !manuallyPaused) {
+      // This video is in view and not currently playing - start playing
+      setCurrentlyPlayingId(event.id);
+      video.muted = globalMuteState;
+      video.play().catch(() => {
+        // Handle play promise rejection
+        setIsPlaying(false);
+      });
+    } else if (!inView && isCurrentlyPlaying) {
+      // This video is out of view and currently playing - pause it
+      video.pause();
+      setCurrentlyPlayingId(null);
+      // Reset manual pause state when video goes out of view
+      // This allows auto-play to work again when scrolling back
+      setManuallyPaused(false);
+    }
+  }, [inView, videoLoaded, videoError, currentlyPlayingId, event.id, setCurrentlyPlayingId, globalMuteState, manuallyPaused]);
+
+  // Update local playing state based on global state
+  useEffect(() => {
+    setIsPlaying(currentlyPlayingId === event.id);
+  }, [currentlyPlayingId, event.id]);
+
+  // Load video when container comes into view
+  useEffect(() => {
+    if (inView) {
+      setShouldLoadVideo(true);
+    }
+  }, [inView]);
 
   if (videos.length === 0) return null;
 
@@ -412,7 +480,7 @@ export function VideoPost({
               />
               {/* Play button overlay on thumbnail */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
                   <Play className="h-8 w-8 text-white ml-1" />
                 </div>
               </div>
@@ -434,8 +502,16 @@ export function VideoPost({
               loop
               playsInline
               preload="metadata" // Load metadata when video element is created
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
+              onPlay={() => {
+                setIsPlaying(true);
+                setCurrentlyPlayingId(event.id);
+              }}
+              onPause={() => {
+                setIsPlaying(false);
+                if (currentlyPlayingId === event.id) {
+                  setCurrentlyPlayingId(null);
+                }
+              }}
               onLoadedData={handleVideoLoadedData}
               onCanPlay={handleVideoCanPlay}
               onError={handleVideoError}
@@ -472,41 +548,45 @@ export function VideoPost({
 
           {/* Video Controls Overlay - only show when video is loaded */}
           {videoLoaded && !videoError && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-auto">
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Top right corner - Mute/Unmute button */}
+              <div className="absolute top-4 right-4 pointer-events-auto">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handlePlayPause}
-                  className="text-white hover:bg-white/20"
+                  onClick={handleMuteToggle}
+                  className="text-white hover:bg-white/20 bg-black/30 backdrop-blur-sm"
                 >
-                  {isPlaying ? (
-                    <Pause className="h-5 w-5" />
+                  {isMuted ? (
+                    <VolumeX className="h-5 w-5" />
                   ) : (
-                    <Play className="h-5 w-5" />
+                    <Volume2 className="h-5 w-5" />
                   )}
                 </Button>
-                
-                <div className="flex items-center space-x-2">
-                  {displayDuration && (
-                    <span className="text-white text-sm">
-                      {formatDuration(displayDuration)}
-                    </span>
-                  )}
+              </div>
+
+              {/* Center - Play button (only show when paused) */}
+              {!isPlaying && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={handleMuteToggle}
-                    className="text-white hover:bg-white/20"
+                    size="lg"
+                    onClick={handlePlayPause}
+                    className="text-white hover:bg-white/20 bg-black/30 backdrop-blur-sm w-16 h-16 rounded-full"
                   >
-                    {isMuted ? (
-                      <VolumeX className="h-5 w-5" />
-                    ) : (
-                      <Volume2 className="h-5 w-5" />
-                    )}
+                    <Play className="h-8 w-8 ml-1" />
                   </Button>
                 </div>
-              </div>
+              )}
+
+              {/* Bottom left corner - Duration (if available) */}
+              {displayDuration && (
+                <div className="absolute bottom-4 left-4 pointer-events-none">
+                  <span className="text-white text-sm bg-black/30 backdrop-blur-sm px-2 py-1 rounded">
+                    {formatDuration(displayDuration)}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
