@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNostr } from "@nostrify/react";
 import { useCurrentUser } from "./useCurrentUser";
 import { useNostrPublish } from "./useNostrPublish";
+import { useMemo } from "react";
+import type { NostrEvent } from "@nostrify/nostrify";
 
 // Using NIP-51 standard bookmarks (kind 10003) instead of bookmark sets (kind 30003)
 
@@ -16,43 +18,25 @@ export function useBookmarks() {
         return [];
       }
 
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(8000)]);
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(2000)]);
 
-      // Get user's bookmark list - try both new format (kind 10003) and old format (kind 30003)
-      const [newBookmarkEvents, oldBookmarkEvents] = await Promise.all([
-        // New format: kind 10003 (standard NIP-51 bookmarks)
-        nostr.query(
-          [
-            {
-              kinds: [10003],
-              authors: [user.pubkey],
-              limit: 1,
-            },
-          ],
-          { signal }
-        ),
-        // Old format: kind 30003 with d tag (for migration)
-        nostr.query(
-          [
-            {
-              kinds: [30003],
-              authors: [user.pubkey],
-              "#d": ["nip-68-posts"],
-              limit: 1,
-            },
-          ],
-          { signal }
-        )
-      ]);
+      // Get user's bookmark list (kind 10003 - standard NIP-51 bookmarks)
+      const bookmarkEvents = await nostr.query(
+        [
+          {
+            kinds: [10003],
+            authors: [user.pubkey],
+            limit: 1,
+          },
+        ],
+        { signal }
+      );
 
-      let bookmarkList;
-      if (newBookmarkEvents.length > 0) {
-        bookmarkList = newBookmarkEvents[0];
-      } else if (oldBookmarkEvents.length > 0) {
-        bookmarkList = oldBookmarkEvents[0];
-      } else {
+      if (bookmarkEvents.length === 0) {
         return [];
       }
+
+      const bookmarkList = bookmarkEvents[0];
 
       // Extract event IDs from 'e' tags
       const eventIds = bookmarkList.tags
@@ -96,77 +80,77 @@ export function useBookmarks() {
   });
 }
 
-export function useIsBookmarked(eventId: string) {
+// Get bookmark list data for efficient status checking
+export function useBookmarkList() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
 
-  return useQuery({
-    queryKey: ["is-bookmarked", eventId, user?.pubkey],
+  return useQuery<NostrEvent | null>({
+    queryKey: ["bookmark-list", user?.pubkey],
     queryFn: async (c) => {
       if (!user?.pubkey) {
-        return false;
+        return null;
       }
 
       try {
-        const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
+        const signal = AbortSignal.any([c.signal, AbortSignal.timeout(1500)]);
 
-        // Check both new format (kind 10003) and old format (kind 30003)
-        const [newBookmarkEvents, oldBookmarkEvents] = await Promise.all([
-          nostr.query(
-            [
-              {
-                kinds: [10003],
-                authors: [user.pubkey],
-                limit: 1,
-              },
-            ],
-            { signal }
-          ),
-          nostr.query(
-            [
-              {
-                kinds: [30003],
-                authors: [user.pubkey],
-                "#d": ["nip-68-posts"],
-                limit: 1,
-              },
-            ],
-            { signal }
-          )
-        ]);
-
-        let bookmarkList;
-        if (newBookmarkEvents.length > 0) {
-          bookmarkList = newBookmarkEvents[0];
-        } else if (oldBookmarkEvents.length > 0) {
-          bookmarkList = oldBookmarkEvents[0];
-        } else {
-          return false;
-        }
-
-        const isBookmarked = bookmarkList.tags.some(
-          ([name, id]) => name === "e" && id === eventId
+        // Get bookmark list (kind 10003)
+        const bookmarkEvents = await nostr.query(
+          [
+            {
+              kinds: [10003],
+              authors: [user.pubkey],
+              limit: 1,
+            },
+          ],
+          { signal }
         );
-        
-        return isBookmarked;
+
+        return bookmarkEvents[0] || null;
       } catch {
-        return false;
+        return null;
       }
     },
-    enabled: !!user?.pubkey && !!eventId,
-    staleTime: 30000,
-    retry: 1, // Only retry once
-    retryDelay: 1000, // Wait 1 second before retry
-    gcTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchOnWindowFocus: false, // Don't refetch when window gains focus
+    enabled: !!user?.pubkey,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 
+// Efficient bookmark status check using cached bookmark list
+export function useIsBookmarked(eventId: string) {
+  const bookmarkList = useBookmarkList();
+  const { user } = useCurrentUser();
+
+  return useMemo(() => {
+    if (!user?.pubkey || !eventId || !bookmarkList.data) {
+      return {
+        data: false,
+        isLoading: bookmarkList.isLoading,
+        error: bookmarkList.error,
+      };
+    }
+
+    const isBookmarked = bookmarkList.data.tags.some(
+      ([name, id]) => name === "e" && id === eventId
+    );
+
+    return {
+      data: isBookmarked,
+      isLoading: false,
+      error: null,
+    };
+  }, [bookmarkList.data, bookmarkList.isLoading, bookmarkList.error, eventId, user?.pubkey]);
+}
+
 export function useToggleBookmark() {
-  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const bookmarkList = useBookmarkList();
 
   return useMutation({
     mutationFn: async ({
@@ -180,23 +164,12 @@ export function useToggleBookmark() {
         throw new Error("User not logged in");
       }
 
-      // Get current bookmark set with timeout
-      const signal = AbortSignal.timeout(10000);
-      const bookmarkEvents = await nostr.query([
-        {
-          kinds: [10003],
-          authors: [user.pubkey],
-          limit: 1,
-        },
-      ], { signal });
-
+      // Use cached bookmark list data instead of querying again
+      const currentBookmarkList = bookmarkList.data;
       let currentTags: string[][] = [];
 
-      if (bookmarkEvents.length > 0) {
-        currentTags = bookmarkEvents[0].tags;
-      } else {
-        // If no bookmark list exists, create an empty one (kind 10003 doesn't need a 'd' tag)
-        currentTags = [];
+      if (currentBookmarkList) {
+        currentTags = currentBookmarkList.tags;
       }
 
       let newTags: string[][];
@@ -221,30 +194,45 @@ export function useToggleBookmark() {
       return event;
     },
     onMutate: async (variables) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: ["is-bookmarked", variables.eventId] });
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["bookmark-list"] });
 
-      // Snapshot the previous value
-      const previousBookmarkStatus = queryClient.getQueryData(["is-bookmarked", variables.eventId, user?.pubkey]);
+      // Snapshot the previous bookmark list
+      const previousBookmarkList = queryClient.getQueryData(["bookmark-list", user?.pubkey]);
 
-      // Optimistically update to the new value
-      queryClient.setQueryData(["is-bookmarked", variables.eventId, user?.pubkey], !variables.isBookmarked);
+      // Optimistically update the bookmark list
+      if (previousBookmarkList) {
+        const currentTags = (previousBookmarkList as NostrEvent).tags || [];
+        let newTags: string[][];
 
-      // Return a context object with the snapshotted value
-      return { previousBookmarkStatus };
+        if (variables.isBookmarked) {
+          // Remove bookmark
+          newTags = currentTags.filter(
+            ([name, id]: string[]) => !(name === "e" && id === variables.eventId)
+          );
+        } else {
+          // Add bookmark
+          newTags = [...currentTags, ["e", variables.eventId]];
+        }
+
+        queryClient.setQueryData(["bookmark-list", user?.pubkey], {
+          ...(previousBookmarkList as NostrEvent),
+          tags: newTags,
+        });
+      }
+
+      return { previousBookmarkList };
     },
-    onError: (_, variables, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousBookmarkStatus !== undefined) {
-        queryClient.setQueryData(["is-bookmarked", variables.eventId, user?.pubkey], context.previousBookmarkStatus);
+    onError: (_, __, context) => {
+      // Roll back on error
+      if (context?.previousBookmarkList) {
+        queryClient.setQueryData(["bookmark-list", user?.pubkey], context.previousBookmarkList);
       }
     },
-    onSuccess: (_, variables) => {
-      // Invalidate bookmark queries to ensure fresh data
+    onSuccess: () => {
+      // Invalidate to get fresh data from the network
+      queryClient.invalidateQueries({ queryKey: ["bookmark-list"] });
       queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
-      queryClient.invalidateQueries({
-        queryKey: ["is-bookmarked", variables.eventId],
-      });
     },
   });
 }

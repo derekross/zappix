@@ -85,5 +85,5 @@ export function EditProfilePage({ onBackClick }: EditProfilePageProps) {
   }
 
   // Otherwise, render with MainLayout (for route use)
-  return <MainLayout>{content}</MainLayout>;
+  return <MainLayout key="edit-profile-layout">{content}</MainLayout>;
 }

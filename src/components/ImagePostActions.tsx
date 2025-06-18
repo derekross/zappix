@@ -94,9 +94,6 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
   };
 
   const handleToggleBookmark = async () => {
-    console.log("[UI] Bookmark toggle clicked for event:", event.id);
-    console.log("[UI] Current bookmark status:", isBookmarked.data);
-    
     if (!user) {
       toast({
         title: "Error",
@@ -107,28 +104,16 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
     }
 
     if (toggleBookmark.isPending) {
-      console.log("[UI] Bookmark toggle already in progress, ignoring click");
       return;
     }
     
     try {
-      console.log("[UI] Starting bookmark toggle mutation");
-      
-      // Show immediate feedback
       const wasBookmarked = isBookmarked.data || false;
-      toast({
-        title: wasBookmarked
-          ? "Removing from bookmarks..."
-          : "Adding to bookmarks...",
-        description: "Please wait while we update your bookmarks",
-      });
 
       await toggleBookmark.mutateAsync({
         eventId: event.id,
         isBookmarked: wasBookmarked,
       });
-
-      console.log("[UI] Bookmark toggle successful");
 
       toast({
         title: wasBookmarked
@@ -140,7 +125,6 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
       });
       onClose();
     } catch (error) {
-      console.error("[UI] Bookmark toggle error:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to update bookmark",

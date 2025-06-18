@@ -131,7 +131,7 @@ export function BookmarksPage() {
   });
 
   return (
-    <MainLayout>
+    <MainLayout key="bookmarks-layout">
       <BookmarksContent />
     </MainLayout>
   );

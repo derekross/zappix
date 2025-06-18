@@ -18,7 +18,7 @@ export function ProfilePage({ onEditClick }: ProfilePageProps) {
   const handleEditClick = onEditClick || (() => navigate('/profile/edit'));
 
   return (
-    <MainLayout>
+    <MainLayout key="profile-layout">
       <UserProfileView onEditClick={handleEditClick} />
     </MainLayout>
   );

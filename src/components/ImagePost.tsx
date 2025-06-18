@@ -173,7 +173,11 @@ export function ImagePost({
               className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
               onClick={handleProfileClick}
             >
-              <AvatarImage src={profileImage} alt={displayName} />
+              <AvatarImage 
+                src={profileImage} 
+                alt={displayName}
+                loading="lazy"
+              />
               <AvatarFallback>{displayName[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>

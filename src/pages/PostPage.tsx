@@ -97,7 +97,7 @@ const PostPage = () => {
     </div>
   );
 
-  return <MainLayout>{content}</MainLayout>;
+  return <MainLayout key="post-layout">{content}</MainLayout>;
 };
 
 export default PostPage;

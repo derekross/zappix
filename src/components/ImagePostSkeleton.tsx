@@ -28,3 +28,15 @@ export function ImagePostSkeleton() {
     </Card>
   );
 }
+
+export function ProfileSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={`flex items-center space-x-3 ${className}`}>
+      <Skeleton className="h-10 w-10 rounded-full" />
+      <div className="space-y-1">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+    </div>
+  );
+}

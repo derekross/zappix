@@ -1,10 +1,12 @@
 import { useImagePosts, useFollowingImagePosts } from "@/hooks/useImagePosts";
 import { useFollowing } from "@/hooks/useFollowing";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useAuthors } from "@/hooks/useAuthors";
+import { useMemo } from "react";
 import { ImagePost } from "./ImagePost";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { ImagePostSkeleton } from "./ImagePostSkeleton";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useInView } from "react-intersection-observer";
@@ -18,32 +20,7 @@ interface ImageFeedProps {
   onLocationClick?: (location: string) => void;
 }
 
-function ImagePostSkeleton() {
-  return (
-    <Card className="overflow-hidden">
-      <div className="p-4">
-        <div className="flex items-center space-x-3 mb-4">
-          <Skeleton className="h-10 w-10 rounded-full" />
-          <div className="space-y-1">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-16" />
-          </div>
-        </div>
-      </div>
-      <Skeleton className="aspect-square w-full" />
-      <div className="p-4 space-y-3">
-        <Skeleton className="h-5 w-3/4" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-2/3" />
-        <div className="flex space-x-4 pt-2">
-          <Skeleton className="h-8 w-16" />
-          <Skeleton className="h-8 w-16" />
-          <Skeleton className="h-8 w-20" />
-        </div>
-      </div>
-    </Card>
-  );
-}
+
 
 export function ImageFeed({
   feedType,
@@ -60,6 +37,20 @@ export function ImageFeed({
   const followingPosts = useFollowingImagePosts(following.data || []);
 
   const posts = feedType === "following" ? followingPosts : globalPosts;
+
+  // Flatten all pages into a single array of posts
+  const allPosts = useMemo(() => {
+    return posts.data?.pages?.flatMap((page) => page.events) || [];
+  }, [posts.data]);
+
+  // Extract unique author pubkeys for prefetching
+  const authorPubkeys = useMemo(() => {
+    const pubkeys = new Set(allPosts.map(post => post.pubkey));
+    return Array.from(pubkeys);
+  }, [allPosts]);
+
+  // Prefetch all author profiles in batch for better performance
+  useAuthors(authorPubkeys);
 
   // Intersection observer for infinite scrolling
   const { ref: loadMoreRef, inView } = useInView({
@@ -112,9 +103,6 @@ export function ImageFeed({
       </Card>
     );
   }
-
-  // Flatten all pages into a single array of posts
-  const allPosts = posts.data?.pages?.flatMap((page) => page.events) || [];
 
   if (!posts.data || allPosts.length === 0) {
     // For following feed, check if we're still loading the following list
