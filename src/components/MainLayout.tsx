@@ -586,6 +586,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                         location={selectedLocation}
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}
+                        key={`location-${selectedLocation}`}
                       />
                     </>
                   )}

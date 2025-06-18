@@ -82,68 +82,48 @@ export function useImagePosts(hashtag?: string, location?: string) {
     queryKey: ["image-posts", hashtag, location],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
-
       const discoveryPool = getDiscoveryPool();
 
-      // Global and hashtag feeds use discovery relays only (no outbox model)
       const filter: {
         kinds: number[];
         limit: number;
         "#t"?: string[];
-        location?: string[];
         until?: number;
       } = {
         kinds: [20],
-        limit: 10, // Smaller initial page size for faster loading
+        limit: 20,
       };
 
-      // Add hashtag filter if specified
       if (hashtag) {
         filter["#t"] = [hashtag];
       }
 
-      // Add location filter if specified
-      if (location) {
-        filter["location"] = [location];
-      }
-
-      // Add pagination using 'until' timestamp
       if (pageParam) {
         filter.until = pageParam;
       }
 
-      console.log(
-        "Querying global/hashtag feed from discovery relays...",
-        pageParam ? `until ${pageParam}` : "initial"
-      );
-
       try {
-        const events = await discoveryPool.query([filter], {
-          signal: querySignal,
-        });
-        console.log("Global feed raw events received:", events.length);
+        const events = await discoveryPool.query([filter], { signal: querySignal });
+        let validEvents = events.filter(validateImageEvent);
 
-        const validEvents = events.filter(validateImageEvent);
-        console.log("Global feed valid events:", validEvents.length);
+        // Filter by location if specified
+        if (location) {
+          validEvents = validEvents.filter(event => 
+            event.tags.some(tag => 
+              tag[0] === "location" && 
+              tag[1] && 
+              tag[1].toLowerCase().includes(location.toLowerCase())
+            )
+          );
+        }
 
-        // Log unique authors to see diversity
-        const uniqueAuthors = [...new Set(validEvents.map((e) => e.pubkey))];
-        console.log("Global feed unique authors found:", uniqueAuthors.length);
-
-        // Sort by created_at and deduplicate by ID
         const sortedEvents = validEvents
           .sort((a, b) => b.created_at - a.created_at)
-          .filter(
-            (event, index, self) =>
-              index === self.findIndex((e) => e.id === event.id)
-          );
+          .filter((event, index, self) => index === self.findIndex(e => e.id === event.id));
 
         return {
           events: sortedEvents,
-          nextCursor:
-            sortedEvents.length > 0
-              ? sortedEvents[sortedEvents.length - 1].created_at
-              : undefined,
+          nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
         };
       } catch (error) {
         console.error("Error querying discovery relays:", error);
@@ -152,8 +132,8 @@ export function useImagePosts(hashtag?: string, location?: string) {
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // 1 minute
+    staleTime: 30000,
+    refetchInterval: 60000,
   });
 }
 

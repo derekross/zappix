@@ -92,11 +92,22 @@ export function useUserImagePosts(pubkey: string | undefined) {
         const validEvents = events.filter(validateImageEvent);
         console.log('User image posts valid events:', validEvents.length);
         
-        const sortedEvents = validEvents.sort((a, b) => b.created_at - a.created_at);
+        // Deduplicate by event ID to prevent duplicates from multiple relays
+        const uniqueEvents = validEvents.reduce((acc, event) => {
+          if (!acc.find(e => e.id === event.id)) {
+            acc.push(event);
+          }
+          return acc;
+        }, [] as NostrEvent[]);
+        
+        console.log('User image posts unique events:', uniqueEvents.length);
+        
+        const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
         
         return {
           events: sortedEvents,
-          nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
+          // Stop only when we get fewer raw events than the limit we requested
+          nextCursor: events.length < filter.limit ? undefined : sortedEvents[sortedEvents.length - 1]?.created_at,
         };
       } catch (error) {
         console.error('Error querying user image posts:', error);

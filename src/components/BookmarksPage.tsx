@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { ImagePost } from "./ImagePost";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bookmark } from "lucide-react";
+import { Bookmark, Hash } from "lucide-react";
 import { MainLayout } from "./MainLayout";
+import { Button } from "@/components/ui/button";
+import { ImageFeed } from "./ImageFeed";
 
 function BookmarkSkeleton() {
   return (
@@ -32,6 +35,18 @@ function BookmarkSkeleton() {
 function BookmarksContent() {
   const { user } = useCurrentUser();
   const bookmarks = useBookmarks();
+  const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
+
+  const handleHashtagClick = (hashtag: string) => {
+    setSelectedHashtag(hashtag);
+    // Scroll to top when navigating to hashtag feed
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleBackToBookmarks = () => {
+    setSelectedHashtag(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   if (!user) {
     return (
@@ -89,6 +104,36 @@ function BookmarksContent() {
     );
   }
 
+  // Show hashtag detail view if a hashtag is selected
+  if (selectedHashtag) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <Button
+            variant="outline"
+            onClick={handleBackToBookmarks}
+          >
+            Back to Bookmarks
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold flex items-center space-x-2">
+              <Hash className="h-6 w-6 text-primary" />
+              <span>#{selectedHashtag}</span>
+            </h2>
+            <p className="text-muted-foreground">
+              Posts tagged with #{selectedHashtag}
+            </p>
+          </div>
+        </div>
+        <ImageFeed
+          feedType="global"
+          hashtag={selectedHashtag}
+          onHashtagClick={handleHashtagClick}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
@@ -116,7 +161,11 @@ function BookmarksContent() {
       ) : (
         <div className="space-y-6">
           {bookmarks.data.map((post) => (
-            <ImagePost key={post.id} event={post} />
+            <ImagePost 
+              key={post.id} 
+              event={post} 
+              onHashtagClick={handleHashtagClick}
+            />
           ))}
         </div>
       )}

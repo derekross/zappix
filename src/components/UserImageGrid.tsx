@@ -94,8 +94,16 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
     }
   }, [inView, posts]);
 
-  // Flatten all pages into a single array of posts
+  // Flatten all pages into a single array of posts and deduplicate by event ID
   const allPosts = posts.data?.pages?.flatMap(page => page.events) || [];
+  
+  // Deduplicate events by ID to prevent duplicate keys
+  const uniquePosts = allPosts.reduce((acc, post) => {
+    if (!acc.find(p => p.id === post.id)) {
+      acc.push(post);
+    }
+    return acc;
+  }, [] as typeof allPosts);
   
   if (posts.isLoading) {
     return (
@@ -124,7 +132,7 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
     );
   }
   
-  if (!posts.data || allPosts.length === 0) {
+  if (!posts.data || uniquePosts.length === 0) {
     return (
       <div className={cn("space-y-4", className)}>
         <h3 className="text-lg font-semibold">Your Images</h3>
@@ -144,12 +152,12 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Your Images</h3>
         <span className="text-sm text-muted-foreground">
-          {allPosts.length} {allPosts.length === 1 ? 'image' : 'images'}
+          {uniquePosts.length} {uniquePosts.length === 1 ? 'image' : 'images'}
         </span>
       </div>
       
       <div className="grid grid-cols-3 gap-1">
-        {allPosts.map((post) => (
+        {uniquePosts.map((post) => (
           <ImageGridItem key={post.id} event={post} />
         ))}
       </div>
