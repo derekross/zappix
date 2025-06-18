@@ -202,9 +202,21 @@ function BookmarksContent() {
               Your bookmark set "nip-68-posts" - {bookmarks.data.length} item{bookmarks.data.length !== 1 ? 's' : ''}
             </p>
             {bookmarks.data.length > 0 && (
-              <div className="text-xs text-muted-foreground">
-                Event kinds: {bookmarks.data.map(e => e.kind).join(', ')}
-              </div>
+              <>
+                <div className="text-xs text-muted-foreground">
+                  Event kinds: {bookmarks.data.map(e => e.kind).join(', ')}
+                </div>
+                {bookmarkList.data && (
+                  <div className="text-xs text-muted-foreground">
+                    Total bookmarks in set: {bookmarkList.data.tags.filter(([name]) => name === 'e').length}
+                    {bookmarkList.data.tags.filter(([name]) => name === 'e').length > bookmarks.data.length && (
+                      <span className="text-orange-600 ml-2">
+                        ({bookmarkList.data.tags.filter(([name]) => name === 'e').length - bookmarks.data.length} not found on current relays)
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
           {bookmarks.data.map((post) => {

@@ -84,9 +84,12 @@ export function useBookmarks() {
         return [];
       }
 
-      // Fetch the bookmarked events
+      // Fetch the bookmarked events - try multiple strategies
       console.log('useBookmarks - Fetching events by IDs');
-      const allEvents = await nostr.query(
+      console.log('useBookmarks - Target event IDs:', eventIds);
+      
+      // Strategy 1: Try to fetch all events at once
+      let allEvents = await nostr.query(
         [
           {
             ids: eventIds,
@@ -96,32 +99,101 @@ export function useBookmarks() {
         { signal }
       );
 
-      console.log('useBookmarks - Fetched events:', allEvents.length, allEvents);
+      console.log('useBookmarks - Strategy 1 - Fetched events:', allEvents.length, allEvents);
 
-      // For debugging: return all events first to see what we're getting
-      console.log('useBookmarks - All fetched events by kind:', 
-        allEvents.reduce((acc, event) => {
+      // Strategy 2: If we didn't get all events, try without limit
+      if (allEvents.length < eventIds.length) {
+        console.log('useBookmarks - Strategy 2 - Trying query without limit');
+        try {
+          const unlimitedEvents = await nostr.query(
+            [
+              {
+                ids: eventIds,
+              },
+            ],
+            { signal: AbortSignal.timeout(4000) }
+          );
+          
+          console.log('useBookmarks - Strategy 2 - Unlimited query result:', unlimitedEvents.length, unlimitedEvents);
+          
+          // Merge results, avoiding duplicates
+          const existingIds = new Set(allEvents.map(e => e.id));
+          const newEvents = unlimitedEvents.filter(e => !existingIds.has(e.id));
+          allEvents = [...allEvents, ...newEvents];
+          
+          console.log('useBookmarks - After strategy 2:', allEvents.length, 'total events');
+        } catch (error) {
+          console.log('useBookmarks - Strategy 2 failed:', error);
+        }
+      }
+
+      // Strategy 3: If we still don't have all events, try fetching them individually
+      // This might help with relay-specific availability
+      if (allEvents.length < eventIds.length) {
+        console.log('useBookmarks - Strategy 3 - Trying individual queries for missing events');
+        const foundIds = new Set(allEvents.map(e => e.id));
+        const missingIds = eventIds.filter(id => !foundIds.has(id));
+        
+        console.log('useBookmarks - Missing event IDs:', missingIds);
+        
+        for (const eventId of missingIds) {
+          try {
+            const individualEvents = await nostr.query(
+              [
+                {
+                  ids: [eventId],
+                  limit: 1,
+                },
+              ],
+              { signal: AbortSignal.timeout(3000) }
+            );
+            
+            console.log(`useBookmarks - Individual query for ${eventId}:`, individualEvents.length, individualEvents);
+            allEvents = [...allEvents, ...individualEvents];
+          } catch (error) {
+            console.log(`useBookmarks - Failed to fetch individual event ${eventId}:`, error);
+          }
+        }
+      }
+
+      console.log('useBookmarks - Final fetched events after all strategies:', allEvents.length, allEvents);
+
+      // For debugging: verify what we have
+      console.log('useBookmarks - Final analysis:', {
+        requestedEventIds: eventIds,
+        foundEventIds: allEvents.map(e => e.id),
+        missingEventIds: eventIds.filter(id => !allEvents.some(e => e.id === id)),
+        eventsByKind: allEvents.reduce((acc, event) => {
           acc[event.kind] = (acc[event.kind] || 0) + 1;
           return acc;
         }, {} as Record<number, number>)
-      );
+      });
 
       // Display all bookmarked events regardless of kind for now
       const validEvents = allEvents
         .filter((event) => {
           // Basic validation - just ensure it's a valid event
+          const isValid = event && event.id && event.pubkey && typeof event.created_at === 'number';
           console.log('useBookmarks - Event validation:', event.id, { 
             kind: event.kind,
             hasContent: !!event.content,
-            tagCount: event.tags.length,
-            tags: event.tags.map(([name]) => name)
+            tagCount: event.tags?.length || 0,
+            isValid,
+            created: new Date(event.created_at * 1000).toISOString()
           });
           
-          return true; // Accept all events for now
+          return isValid;
         })
         .sort((a, b) => b.created_at - a.created_at);
 
-      console.log('useBookmarks - Final valid events:', validEvents.length, validEvents);
+      console.log('useBookmarks - Final valid events:', validEvents.length, 'out of', eventIds.length, 'requested');
+      
+      // If we have missing events, add placeholder objects for debugging
+      const missingEventIds = eventIds.filter(id => !validEvents.some(e => e.id === id));
+      if (missingEventIds.length > 0) {
+        console.log('useBookmarks - Events not found on any relay:', missingEventIds);
+        // Optionally, you could add placeholder events to show in the UI that some bookmarks are missing
+      }
 
       return validEvents;
     },
