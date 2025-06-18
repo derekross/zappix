@@ -2,13 +2,11 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { NPool, NRelay1 } from "@nostrify/nostrify";
 import type { NostrEvent } from "@nostrify/nostrify";
 
-// Validator function for vertical video events (kind 22 and legacy 34236)
+// Validator function for vertical video events (NIP-71 kind 22 and legacy kind 34236)
 function validateVideoEvent(event: NostrEvent): boolean {
-  // Check if it's a vertical video event kind (22 for short-form vertical videos, 34236 for legacy vertical videos)
-  if (![22, 34236].includes(event.kind)) return false;
-
-  // For NIP-71 kind 22, check for imeta tag with video content
+  // Check for NIP-71 short-form video events (kind 22)
   if (event.kind === 22) {
+    // For NIP-71 video events, check for imeta tag with video content
     const imetaTags = event.tags.filter(([name]) => name === "imeta");
     
     // Check if any imeta tag contains video content
@@ -16,39 +14,43 @@ function validateVideoEvent(event: NostrEvent): boolean {
       const tagContent = tag.slice(1).join(" ");
       return tagContent.includes("url ") && 
              (tagContent.includes("m video/") || 
-              tagContent.includes(".mp4") || 
-              tagContent.includes(".webm") || 
-              tagContent.includes(".mov"));
+              tagContent.includes("m application/x-mpegURL")); // Include HLS streams
     });
     
-    // Also check content field for video URLs as fallback
-    const hasVideoInContent = event.content.includes('.mp4') || 
-                             event.content.includes('.webm') || 
-                             event.content.includes('.mov');
+    // Also check for title tag which is required for NIP-71
+    const hasTitle = event.tags.some(([name]) => name === "title");
     
-    if (!hasVideoImeta && !hasVideoInContent) return false;
+    return hasVideoImeta && hasTitle;
   }
-
-  // For legacy kind 34236, check for basic video content in event.content or tags
+  
+  // Check for legacy vertical video events (kind 34236)
   if (event.kind === 34236) {
-    // Legacy format may have video URL in content or url tags
-    const hasVideoUrl = event.content.includes('.mp4') || 
-                       event.content.includes('.webm') || 
-                       event.content.includes('.mov') ||
-                       event.tags.some(([name, value]) => 
-                         name === 'url' && value && 
-                         (value.includes('.mp4') || value.includes('.webm') || value.includes('.mov'))
-                       );
-    if (!hasVideoUrl) return false;
+    // For legacy kind 34236, check for imeta tag with video content
+    const imetaTags = event.tags.filter(([name]) => name === "imeta");
+    
+    // Check if any imeta tag contains video content
+    const hasVideoImeta = imetaTags.some(tag => {
+      const tagContent = tag.slice(1).join(" ");
+      return tagContent.includes("url ") && 
+             tagContent.includes("m video/");
+    });
+    
+    // Also check for standalone m and x tags (legacy format)
+    const hasMimeTag = event.tags.some(([name, value]) => name === "m" && value?.startsWith("video/"));
+    const hasHashTag = event.tags.some(([name]) => name === "x");
+    
+    return hasVideoImeta || (hasMimeTag && hasHashTag);
   }
 
-  return true;
+  return false;
 }
 
 // Get a shared discovery pool to avoid creating too many connections
 let discoveryPool: NPool | null = null;
+let poolInitialized = false;
+
 function getDiscoveryPool() {
-  if (!discoveryPool) {
+  if (!discoveryPool || !poolInitialized) {
     const relayUrls = [
       "wss://relay.nostr.band",
       "wss://relay.damus.io", 
@@ -56,28 +58,38 @@ function getDiscoveryPool() {
       "wss://nos.lol",
       "wss://relay.snort.social",
     ];
-    discoveryPool = new NPool({
-      open(url: string) {
-        return new NRelay1(url);
-      },
-      reqRouter: (filters) => {
-        const relayMap = new Map<string, typeof filters>();
-        for (const url of relayUrls) {
-          relayMap.set(url, filters);
-        }
-        return relayMap;
-      },
-      eventRouter: () => relayUrls.slice(0, 3),
-    });
+    
+    try {
+      discoveryPool = new NPool({
+        open(url: string) {
+          return new NRelay1(url);
+        },
+        reqRouter: (filters) => {
+          const relayMap = new Map<string, typeof filters>();
+          for (const url of relayUrls) {
+            relayMap.set(url, filters);
+          }
+          return relayMap;
+        },
+        eventRouter: () => relayUrls.slice(0, 3),
+      });
+      poolInitialized = true;
+    } catch (error) {
+      console.error("Failed to initialize discovery pool:", error);
+      // Reset so we can try again next time
+      discoveryPool = null;
+      poolInitialized = false;
+      throw error;
+    }
   }
   return discoveryPool;
 }
 
 
 
-export function useVideoPosts(hashtag?: string, location?: string) {
+export function useAllVideoPosts(hashtag?: string, location?: string, orientation?: 'vertical' | 'horizontal' | 'all') {
   return useInfiniteQuery({
-    queryKey: ["video-posts", hashtag, location],
+    queryKey: ["all-video-posts", hashtag, location, orientation],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
       const discoveryPool = getDiscoveryPool();
@@ -88,7 +100,7 @@ export function useVideoPosts(hashtag?: string, location?: string) {
         "#t"?: string[];
         until?: number;
       } = {
-        kinds: [22, 34236], // Vertical video events (short-form and legacy vertical videos)
+        kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
         limit: 20,
       };
 
@@ -103,8 +115,6 @@ export function useVideoPosts(hashtag?: string, location?: string) {
       try {
         const events = await discoveryPool.query([filter], { signal: querySignal });
         let validEvents = events.filter(validateVideoEvent);
-
-        // Show all videos regardless of orientation
 
         // Filter by location if specified
         if (location) {
@@ -136,13 +146,18 @@ export function useVideoPosts(hashtag?: string, location?: string) {
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     staleTime: 30000,
-    refetchInterval: 60000,
+    refetchInterval: false, // Disable automatic refetching to prevent constant refreshing
+    retry: 2, // Reduce retry attempts
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 }
 
-export function useFollowingVideoPosts(followingPubkeys: string[]) {
+export function useFollowingAllVideoPosts(followingPubkeys: string[], orientation?: 'vertical' | 'horizontal' | 'all') {
+  // Create a stable query key by sorting and stringifying the pubkeys array
+  const stableFollowingKey = followingPubkeys.length > 0 ? followingPubkeys.slice().sort().join(',') : 'empty';
+  
   return useInfiniteQuery({
-    queryKey: ["following-video-posts", followingPubkeys],
+    queryKey: ["following-all-video-posts", stableFollowingKey, orientation],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
 
@@ -155,7 +170,6 @@ export function useFollowingVideoPosts(followingPubkeys: string[]) {
       }
 
       // Use discovery pool for following feed (same as global but with authors filter)
-      // The key difference is the authors filter, not the pool
       const discoveryPool = getDiscoveryPool();
 
       try {
@@ -165,8 +179,8 @@ export function useFollowingVideoPosts(followingPubkeys: string[]) {
           limit: number;
           until?: number;
         } = {
-          kinds: [22, 34236], // Vertical video events (short-form and legacy vertical videos)
-          authors: followingPubkeys,
+          kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
+          authors: followingPubkeys.slice(), // Create a copy to avoid reference issues
           limit: 10, // Smaller initial page size for faster loading
         };
 
@@ -180,8 +194,6 @@ export function useFollowingVideoPosts(followingPubkeys: string[]) {
         });
 
         const validEvents = events.filter(validateVideoEvent);
-
-        // Show all videos regardless of orientation
 
         // Deduplicate by ID first, then sort by created_at
         const uniqueEvents = validEvents.filter(
@@ -204,14 +216,17 @@ export function useFollowingVideoPosts(followingPubkeys: string[]) {
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: followingPubkeys.length > 0, // Only run query if we have pubkeys to follow
     staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // 1 minute
+    refetchInterval: false, // Disable automatic refetching to prevent constant refreshing
+    retry: 2, // Reduce retry attempts
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 }
 
-export function useHashtagVideoPosts(hashtags: string[], limit = 3) {
+export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientation?: 'vertical' | 'horizontal' | 'all') {
   return useQuery({
-    queryKey: ["hashtag-video-posts", hashtags, limit],
+    queryKey: ["hashtag-all-video-posts", hashtags, limit, orientation],
     queryFn: async (c) => {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
 
@@ -225,7 +240,7 @@ export function useHashtagVideoPosts(hashtags: string[], limit = 3) {
           const events = await discoveryPool.query(
             [
               {
-                kinds: [22, 34236], // Vertical video events (short-form and legacy vertical videos)
+                kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
                 "#t": [hashtag],
                 limit,
               },
@@ -233,11 +248,13 @@ export function useHashtagVideoPosts(hashtags: string[], limit = 3) {
             { signal }
           );
 
+          const validEvents = events.filter(validateVideoEvent);
+
+          // All videos are vertical by design (kind 22 and 34236 are vertical-only)
+
           return {
             hashtag,
-            posts: events
-              .filter(validateVideoEvent)
-              .sort((a, b) => b.created_at - a.created_at),
+            posts: validEvents.sort((a, b) => b.created_at - a.created_at),
           };
         })
       );

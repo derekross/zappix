@@ -33,6 +33,7 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const [activeMainTab, setActiveMainTab] = useState("home");
   const [activeHomeTab, setActiveHomeTab] = useState("global");
+  const [activeVideoTab, setActiveVideoTab] = useState("global");
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [previousTab, setPreviousTab] = useState<string>("discover"); // Track where user came from
@@ -564,17 +565,56 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </TabsContent>
 
                 <TabsContent value="videos" className="space-y-6">
-                  <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-bold">Vertical Videos</h2>
-                    <p className="text-muted-foreground">
-                      Latest short-form vertical videos from all relays
-                    </p>
-                  </div>
-                  <VideoFeed
-                    feedType="global"
-                    onHashtagClick={handleHashtagClick}
-                    onLocationClick={handleLocationClick}
-                  />
+                  <Tabs
+                    value={activeVideoTab}
+                    onValueChange={setActiveVideoTab}
+                    className="w-full"
+                  >
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                      <TabsTrigger
+                        value="global"
+                        className="flex items-center space-x-2"
+                      >
+                        <Globe className="h-4 w-4" />
+                        <span className="hidden sm:inline">Global</span>
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="following"
+                        className="flex items-center space-x-2"
+                      >
+                        <Users className="h-4 w-4" />
+                        <span className="hidden sm:inline">Following</span>
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="global" className="space-y-6">
+                      <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-bold">Global Videos</h2>
+                        <p className="text-muted-foreground">
+                          Latest vertical videos from all relays - TikTok-style feed
+                        </p>
+                      </div>
+                      <VideoFeed
+                        feedType="global"
+                        onHashtagClick={handleHashtagClick}
+                        onLocationClick={handleLocationClick}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="following" className="space-y-6">
+                      <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-bold">Following Videos</h2>
+                        <p className="text-muted-foreground">
+                          Latest vertical videos from people you follow
+                        </p>
+                      </div>
+                      <VideoFeed
+                        feedType="following"
+                        onHashtagClick={handleHashtagClick}
+                        onLocationClick={handleLocationClick}
+                      />
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
 
                 <TabsContent value="discover" className="space-y-6">
@@ -840,17 +880,56 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </TabsContent>
 
                 <TabsContent value="videos" className="space-y-6">
-                  <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-bold mb-2">Vertical Videos</h2>
-                    <p className="text-muted-foreground">
-                      Latest short-form vertical videos from all relays
-                    </p>
-                  </div>
-                  <VideoFeed
-                    feedType="global"
-                    onHashtagClick={handleHashtagClick}
-                    onLocationClick={handleLocationClick}
-                  />
+                  <Tabs
+                    value={activeVideoTab}
+                    onValueChange={setActiveVideoTab}
+                    className="w-full"
+                  >
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                      <TabsTrigger
+                        value="global"
+                        className="flex items-center space-x-2"
+                      >
+                        <Globe className="h-4 w-4" />
+                        <span className="hidden sm:inline">Global</span>
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="following"
+                        className="flex items-center space-x-2"
+                      >
+                        <Users className="h-4 w-4" />
+                        <span className="hidden sm:inline">Following</span>
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="global" className="space-y-6">
+                      <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-bold mb-2">Global Videos</h2>
+                        <p className="text-muted-foreground">
+                          Latest vertical videos from all relays - TikTok-style feed
+                        </p>
+                      </div>
+                      <VideoFeed
+                        feedType="global"
+                        onHashtagClick={handleHashtagClick}
+                        onLocationClick={handleLocationClick}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="following" className="space-y-6">
+                      <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-bold mb-2">Following Videos</h2>
+                        <p className="text-muted-foreground">
+                          Latest vertical videos from people you follow
+                        </p>
+                      </div>
+                      <VideoFeed
+                        feedType="following"
+                        onHashtagClick={handleHashtagClick}
+                        onLocationClick={handleLocationClick}
+                      />
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
 
                 <TabsContent value="discover" className="space-y-6">

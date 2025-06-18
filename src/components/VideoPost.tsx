@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Heart,
   MessageCircle,
@@ -36,7 +36,7 @@ import { CommentSection } from "./CommentSection";
 import { ZapButton } from "./ZapButton";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import * as nip19 from "nostr-tools/nip19";
+import { nip19 } from "nostr-tools";
 
 interface VideoPostProps {
   event: NostrEvent;
@@ -56,7 +56,11 @@ export function VideoPost({
   const [isRevealed, setIsRevealed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   const { user } = useCurrentUser();
@@ -85,21 +89,93 @@ export function VideoPost({
   const duration = event.tags.find(([name]) => name === "duration")?.[1];
   const alt = event.tags.find(([name]) => name === "alt")?.[1];
 
-  // Parse video URLs from imeta tags
-  const videos = imetaTags
-    .map((tag) => {
-      const urlPart = tag.find((part) => part.startsWith("url "));
-      const url = urlPart?.replace("url ", "");
-      const mPart = tag.find((part) => part.startsWith("m "));
-      const mimeType = mPart?.replace("m ", "");
-      const dimPart = tag.find((part) => part.startsWith("dim "));
-      const dimensions = dimPart?.replace("dim ", "");
-      const imagePart = tag.find((part) => part.startsWith("image "));
-      const thumbnail = imagePart?.replace("image ", "");
+  // Parse video URLs from vertical video events
+  let videos: Array<{ url?: string; mimeType?: string; dimensions?: string; thumbnail?: string; duration?: string }> = [];
 
-      return { url, mimeType, dimensions, thumbnail };
-    })
-    .filter((video) => video.url && video.mimeType?.startsWith("video/"));
+  if (event.kind === 22) {
+    // NIP-71 short-form video format with imeta tags
+    videos = imetaTags
+      .map((tag) => {
+        // Parse the imeta tag which contains space-separated key-value pairs
+        const tagContent = tag.slice(1).join(" ");
+        
+        // Extract URL
+        const urlMatch = tagContent.match(/url\s+(\S+)/);
+        const url = urlMatch?.[1];
+        
+        // Extract MIME type
+        const mimeMatch = tagContent.match(/m\s+(\S+)/);
+        const mimeType = mimeMatch?.[1];
+        
+        // Extract dimensions
+        const dimMatch = tagContent.match(/dim\s+(\S+)/);
+        const dimensions = dimMatch?.[1];
+        
+        // Extract thumbnail (can be 'thumb' or 'image')
+        const thumbMatch = tagContent.match(/thumb\s+(\S+)/);
+        const imageMatch = tagContent.match(/image\s+(\S+)/);
+        const thumbnail = thumbMatch?.[1] || imageMatch?.[1];
+        
+        // Extract duration from imeta tag if present
+        const durationMatch = tagContent.match(/duration\s+(\S+)/);
+        const imetaDuration = durationMatch?.[1];
+
+        return { url, mimeType, dimensions, thumbnail, duration: imetaDuration };
+      })
+      .filter((video) => video.url && (video.mimeType?.startsWith("video/") || video.mimeType === "application/x-mpegURL"));
+  } else if (event.kind === 34236) {
+    // Legacy vertical video format (kind 34236)
+    videos = imetaTags
+      .map((tag) => {
+        // Parse the imeta tag which contains space-separated key-value pairs
+        const tagContent = tag.slice(1).join(" ");
+        
+        // Extract URL
+        const urlMatch = tagContent.match(/url\s+(\S+)/);
+        const url = urlMatch?.[1];
+        
+        // Extract MIME type
+        const mimeMatch = tagContent.match(/m\s+(\S+)/);
+        const mimeType = mimeMatch?.[1];
+        
+        // Extract dimensions
+        const dimMatch = tagContent.match(/dim\s+(\S+)/);
+        const dimensions = dimMatch?.[1];
+        
+        // Extract size (for potential future use)
+        const sizeMatch = tagContent.match(/size\s+(\S+)/);
+        const _size = sizeMatch?.[1];
+        
+        // Extract hash (ox or x) (for potential future use)
+        const oxMatch = tagContent.match(/ox\s+(\S+)/);
+        const xMatch = tagContent.match(/x\s+(\S+)/);
+        const _hash = oxMatch?.[1] || xMatch?.[1];
+
+        return { url, mimeType, dimensions, thumbnail: undefined, duration: undefined };
+      })
+      .filter((video) => video.url && video.mimeType?.startsWith("video/"));
+    
+    // If no imeta videos found, try to construct from standalone tags
+    if (videos.length === 0) {
+      const mimeTag = event.tags.find(([name, value]) => name === "m" && value?.startsWith("video/"));
+      const altTag = event.tags.find(([name]) => name === "alt");
+      
+      if (mimeTag && altTag) {
+        // Extract URL from alt tag content
+        const altContent = altTag[1] || "";
+        const urlMatch = altContent.match(/(https?:\/\/[^\s]+\.mp4)/);
+        if (urlMatch) {
+          videos = [{
+            url: urlMatch[1],
+            mimeType: mimeTag[1],
+            dimensions: undefined,
+            thumbnail: undefined,
+            duration: undefined
+          }];
+        }
+      }
+    }
+  }
 
   const likeCount = reactions.data?.["+"]?.count || 0;
   const hasLiked = reactions.data?.["+"]?.hasReacted || false;
@@ -132,11 +208,14 @@ export function VideoPost({
 
   const handlePlayPause = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (videoRef.current) {
+    if (videoRef.current && videoLoaded) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        videoRef.current.play().catch(() => {
+          // Handle play promise rejection
+          setIsPlaying(false);
+        });
       }
       setIsPlaying(!isPlaying);
     }
@@ -148,6 +227,20 @@ export function VideoPost({
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
     }
+  };
+
+  const handleVideoLoadedData = () => {
+    setVideoLoaded(true);
+    setVideoError(false);
+  };
+
+  const handleVideoError = () => {
+    setVideoError(true);
+    setVideoLoaded(false);
+  };
+
+  const handleVideoCanPlay = () => {
+    setVideoLoaded(true);
   };
 
   const handleLike = async (e: React.MouseEvent) => {
@@ -173,7 +266,7 @@ export function VideoPost({
           eventId: event.id,
           authorPubkey: event.pubkey,
           reaction: "+",
-          kind: event.kind.toString(), // Support both kind 21 and 22
+          kind: event.kind.toString(), // Support kind 22 and 34236
         });
       }
     } catch {
@@ -193,9 +286,46 @@ export function VideoPost({
     }
   };
 
+  // Intersection observer to load video when visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setShouldLoadVideo(true);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
   if (videos.length === 0) return null;
 
   const primaryVideo = videos[0];
+
+  // All videos are vertical for TikTok-style feed
+  const aspectRatio = "aspect-[9/16]"; // Always use portrait aspect ratio
+
+  // Format duration for display
+  const formatDuration = (durationStr: string) => {
+    const duration = parseFloat(durationStr);
+    if (isNaN(duration)) return null;
+    
+    const minutes = Math.floor(duration / 60);
+    const seconds = Math.floor(duration % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Use duration from imeta tag if available, otherwise fall back to duration tag
+  const displayDuration = primaryVideo.duration || duration;
 
   return (
     <Card className={cn("overflow-hidden", className)}>
@@ -253,61 +383,121 @@ export function VideoPost({
         )}
 
         {/* Video */}
-        <div className="relative aspect-[9/16] bg-black overflow-hidden cursor-pointer group">
-          <video
-            ref={videoRef}
-            src={primaryVideo.url}
-            poster={primaryVideo.thumbnail}
-            className={cn(
-              "w-full h-full object-cover",
-              contentWarning && !isRevealed && "blur-[40px]"
-            )}
-            muted={isMuted}
-            loop
-            playsInline
-            preload="metadata"
-            onClick={handleVideoClick}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-          />
+        <div 
+          ref={containerRef}
+          className={cn("relative bg-black overflow-hidden cursor-pointer group", aspectRatio)}
+        >
+          {/* Show thumbnail while video is loading or not yet visible */}
+          {primaryVideo.thumbnail && (!shouldLoadVideo || (!videoLoaded && !videoError)) && (
+            <>
+              <img
+                src={primaryVideo.thumbnail}
+                alt="Video thumbnail"
+                className={cn(
+                  "absolute inset-0 w-full h-full object-cover",
+                  contentWarning && !isRevealed && "blur-[40px]"
+                )}
+              />
+              {/* Play button overlay on thumbnail */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center">
+                  <Play className="h-8 w-8 text-white ml-1" />
+                </div>
+              </div>
+            </>
+          )}
+          
+          {/* Only render video when it should be loaded */}
+          {shouldLoadVideo && (
+            <video
+              ref={videoRef}
+              key={primaryVideo.url} // Force re-render when URL changes
+              src={primaryVideo.url}
+              className={cn(
+                "w-full h-full object-cover transition-opacity duration-300",
+                contentWarning && !isRevealed && "blur-[40px]",
+                !videoLoaded && "opacity-0" // Hide video until loaded
+              )}
+              muted={isMuted}
+              loop
+              playsInline
+              preload="metadata" // Load metadata when video element is created
+              onClick={handleVideoClick}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onLoadedData={handleVideoLoadedData}
+              onCanPlay={handleVideoCanPlay}
+              onError={handleVideoError}
+            />
+          )}
 
-          {/* Video Controls Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handlePlayPause}
-                className="text-white hover:bg-white/20"
-              >
-                {isPlaying ? (
-                  <Pause className="h-5 w-5" />
-                ) : (
-                  <Play className="h-5 w-5" />
-                )}
-              </Button>
-              
-              <div className="flex items-center space-x-2">
-                {duration && (
-                  <span className="text-white text-sm">
-                    {Math.floor(parseInt(duration) / 60)}:{(parseInt(duration) % 60).toString().padStart(2, '0')}
-                  </span>
-                )}
+          {/* Loading indicator */}
+          {shouldLoadVideo && !videoLoaded && !videoError && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
+
+          {/* Error state */}
+          {videoError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+              <div className="text-center text-white">
+                <p className="text-sm">Failed to load video</p>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (videoRef.current) {
+                      videoRef.current.load();
+                      setVideoError(false);
+                    }
+                  }}
+                  className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Video Controls Overlay - only show when video is loaded */}
+          {videoLoaded && !videoError && (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleMuteToggle}
+                  onClick={handlePlayPause}
                   className="text-white hover:bg-white/20"
                 >
-                  {isMuted ? (
-                    <VolumeX className="h-5 w-5" />
+                  {isPlaying ? (
+                    <Pause className="h-5 w-5" />
                   ) : (
-                    <Volume2 className="h-5 w-5" />
+                    <Play className="h-5 w-5" />
                   )}
                 </Button>
+                
+                <div className="flex items-center space-x-2">
+                  {displayDuration && (
+                    <span className="text-white text-sm">
+                      {formatDuration(displayDuration)}
+                    </span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleMuteToggle}
+                    className="text-white hover:bg-white/20"
+                  >
+                    {isMuted ? (
+                      <VolumeX className="h-5 w-5" />
+                    ) : (
+                      <Volume2 className="h-5 w-5" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Reveal overlay for content warnings */}
           {contentWarning && !isRevealed && (
@@ -331,7 +521,7 @@ export function VideoPost({
 
         {/* Post Content */}
         <div className="p-4 space-y-3">
-          {/* Title */}
+          {/* Title - for NIP-71 videos */}
           {title && (
             <h3
               className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"

@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useInView } from "react-intersection-observer";
 import { VideoPost } from "./VideoPost";
 import { VideoPostSkeleton } from "./VideoPostSkeleton";
-import { useVideoPosts, useFollowingVideoPosts } from "@/hooks/useVideoPosts";
+import { useAllVideoPosts, useFollowingAllVideoPosts } from "@/hooks/useAllVideoPosts";
 import { useFollowing } from "@/hooks/useFollowing";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -22,13 +22,14 @@ export function VideoFeed({
   onLocationClick,
 }: VideoFeedProps) {
   const following = useFollowing();
-  const followingPubkeys = following.data || [];
+  const followingPubkeys = useMemo(() => following.data || [], [following.data]);
 
-  // Use different hooks based on feed type
-  const globalQuery = useVideoPosts(hashtag, location);
-  const followingQuery = useFollowingVideoPosts(followingPubkeys);
+  // Use the video queries for vertical videos only (TikTok-style)
+  const globalAllQuery = useAllVideoPosts(hashtag, location, 'vertical');
+  const followingAllQuery = useFollowingAllVideoPosts(followingPubkeys, 'vertical');
 
-  const query = feedType === "following" ? followingQuery : globalQuery;
+  // Choose the appropriate query based on feed type
+  const query = feedType === "following" ? followingAllQuery : globalAllQuery;
 
   const { ref, inView } = useInView({
     threshold: 0,
@@ -53,7 +54,7 @@ export function VideoFeed({
   }, [query.data?.pages]);
 
   // Show loading skeleton for initial load
-  if (query.isLoading) {
+  if (query.isLoading && !query.data) {
     return (
       <div className="space-y-6">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -63,16 +64,22 @@ export function VideoFeed({
     );
   }
 
-  // Show error state
-  if (query.isError) {
+  // Show error state only if we have no data
+  if (query.isError && !query.data) {
     return (
       <div className="col-span-full">
         <Card className="border-dashed">
           <CardContent className="py-12 px-8 text-center">
             <div className="max-w-sm mx-auto space-y-6">
               <p className="text-muted-foreground">
-                Failed to load vertical videos. Please try again.
+                Failed to load videos. Please try again.
               </p>
+              <button
+                onClick={() => query.refetch()}
+                className="text-primary hover:underline"
+              >
+                Retry
+              </button>
             </div>
           </CardContent>
         </Card>
@@ -82,6 +89,23 @@ export function VideoFeed({
 
   // Show empty state
   if (uniqueEvents.length === 0) {
+    // Special case for following feed when user follows no one
+    if (feedType === "following" && followingPubkeys.length === 0) {
+      return (
+        <div className="col-span-full">
+          <Card className="border-dashed">
+            <CardContent className="py-12 px-8 text-center">
+              <div className="max-w-sm mx-auto space-y-6">
+                <p className="text-muted-foreground">
+                  You're not following anyone yet. Follow some users to see their videos here.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="col-span-full">
         <Card className="border-dashed">
@@ -89,12 +113,12 @@ export function VideoFeed({
             <div className="max-w-sm mx-auto space-y-6">
               <p className="text-muted-foreground">
                 {feedType === "following"
-                  ? "No vertical videos from people you follow yet. Videos will appear as they publish to the network."
+                  ? "No videos from people you follow yet. Videos will appear as they publish to the network."
                   : hashtag
-                  ? `No vertical videos found for #${hashtag}. Videos will appear as users publish to the network.`
+                  ? `No videos found for #${hashtag}. Videos will appear as users publish to the network.`
                   : location
-                  ? `No vertical videos found for ${location}. Videos will appear as users publish to the network.`
-                  : "No vertical videos found. Videos will appear as users publish to the network."}
+                  ? `No videos found for ${location}. Videos will appear as users publish to the network.`
+                  : "No videos found. Videos will appear as users publish to the network."}
               </p>
             </div>
           </CardContent>

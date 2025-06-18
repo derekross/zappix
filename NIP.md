@@ -1,148 +1,118 @@
-# Zappix Custom NIP
+# Short Vertical Video Events with Legacy Support
 
-## Overview
+This document describes the video event implementation in this Nostr client, which focuses on short vertical videos while maintaining backward compatibility with existing video formats.
 
-Zappix is a social image sharing application that leverages existing Nostr NIPs for image sharing, reactions, comments, and zaps. This document outlines how Zappix implements these features using standard Nostr protocols.
+## Publishing Restrictions
 
-## Implemented NIPs
+This client enforces strict requirements for video uploads to maintain a consistent short-form vertical video experience:
 
-### NIP-68 (Kind 20) - Picture Events
-Zappix uses kind 20 events for image posts with the following structure:
+### Upload Requirements
 
-**Required Tags:**
-- `title`: Short title for the post
-- `imeta`: Image metadata including URL, MIME type, dimensions, blurhash, and SHA-256 hash
+- **Orientation**: Must be vertical/portrait (height > width)
+- **Duration**: Maximum 3 minutes (180 seconds)
+- **Format**: MP4, WebM, or MOV files only
 
-**Optional Tags:**
-- `t`: Hashtags for categorization and discovery
-- `g`: Geohash for location data
-- `location`: Named location
-- `content-warning`: For sensitive content
-- `p`: Tagged users
+Videos that don't meet these requirements will be rejected during upload with clear error messages.
 
-### Vertical Video Events (Kind 22 & 34236)
-Zappix supports multiple kinds for vertical video content sharing:
+## Supported Event Kinds
 
-**Kind 22 - NIP-71 Short Videos:**
-- Vertical/portrait videos only (height > width)
-- Short-form content similar to "stories" or "reels"
-- Follows NIP-71 specification
+### Published Video Events
 
-**Kind 34236 - Additional Vertical Videos:**
-- Alternative vertical video event kind
-- Same vertical orientation requirements (height > width)
-- Compatible with existing video infrastructure
+When users upload videos, this client publishes:
 
-**Required Tags for Kind 22:**
-- `title`: Title of the video (required for NIP-71 compliance)
-- `imeta`: Video metadata including URL, MIME type, dimensions, and optional thumbnail
+- **Kind 22**: Short-form portrait video events (NIP-71 compliant)
 
-**Required Tags for Kind 34236:**
-- `imeta`: Video metadata including URL, MIME type, dimensions, and optional thumbnail
+All uploaded videos are published as kind 22 events with:
+- Required `title` tag (auto-generated from description or user content)
+- `imeta` tags for video metadata including URL, MIME type, dimensions
+- `duration` tag with video length in seconds
+- Optional tags: `content-warning`, `alt`, `location`, `t` (hashtags), etc.
 
-**Optional Tags (both kinds):**
-- `title`: Title of the video (optional for kind 34236)
-- `duration`: Video duration in seconds
-- `alt`: Accessibility description
-- `t`: Hashtags for categorization and discovery
-- `g`: Geohash for location data
-- `location`: Named location
-- `content-warning`: For sensitive content
-- `p`: Tagged users
+### Display Support (Backward Compatibility)
 
-**Video-specific imeta fields:**
-- `url`: Primary video URL
-- `m`: MIME type (video/mp4, video/webm, etc.)
-- `dim`: Video dimensions (e.g., "1080x1920" for vertical)
-- `image`: Thumbnail image URL
-- `fallback`: Alternative video URLs for redundancy
+For viewing content, this client supports multiple video formats:
 
-**Validation Requirements:**
-- Videos must be in portrait orientation (height > width)
-- Horizontal videos are rejected during upload
+- **Kind 21**: Normal video events (typically landscape/horizontal videos)
+- **Kind 22**: Short-form portrait video events (typically vertical videos)
+- **Kind 34236**: Legacy vertical video events
 
-### NIP-25 (Kind 7) - Reactions
-Image and video posts support emoji reactions using kind 7 events:
-- `+` or empty content for likes
-- `-` for dislikes  
-- Custom emoji reactions
-- Required `e` tag pointing to the media post (kind 20, 22, or 34236)
-- Required `p` tag pointing to the media post author
+#### Kind 34236 Format
 
-### NIP-57 (Kind 9734/9735) - Lightning Zaps
-Zap support for image and video posts:
-- Kind 9734: Zap requests sent to LNURL endpoints
-- Kind 9735: Zap receipts published by lightning wallets
-- Integration with Nostr Wallet Connect for seamless zapping
+Legacy vertical video events (kind 34236) use a simpler format:
 
-### NIP-22 (Kind 1111) - Comments
-Comments on image and video posts using kind 1111:
-- `E` tag pointing to the root media post (kind 20, 22, or 34236)
-- `K` tag with value "20", "22", or "34236" indicating the root kind
-- `P` tag pointing to the media post author
-- Support for nested comment threads
+```json
+{
+  "kind": 34236,
+  "content": "Video description with video URL: https://example.com/video.mp4",
+  "tags": [
+    ["url", "https://example.com/video.mp4"],
+    ["t", "hashtag1"],
+    ["t", "hashtag2"]
+  ]
+}
+```
 
-### NIP-51 (Kind 10003) - Bookmarks
-Bookmark functionality using the standard bookmarks list:
-- Kind 10003 replaceable events
-- `e` tags referencing bookmarked media posts (images and videos)
-- Private bookmarks using NIP-04 encryption in content field
+**Validation Rules for Kind 34236:**
+- Must contain a video URL (`.mp4`, `.webm`, or `.mov`) in either:
+  - The `content` field, or
+  - A `url` tag
+- All kind 34236 events are assumed to be vertical videos
+- No `title` or `imeta` tags required (legacy format)
 
-### NIP-65 (Kind 10002) - Relay List Metadata
-Outbox model implementation:
-- Kind 10002 events define user's read/write relays
-- `r` tags with relay URLs and optional read/write markers
-- Used for efficient event discovery and publishing
+## Publishing Behavior
 
-## Tag Design Principles
+When publishing videos, this client:
 
-Zappix follows Nostr best practices for tag design:
+1. **Validates Requirements**: Checks orientation (must be vertical) and duration (max 3 minutes)
+2. **Uploads to Blossom**: Uses NIP-96 compatible Blossom servers for file storage
+3. **Extracts Metadata**: Gets video dimensions, duration, and generates thumbnails when possible
+4. **Creates NIP-71 Event**: Always publishes as kind 22 with proper `imeta` tags
+5. **Auto-generates Title**: Uses first line of description or creates a default title
 
-1. **Single-letter tags for categories**: Uses `t` tags for hashtags to enable efficient relay-level filtering
-2. **Relay-indexed queries**: Filters by `#t: ["hashtag"]` at the relay level rather than client-side filtering
-3. **Community filtering**: Uses `t` tags to filter content relevant to specific communities
+## Video Feed Filtering
 
-## Hashtag Categories
+The client provides filtering options for video feeds when viewing content:
 
-Zappix features predefined hashtag categories for discovery:
-- `#olas` - General community content
-- `#olas365` - Daily photo challenges
-- `#photography` - Photography-focused content
-- `#foodstr` - Food and culinary content
-- `#art` - Artistic content
-- `#travel` - Travel photography and stories
+- **All**: Shows all video types (kinds 21, 22, and 34236)
+- **Vertical**: Shows only vertical videos (kind 22, kind 34236, and kind 21 with vertical dimensions)
+- **Horizontal**: Shows only horizontal videos (kind 21 with horizontal dimensions)
 
-## Media Upload
+This allows users to view content from other clients while maintaining the short vertical video focus for publishing.
 
-Zappix integrates with Blossom servers (NIP-B7) for media storage:
-- Kind 10063 events define user's preferred Blossom servers
-- Multiple image and video uploads supported per post
-- NIP-94 compatible file metadata tags
-- Automatic fallback to default servers when user hasn't configured any
-- Server validation and management through dedicated settings interface
-- Video thumbnail generation for preview purposes
-- Automatic video metadata extraction (duration, dimensions)
+## Implementation Notes
 
-## Security Considerations
+### Upload Validation
 
-- Media post verification using SHA-256 hashes in `imeta` tags
-- Relay hints for efficient content discovery
-- Private bookmark encryption using NIP-04
-- Proper event validation for all supported kinds (20, 22, 34236)
-- Video content validation and thumbnail generation
-- Vertical video orientation validation
+The client performs strict validation during upload:
 
-## Client Behavior
+1. **File Type Check**: Only accepts video files (MP4, WebM, MOV)
+2. **Orientation Check**: Rejects horizontal videos (width >= height)
+3. **Duration Check**: Rejects videos longer than 3 minutes (180 seconds)
+4. **Real-time Feedback**: Shows clear error messages for rejected uploads
 
-Zappix clients should:
-1. Validate all media events against NIP-68 (images) and vertical video requirements (kinds 22, 34236)
-2. Support multiple media files in single posts
-3. Display content warnings appropriately for both images and videos
-4. Implement efficient relay-level filtering for hashtags
-5. Verify zap receipts according to NIP-57 validation rules
-6. Support nested comment threads with proper threading
-7. Handle video playback controls and muting
-8. Generate and display video thumbnails
-9. Reject horizontal videos during upload (only vertical videos allowed)
-10. Optimize video display for mobile portrait viewing
-11. Support both kind 22 and kind 34236 vertical video events
+### Event Validation (Display)
+
+The client validates video events for display based on their kind:
+
+1. **NIP-71 events (kinds 21, 22)**: Require `title` tag and `imeta` tag with video URL
+2. **Legacy events (kind 34236)**: Require video URL in content or `url` tag
+
+### Display
+
+All video types are displayed using the same VideoPost component, which:
+
+- Extracts video URLs from `imeta` tags (NIP-71) or content/url tags (legacy)
+- Shows video metadata when available (title, duration, dimensions)
+- Supports content warnings, hashtags, and location tags
+- Provides video controls (play/pause, mute/unmute)
+
+### User Experience
+
+The upload interface clearly communicates requirements:
+
+- Visual indicators showing orientation and duration limits
+- Real-time validation with helpful error messages
+- Preview of uploaded videos with duration display
+- Automatic title generation from user content
+
+This implementation creates a TikTok-like experience focused on short vertical videos while maintaining compatibility with the broader Nostr video ecosystem for viewing content.
