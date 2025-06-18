@@ -187,7 +187,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           // Mobile layout with header
           <>
             <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="container flex h-14 items-center justify-between">
+              <div className="px-2 flex h-14 items-center justify-between">
                 <Button
                   variant="ghost"
                   onClick={() => {
@@ -200,7 +200,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </Button>
               </div>
             </header>
-            <main className="container py-6 pb-20">
+            <main className="py-4 pb-20 px-2">
               <SettingsPage />
             </main>
           </>
@@ -326,7 +326,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             </header>
 
             {/* Main Content */}
-            <main className="container py-6 pb-20">{children}</main>
+            <main className="py-4 pb-20">{children}</main>
 
             {/* Mobile Bottom Navigation */}
             <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -504,8 +504,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           </header>
 
           {/* Main Content */}
-          <main className="container py-6 pb-20">
-            <div className="max-w-6xl mx-auto">
+          <main className="py-4 pb-20">
+            <div className="max-w-6xl mx-auto px-2 sm:px-6">
               <Tabs
                 value={activeMainTab}
                 onValueChange={handleTabChange}

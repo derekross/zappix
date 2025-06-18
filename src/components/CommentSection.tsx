@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { genUserName } from "@/lib/genUserName";
 import { useToast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface CommentSectionProps {
   eventId: string;
@@ -208,6 +209,7 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
 
 export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
   const [newComment, setNewComment] = useState("");
+  const isMobile = useIsMobile();
 
   const comments = useComments(eventId, authorPubkey);
   const createComment = useCreateComment();
@@ -268,7 +270,7 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
 
   return (
     <div className="border-t bg-muted/30">
-      <div className="p-4 space-y-4">
+      <div className={cn("p-4 space-y-4", isMobile && "px-2")}>
         {/* New Comment Form */}
         {user ? (
           <div className="space-y-3">

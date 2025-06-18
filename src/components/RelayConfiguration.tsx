@@ -12,6 +12,8 @@ import { useToast } from '@/hooks/useToast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { outboxUtils } from '@/hooks/useOutboxModel';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { cn } from '@/lib/utils';
 
 export function RelayConfiguration() {
   const { user } = useCurrentUser();
@@ -19,6 +21,7 @@ export function RelayConfiguration() {
   const updateRelayList = useUpdateRelayList();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   
   const [newRelayUrl, setNewRelayUrl] = useState('');
   const [relays, setRelays] = useState<RelayInfo[]>([]);
@@ -98,8 +101,8 @@ export function RelayConfiguration() {
   
   if (!user) {
     return (
-      <Card>
-        <CardContent className="py-12 px-8 text-center">
+      <Card className={cn(isMobile && "mx-0 rounded-none border-x-0")}>
+        <CardContent className={cn("py-12 px-8 text-center", isMobile && "px-2")}>
           <Server className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">
             Please log in to configure your relays
@@ -111,8 +114,8 @@ export function RelayConfiguration() {
   
   if (relayList.isLoading) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className={cn(isMobile && "mx-0 rounded-none border-x-0")}>
+        <CardHeader className={cn(isMobile && "px-2")}>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Server className="h-5 w-5" />
@@ -130,7 +133,7 @@ export function RelayConfiguration() {
             Loading your relay configuration...
           </p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className={cn("space-y-4", isMobile && "px-2")}>
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="flex items-center space-x-4">
               <Skeleton className="h-10 flex-1" />
@@ -147,8 +150,8 @@ export function RelayConfiguration() {
   // Show error state
   if (relayList.error) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className={cn(isMobile && "mx-0 rounded-none border-x-0")}>
+        <CardHeader className={cn(isMobile && "px-2")}>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Server className="h-5 w-5" />
@@ -163,7 +166,7 @@ export function RelayConfiguration() {
             </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="py-12 text-center">
+        <CardContent className={cn("py-12 text-center", isMobile && "px-2")}>
           <Server className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground mb-4">
             Failed to load your relay configuration
@@ -180,8 +183,8 @@ export function RelayConfiguration() {
   // Show when no relay list exists yet
   if (relayList.data === null) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className={cn(isMobile && "mx-0 rounded-none border-x-0")}>
+        <CardHeader className={cn(isMobile && "px-4")}>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Server className="h-5 w-5" />
@@ -199,7 +202,7 @@ export function RelayConfiguration() {
             Configure your read and write relays for the outbox model. This helps other clients find your content and deliver mentions to you.
           </p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className={cn("space-y-6", isMobile && "px-2")}>
           <div className="text-center py-8">
             <Server className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">
@@ -303,8 +306,8 @@ export function RelayConfiguration() {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className={cn(isMobile && "mx-0 rounded-none border-x-0")}>
+      <CardHeader className={cn(isMobile && "px-4")}>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Server className="h-5 w-5" />
@@ -324,7 +327,7 @@ export function RelayConfiguration() {
         </p>
       </CardHeader>
       
-      <CardContent className="space-y-6">
+      <CardContent className={cn("space-y-6", isMobile && "px-2")}>
         {/* Add New Relay */}
         <div className="space-y-2">
           <Label>Add New Relay</Label>
@@ -359,8 +362,8 @@ export function RelayConfiguration() {
           </div>
           
           {relays.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="py-8 text-center">
+            <Card className={cn("border-dashed", isMobile && "mx-0 rounded-none border-x-0")}>
+              <CardContent className={cn("py-8 text-center", isMobile && "px-2")}>
                 <Server className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
                   No relays configured. Add some relays to get started.

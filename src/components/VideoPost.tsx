@@ -37,6 +37,7 @@ import { ZapButton } from "./ZapButton";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { nip19 } from "nostr-tools";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface VideoPostProps {
   event: NostrEvent;
@@ -62,6 +63,7 @@ export function VideoPost({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const { user } = useCurrentUser();
   const { toast } = useToast();
@@ -336,8 +338,8 @@ export function VideoPost({
   const displayDuration = primaryVideo.duration || duration;
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      <CardHeader className="pb-3">
+    <Card className={cn("overflow-hidden", isMobile && "mx-0 rounded-none border-x-0", className)}>
+      <CardHeader className={cn("pb-3", isMobile && "px-2")}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Avatar
@@ -383,7 +385,7 @@ export function VideoPost({
       <CardContent className="p-0">
         {/* Content Warning */}
         {contentWarning && (
-          <div className="px-4 pb-3">
+          <div className={cn("px-4 pb-3", isMobile && "px-2")}>
             <Badge variant="destructive" className="text-xs">
               Content Warning: {contentWarning}
             </Badge>
@@ -529,7 +531,7 @@ export function VideoPost({
         </div>
 
         {/* Post Content */}
-        <div className="p-4 space-y-3">
+        <div className={cn("p-4 space-y-3", isMobile && "px-2")}>
           {/* Title - for NIP-71 videos */}
           {title && (
             <h3

@@ -1,10 +1,14 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { cn } from "@/lib/utils";
 
 export function VideoPostSkeleton() {
+  const isMobile = useIsMobile();
+  
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-3">
+    <Card className={cn("overflow-hidden", isMobile && "mx-0 rounded-none border-x-0")}>
+      <CardHeader className={cn("pb-3", isMobile && "px-2")}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Skeleton className="h-10 w-10 rounded-full" />
@@ -24,7 +28,7 @@ export function VideoPostSkeleton() {
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-3">
+        <div className={cn("p-4 space-y-3", isMobile && "px-2")}>
           {/* Title */}
           <Skeleton className="h-6 w-3/4" />
           

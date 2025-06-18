@@ -10,15 +10,18 @@ import { RelayConfiguration } from './RelayConfiguration';
 import { ZapConfiguration } from './ZapConfiguration';
 import { BlossomConfiguration } from './BlossomConfiguration';
 import { useTheme } from '@/hooks/useTheme';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { cn } from '@/lib/utils';
 
 export function SettingsPage() {
   const { user } = useCurrentUser();
   const { theme, setTheme } = useTheme();
+  const isMobile = useIsMobile();
   
   if (!user) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="py-12 px-8 text-center">
+      <Card className={cn("border-dashed", isMobile && "mx-0 rounded-none border-x-0")}>
+        <CardContent className={cn("py-12 px-8 text-center", isMobile && "px-2")}>
           <div className="max-w-sm mx-auto space-y-6">
             <Settings className="h-12 w-12 text-muted-foreground mx-auto" />
             <div className="space-y-2">
@@ -78,14 +81,14 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="appearance" className="space-y-6">
-          <Card>
-            <CardHeader>
+          <Card className={cn(isMobile && "mx-0 rounded-none border-x-0")}>
+            <CardHeader className={cn(isMobile && "px-2")}>
               <CardTitle className="flex items-center space-x-2">
                 <Palette className="h-5 w-5" />
                 <span>Appearance</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cn("space-y-4", isMobile && "px-2")}>
               <div className="space-y-3">
                 <Label>Theme</Label>
                 <div className="grid grid-cols-2 gap-3">

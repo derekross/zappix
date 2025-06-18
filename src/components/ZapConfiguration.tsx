@@ -11,11 +11,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { cn } from '@/lib/utils';
 
 export function ZapConfiguration() {
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const nwc = useNWC();
+  const isMobile = useIsMobile();
   
   const [nwcString, setNwcString] = useLocalStorage('nwc-string', '');
   const [defaultZapAmount, setDefaultZapAmount] = useLocalStorage('default-zap-amount', '21');
@@ -63,8 +66,8 @@ export function ZapConfiguration() {
 
   if (!user) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="py-12 px-8 text-center">
+      <Card className={cn("border-dashed", isMobile && "mx-0 rounded-none border-x-0")}>
+        <CardContent className={cn("py-12 px-8 text-center", isMobile && "px-2")}>
           <div className="max-w-sm mx-auto space-y-6">
             <Zap className="h-12 w-12 text-muted-foreground mx-auto" />
             <div className="space-y-2">
@@ -81,14 +84,14 @@ export function ZapConfiguration() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
+      <Card className={cn(isMobile && "mx-0 rounded-none border-x-0")}>
+        <CardHeader className={cn(isMobile && "px-2")}>
           <CardTitle className="flex items-center space-x-2">
             <Wallet className="h-5 w-5 text-orange-500" />
             <span>Lightning Wallet</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className={cn("space-y-4", isMobile && "px-2")}>
           {/* Wallet Status */}
           {nwc.isConnected && (
             <Alert>
@@ -124,14 +127,14 @@ export function ZapConfiguration() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className={cn(isMobile && "mx-0 rounded-none border-x-0")}>
+        <CardHeader className={cn(isMobile && "px-4")}>
           <CardTitle className="flex items-center space-x-2">
             <Zap className="h-5 w-5 text-orange-500" />
             <span>Zap Preferences</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className={cn("space-y-4", isMobile && "px-2")}>
           <div className="space-y-2">
             <Label htmlFor="zap-amount">Default Zap Amount (sats)</Label>
             <Input
