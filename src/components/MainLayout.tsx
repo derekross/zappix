@@ -247,6 +247,16 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <Film className="mr-2 h-4 w-4" />
                     Flix
                   </Button>
+                  {user && (
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => setShowCreatePost(true)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Post
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     className="w-full justify-start"
@@ -258,16 +268,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <Search className="mr-2 h-4 w-4" />
                     Discover
                   </Button>
-                  {user && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => setShowCreatePost(true)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Post
-                    </Button>
-                  )}
                 </nav>
 
                 {/* Account Area */}
@@ -346,16 +346,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                   <span className="text-xs">Flix</span>
                 </Button>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/discover")}
-                  className="flex flex-col items-center gap-1"
-                >
-                  <Search className="h-5 w-5" />
-                  <span className="text-xs">Discover</span>
-                </Button>
-
                 {user && (
                   <Button
                     variant="ghost"
@@ -367,6 +357,16 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <span className="text-xs">Post</span>
                   </Button>
                 )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/discover")}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <Search className="h-5 w-5" />
+                  <span className="text-xs">Discover</span>
+                </Button>
 
                 <div className="flex flex-col items-center">
                   <LoginArea
@@ -416,14 +416,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <Film className="mr-2 h-4 w-4" />
                     Flix
                   </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => navigate("/discover")}
-                  >
-                    <Search className="mr-2 h-4 w-4" />
-                    Discover
-                  </Button>
                   {user && (
                     <Button
                       variant="ghost"
@@ -434,6 +426,14 @@ export function MainLayout({ children }: MainLayoutProps) {
                       Post
                     </Button>
                   )}
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => navigate("/discover")}
+                  >
+                    <Search className="mr-2 h-4 w-4" />
+                    Discover
+                  </Button>
                 </nav>
 
                 {/* Account Area */}
@@ -685,16 +685,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <span className="text-xs">Flix</span>
               </Button>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleTabChange("discover")}
-                className="flex flex-col items-center gap-1"
-              >
-                <Search className="h-5 w-5" />
-                <span className="text-xs">Discover</span>
-              </Button>
-
               {user && (
                 <Button
                   variant="ghost"
@@ -706,6 +696,16 @@ export function MainLayout({ children }: MainLayoutProps) {
                   <span className="text-xs">Post</span>
                 </Button>
               )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleTabChange("discover")}
+                className="flex flex-col items-center gap-1"
+              >
+                <Search className="h-5 w-5" />
+                <span className="text-xs">Discover</span>
+              </Button>
 
               <div className="flex flex-col items-center">
                 <LoginArea
@@ -757,15 +757,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                   Flix
                 </Button>
 
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start"
-                  onClick={() => handleTabChange("discover")}
-                >
-                  <Search className="mr-2 h-4 w-4" />
-                  Discover
-                </Button>
-
                 {user && (
                   <Button
                     variant="ghost"
@@ -776,6 +767,15 @@ export function MainLayout({ children }: MainLayoutProps) {
                     Post
                   </Button>
                 )}
+
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => handleTabChange("discover")}
+                >
+                  <Search className="mr-2 h-4 w-4" />
+                  Discover
+                </Button>
               </nav>
 
               {/* Account Area */}
