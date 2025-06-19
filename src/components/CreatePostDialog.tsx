@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Upload,
   X,
@@ -57,6 +57,7 @@ export function CreatePostDialog({
   const [geohash, setGeohash] = useState("");
   const [contentWarning, setContentWarning] = useState("");
   const [hasContentWarning, setHasContentWarning] = useState(false);
+  const [autoLocation, setAutoLocation] = useState(false);
   const [media, setMedia] = useState<UploadedMedia[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -461,6 +462,7 @@ export function CreatePostDialog({
       setGeohash("");
       setContentWarning("");
       setHasContentWarning(false);
+      setAutoLocation(false);
       setMedia([]);
       // Videos are always kind 22 (short vertical videos)
 
@@ -490,7 +492,7 @@ export function CreatePostDialog({
       .filter((tag) => tag.length > 0);
   };
 
-  const getLocation = async () => {
+  const getLocation = useCallback(async () => {
     if (!navigator.geolocation) {
       toast({
         title: "Geolocation not supported",
@@ -560,7 +562,14 @@ export function CreatePostDialog({
     } finally {
       setIsGettingLocation(false);
     }
-  };
+  }, [toast]);
+
+  // Auto-get location when toggle is enabled or dialog opens
+  useEffect(() => {
+    if (autoLocation && open && !location && !isGettingLocation) {
+      getLocation();
+    }
+  }, [autoLocation, open, location, isGettingLocation, getLocation]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -759,26 +768,48 @@ export function CreatePostDialog({
           </div>
 
           {/* Location */}
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <div className="relative">
-              <Input
-                id="location"
-                placeholder="City, State, Country"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-                onClick={getLocation}
-                disabled={isGettingLocation}
-              >
-                <MapPin className="h-4 w-4" />
-              </Button>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Location</Label>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="auto-location"
+                  checked={autoLocation}
+                  onCheckedChange={(checked) => {
+                    setAutoLocation(checked);
+                    if (checked && !location && !isGettingLocation) {
+                      getLocation();
+                    } else if (!checked) {
+                      setLocation("");
+                      setGeohash("");
+                    }
+                  }}
+                />
+                <Label htmlFor="auto-location" className="text-sm">
+                  Include location
+                </Label>
+              </div>
             </div>
+            {autoLocation && (
+              <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg border">
+                {isGettingLocation ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">Detecting location...</span>
+                  </>
+                ) : location ? (
+                  <>
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <span className="text-sm">{location}</span>
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Location will be detected automatically</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Content Warning */}
