@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { NostrLoginProvider } from '@nostrify/react/login';
 import NostrProvider from '@/components/NostrProvider';
 import { AppProvider } from '@/components/AppProvider';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 import { AppConfig } from '@/contexts/AppContext';
 
 interface TestAppProps {
@@ -37,9 +38,11 @@ export function TestApp({ children }: TestAppProps) {
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey='test-login'>
             <NostrProvider>
-              <BrowserRouter>
-                {children}
-              </BrowserRouter>
+              <NotificationProvider>
+                <BrowserRouter>
+                  {children}
+                </BrowserRouter>
+              </NotificationProvider>
             </NostrProvider>
           </NostrLoginProvider>
         </QueryClientProvider>

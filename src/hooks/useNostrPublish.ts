@@ -2,12 +2,14 @@ import { useNostr } from "@nostrify/react";
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
 
 import { useCurrentUser } from "./useCurrentUser";
+import { useRefreshNotifications } from "./useRefreshNotifications";
 
 import type { NostrEvent } from "@nostrify/nostrify";
 
 export function useNostrPublish(): UseMutationResult<NostrEvent> {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { refreshNotifications } = useRefreshNotifications();
 
   return useMutation({
     mutationFn: async (t: Omit<NostrEvent, "id" | "pubkey" | "sig">) => {
@@ -43,6 +45,15 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
     onSuccess: (data) => {
       console.log("Event published successfully:", data);
       console.log("Published to relays via outbox model");
+      
+      // Refresh notifications after publishing image/video posts
+      // since these are the types that can receive notifications
+      if ([20, 22, 34236].includes(data.kind)) {
+        // Wait a moment for the event to propagate, then refresh notifications
+        setTimeout(() => {
+          refreshNotifications();
+        }, 2000);
+      }
     },
   });
 }

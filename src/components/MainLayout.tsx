@@ -24,6 +24,7 @@ import { SettingsPage } from "./SettingsPage";
 
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { NotificationBell } from "./NotificationBell";
 
 interface MainLayoutProps {
   children?: ReactNode;
@@ -257,6 +258,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                       Post
                     </Button>
                   )}
+                  {user && <NotificationBell />}
                   <Button
                     variant="ghost"
                     className="w-full justify-start"
@@ -307,7 +309,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           // Mobile layout with header
           <>
             <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="container flex h-14 items-center justify-center">
+              <div className="container flex h-14 items-center justify-between">
+                <div className="flex-1" />
                 <button
                   onClick={scrollToTop}
                   className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
@@ -317,6 +320,9 @@ export function MainLayout({ children }: MainLayoutProps) {
                     Zappix
                   </h1>
                 </button>
+                <div className="flex-1 flex justify-end">
+                  <NotificationBell variant="mobile" />
+                </div>
               </div>
             </header>
 
@@ -426,6 +432,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                       Post
                     </Button>
                   )}
+                  {user && <NotificationBell />}
                   <Button
                     variant="ghost"
                     className="w-full justify-start"
@@ -485,7 +492,8 @@ export function MainLayout({ children }: MainLayoutProps) {
         // Mobile layout with top header
         <>
           <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container flex h-14 items-center justify-center">
+            <div className="container flex h-14 items-center justify-between">
+              <div className="flex-1" />
               <button
                 onClick={scrollToTop}
                 className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
@@ -495,6 +503,9 @@ export function MainLayout({ children }: MainLayoutProps) {
                   Zappix
                 </h1>
               </button>
+              <div className="flex-1 flex justify-end">
+                <NotificationBell variant="mobile" />
+              </div>
             </div>
           </header>
 
@@ -767,6 +778,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                     Post
                   </Button>
                 )}
+
+                {user && <NotificationBell />}
 
                 <Button
                   variant="ghost"
