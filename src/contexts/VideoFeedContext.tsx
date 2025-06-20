@@ -5,9 +5,10 @@ interface VideoFeedContextType {
   setCurrentlyPlayingId: (id: string | null) => void;
   globalMuteState: boolean;
   setGlobalMuteState: (muted: boolean) => void;
+  isContextAvailable: boolean;
 }
 
-const VideoFeedContext = createContext<VideoFeedContextType | undefined>(undefined);
+export const VideoFeedContext = createContext<VideoFeedContextType | undefined>(undefined);
 
 export function VideoFeedProvider({ children }: { children: ReactNode }) {
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(null);
@@ -20,6 +21,7 @@ export function VideoFeedProvider({ children }: { children: ReactNode }) {
         setCurrentlyPlayingId,
         globalMuteState,
         setGlobalMuteState,
+        isContextAvailable: true,
       }}
     >
       {children}
@@ -32,5 +34,22 @@ export function useVideoFeedContext() {
   if (context === undefined) {
     throw new Error('useVideoFeedContext must be used within a VideoFeedProvider');
   }
+  return context;
+}
+
+export function useOptionalVideoFeedContext() {
+  const context = useContext(VideoFeedContext);
+  
+  // If no context is available, return default values with no-op functions
+  if (context === undefined) {
+    return {
+      currentlyPlayingId: null,
+      setCurrentlyPlayingId: () => {},
+      globalMuteState: true,
+      setGlobalMuteState: () => {},
+      isContextAvailable: false,
+    };
+  }
+  
   return context;
 }

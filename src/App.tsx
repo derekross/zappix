@@ -14,6 +14,8 @@ import { NostrLoginProvider } from "@nostrify/react/login";
 import { AppProvider } from "@/components/AppProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PWAUpdateNotification } from "@/components/PWAUpdateNotification";
+import { BackgroundProfileManager } from "@/components/BackgroundProfileManager";
+
 import { AppConfig } from "@/contexts/AppContext";
 import AppRouter from "./AppRouter";
 
@@ -27,6 +29,23 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: 60000, // 1 minute
       gcTime: Infinity,
+      // Don't retry profile queries aggressively to prevent blocking
+      retry: (failureCount, error) => {
+        // Don't retry timeout errors for profile queries
+        if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+          return false;
+        }
+        // Allow up to 2 retries for other errors
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+      // Don't throw errors to prevent blocking the UI
+      throwOnError: false,
+    },
+    mutations: {
+      // Allow more retries for mutations (user actions)
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
     },
   },
 });
@@ -63,6 +82,7 @@ export function App() {
                   <Toaster />
                   <Sonner />
                   <PWAUpdateNotification />
+                  <BackgroundProfileManager />
                   <Suspense>
                     <AppRouter />
                   </Suspense>

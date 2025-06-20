@@ -12,8 +12,8 @@ export function useAuthor(pubkey: string | undefined) {
         return {};
       }
 
-      // Use a reasonable timeout for reliable loading
-      const timeoutSignal = AbortSignal.timeout(3000);
+      // Use a longer timeout for better reliability across different relay speeds
+      const timeoutSignal = AbortSignal.timeout(8000);
       const combinedSignal = AbortSignal.any([signal, timeoutSignal]);
 
       try {
@@ -34,15 +34,20 @@ export function useAuthor(pubkey: string | undefined) {
         } catch {
           return { event };
         }
-      } catch {
+      } catch (error) {
+        console.warn(`Failed to load profile for ${pubkey}:`, error);
         return {};
       }
     },
-    retry: 1, // Allow one retry for reliability
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    // Reduce background refetching but keep some for reliability
+    retry: 1, // Reduce retries to prevent blocking
+    retryDelay: 2000, // Fixed 2 second delay
+    staleTime: 30 * 60 * 1000, // 30 minutes - much longer for profiles
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours - keep profiles in memory longer
+    // Minimal background refetching for better performance
     refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
+    refetchOnReconnect: false,
+    refetchOnMount: false, // Don't refetch if we have cached data
+    // Don't block other queries if this one fails
+    throwOnError: false,
   });
 }

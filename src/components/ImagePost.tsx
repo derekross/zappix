@@ -8,7 +8,7 @@ import {
   Eye,
 } from "lucide-react";
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useAuthor } from "@/hooks/useAuthor";
+import { useAuthorFast } from "@/hooks/useAuthorFast";
 import {
   useReactions,
   useReactToPost,
@@ -66,15 +66,13 @@ export function ImagePost({
 
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  const author = useAuthor(event.pubkey);
+  const author = useAuthorFast(event.pubkey);
   const reactions = useReactions(event.id);
   const comments = useComments(event.id, event.pubkey);
   const reactToPost = useReactToPost();
   const removeReaction = useRemoveReaction();
 
-  const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(event.pubkey);
-  const profileImage = metadata?.picture;
+  const { displayName, profileImage } = author;
 
   // Parse event data
   const title = event.tags.find(([name]) => name === "title")?.[1] || "";

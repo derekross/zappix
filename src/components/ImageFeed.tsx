@@ -2,6 +2,7 @@ import { useImagePosts, useFollowingImagePosts } from "@/hooks/useImagePosts";
 import { useFollowing } from "@/hooks/useFollowing";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuthors } from "@/hooks/useAuthors";
+import { useAutomaticProfilePrefetch } from "@/hooks/useProfilePrefetch";
 import { useMemo } from "react";
 import { ImagePost } from "./ImagePost";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,6 +57,9 @@ export function ImageFeed({
 
   // Prefetch all author profiles in batch for better performance
   useAuthors(authorPubkeys);
+  
+  // Also use automatic prefetching for new posts as they come in
+  useAutomaticProfilePrefetch(allPosts);
 
   // Intersection observer for infinite scrolling
   const { ref: loadMoreRef, inView } = useInView({

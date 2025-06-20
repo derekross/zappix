@@ -11,7 +11,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useAuthor } from "@/hooks/useAuthor";
+import { useAuthorFast } from "@/hooks/useAuthorFast";
 import {
   useReactions,
   useReactToPost,
@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { nip19 } from "nostr-tools";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { useVideoFeedContext } from "@/contexts/VideoFeedContext";
+import { useOptionalVideoFeedContext } from "@/contexts/VideoFeedContext";
 import { useInView } from "react-intersection-observer";
 
 interface VideoPostProps {
@@ -70,11 +70,22 @@ export function VideoPost({
     currentlyPlayingId, 
     setCurrentlyPlayingId, 
     globalMuteState, 
-    setGlobalMuteState 
-  } = useVideoFeedContext();
+    setGlobalMuteState,
+    isContextAvailable
+  } = useOptionalVideoFeedContext();
+
+  // Local state for when context is not available
+  const [localCurrentlyPlayingId, setLocalCurrentlyPlayingId] = useState<string | null>(null);
+  const [localGlobalMuteState, setLocalGlobalMuteState] = useState(true);
+
+  // Determine which state to use based on context availability
+  const effectiveCurrentlyPlayingId = isContextAvailable ? currentlyPlayingId : localCurrentlyPlayingId;
+  const effectiveSetCurrentlyPlayingId = isContextAvailable ? setCurrentlyPlayingId : setLocalCurrentlyPlayingId;
+  const effectiveGlobalMuteState = isContextAvailable ? globalMuteState : localGlobalMuteState;
+  const effectiveSetGlobalMuteState = isContextAvailable ? setGlobalMuteState : setLocalGlobalMuteState;
 
   // Local mute state that syncs with global state
-  const [isMuted, setIsMuted] = useState(globalMuteState);
+  const [isMuted, setIsMuted] = useState(effectiveGlobalMuteState);
 
   // Intersection observer for auto-play
   const { ref: containerRef, inView } = useInView({
@@ -84,15 +95,13 @@ export function VideoPost({
 
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  const author = useAuthor(event.pubkey);
+  const author = useAuthorFast(event.pubkey);
   const reactions = useReactions(event.id);
   const comments = useComments(event.id, event.pubkey);
   const reactToPost = useReactToPost();
   const removeReaction = useRemoveReaction();
 
-  const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(event.pubkey);
-  const profileImage = metadata?.picture;
+  const { displayName, profileImage } = author;
 
   // Parse event data
   const title = event.tags.find(([name]) => name === "title")?.[1] || "";
@@ -221,15 +230,15 @@ export function VideoPost({
         // User manually paused the video
         setManuallyPaused(true);
         videoRef.current.pause();
-        setCurrentlyPlayingId(null);
+        effectiveSetCurrentlyPlayingId(null);
       } else {
         // User manually played the video
         setManuallyPaused(false);
-        setCurrentlyPlayingId(event.id);
-        videoRef.current.muted = globalMuteState;
+        effectiveSetCurrentlyPlayingId(event.id);
+        videoRef.current.muted = effectiveGlobalMuteState;
         videoRef.current.play().catch(() => {
           // Handle play promise rejection
-          setCurrentlyPlayingId(null);
+          effectiveSetCurrentlyPlayingId(null);
         });
       }
     }
@@ -254,8 +263,8 @@ export function VideoPost({
       } else {
         // User manually played the video
         setManuallyPaused(false);
-        setCurrentlyPlayingId(event.id);
-        videoRef.current.muted = globalMuteState;
+        effectiveSetCurrentlyPlayingId(event.id);
+        videoRef.current.muted = effectiveGlobalMuteState;
         videoRef.current.play().catch(() => {
           // Handle play promise rejection
           setCurrentlyPlayingId(null);
@@ -275,7 +284,7 @@ export function VideoPost({
     const newMutedState = !isMuted;
     
     // Update global mute state so all videos use the same setting
-    setGlobalMuteState(newMutedState);
+    effectiveSetGlobalMuteState(newMutedState);
     setIsMuted(newMutedState);
     
     if (videoRef.current) {
@@ -342,23 +351,23 @@ export function VideoPost({
 
   // Sync local mute state with global state
   useEffect(() => {
-    setIsMuted(globalMuteState);
+    setIsMuted(effectiveGlobalMuteState);
     if (videoRef.current) {
-      videoRef.current.muted = globalMuteState;
+      videoRef.current.muted = effectiveGlobalMuteState;
     }
-  }, [globalMuteState]);
+  }, [effectiveGlobalMuteState]);
 
   // Auto-play logic based on intersection observer
   useEffect(() => {
     if (!videoRef.current || !videoLoaded || videoError) return;
 
     const video = videoRef.current;
-    const isCurrentlyPlaying = currentlyPlayingId === event.id;
+    const isCurrentlyPlaying = effectiveCurrentlyPlayingId === event.id;
 
     if (inView && !isCurrentlyPlaying && !manuallyPaused) {
       // This video is in view and not currently playing - start playing
-      setCurrentlyPlayingId(event.id);
-      video.muted = globalMuteState;
+      effectiveSetCurrentlyPlayingId(event.id);
+      video.muted = effectiveGlobalMuteState;
       video.play().catch(() => {
         // Handle play promise rejection
         setIsPlaying(false);
@@ -366,17 +375,17 @@ export function VideoPost({
     } else if (!inView && isCurrentlyPlaying) {
       // This video is out of view and currently playing - pause it
       video.pause();
-      setCurrentlyPlayingId(null);
+      effectiveSetCurrentlyPlayingId(null);
       // Reset manual pause state when video goes out of view
       // This allows auto-play to work again when scrolling back
       setManuallyPaused(false);
     }
-  }, [inView, videoLoaded, videoError, currentlyPlayingId, event.id, setCurrentlyPlayingId, globalMuteState, manuallyPaused]);
+  }, [inView, videoLoaded, videoError, effectiveCurrentlyPlayingId, event.id, effectiveSetCurrentlyPlayingId, effectiveGlobalMuteState, manuallyPaused]);
 
   // Update local playing state based on global state
   useEffect(() => {
-    setIsPlaying(currentlyPlayingId === event.id);
-  }, [currentlyPlayingId, event.id]);
+    setIsPlaying(effectiveCurrentlyPlayingId === event.id);
+  }, [effectiveCurrentlyPlayingId, event.id]);
 
   // Load video when container comes into view
   useEffect(() => {
@@ -504,12 +513,12 @@ export function VideoPost({
               preload="metadata" // Load metadata when video element is created
               onPlay={() => {
                 setIsPlaying(true);
-                setCurrentlyPlayingId(event.id);
+                effectiveSetCurrentlyPlayingId(event.id);
               }}
               onPause={() => {
                 setIsPlaying(false);
-                if (currentlyPlayingId === event.id) {
-                  setCurrentlyPlayingId(null);
+                if (effectiveCurrentlyPlayingId === event.id) {
+                  effectiveSetCurrentlyPlayingId(null);
                 }
               }}
               onLoadedData={handleVideoLoadedData}

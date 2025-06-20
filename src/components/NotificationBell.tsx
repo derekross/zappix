@@ -11,8 +11,6 @@ import { NotificationList } from './NotificationList';
 import { useNotificationsWithReadStatus, useUnreadNotificationCount } from '@/hooks/useNotificationsWithReadStatus';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useVisibilityRefresh } from '@/hooks/useVisibilityRefresh';
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 
 interface NotificationBellProps {
   className?: string;
@@ -22,23 +20,11 @@ interface NotificationBellProps {
 export function NotificationBell({ className, variant = 'default' }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const { user } = useCurrentUser();
-  const { data: notifications = [], isLoading } = useNotificationsWithReadStatus();
+  const { isLoading } = useNotificationsWithReadStatus();
   const unreadCount = useUnreadNotificationCount();
-  const queryClient = useQueryClient();
   
   // Auto-refresh notifications when tab becomes visible
   useVisibilityRefresh();
-
-  // Force immediate fetch when component mounts and user is available
-  useEffect(() => {
-    if (user?.pubkey && notifications.length === 0 && !isLoading) {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    }
-  }, [user?.pubkey, notifications.length, isLoading, queryClient]);
-
-
-
-
 
   // Don't show notification bell if user is not logged in
   if (!user) {
@@ -47,12 +33,6 @@ export function NotificationBell({ className, variant = 'default' }: Notificatio
 
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
-    
-    // Refresh notifications when opening the panel
-    if (newOpen) {
-      // Force refresh notifications
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    }
   };
 
   if (variant === 'mobile') {

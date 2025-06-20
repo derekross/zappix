@@ -12,9 +12,16 @@ export function useAuthors(pubkeys: string[]) {
         return {};
       }
 
-      // Use a shorter timeout for faster loading
-      const timeoutSignal = AbortSignal.timeout(2000);
+      // Use a longer timeout for batch queries - they need more time
+      const timeoutSignal = AbortSignal.timeout(10000);
       const combinedSignal = AbortSignal.any([signal, timeoutSignal]);
+
+      const result: Record<string, { event?: NostrEvent; metadata?: NostrMetadata }> = {};
+
+      // Initialize all pubkeys with empty objects
+      for (const pubkey of pubkeys) {
+        result[pubkey] = {};
+      }
 
       try {
         // Batch query for all profile metadata
@@ -22,13 +29,6 @@ export function useAuthors(pubkeys: string[]) {
           [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
           { signal: combinedSignal }
         );
-
-        const result: Record<string, { event?: NostrEvent; metadata?: NostrMetadata }> = {};
-
-        // Initialize all pubkeys with empty objects
-        for (const pubkey of pubkeys) {
-          result[pubkey] = {};
-        }
 
         // Process found events
         for (const event of events) {
@@ -41,19 +41,21 @@ export function useAuthors(pubkeys: string[]) {
         }
 
         return result;
-      } catch {
-        // Return empty objects for all pubkeys on error
-        const result: Record<string, { event?: NostrEvent; metadata?: NostrMetadata }> = {};
-        for (const pubkey of pubkeys) {
-          result[pubkey] = {};
-        }
+      } catch (error) {
+        console.warn(`Failed to load profiles for ${pubkeys.length} authors:`, error);
+        // Return empty objects for all pubkeys on error - don't fail completely
         return result;
       }
     },
     enabled: pubkeys.length > 0,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    retry: 1, // Reduce retries for batch queries
+    retryDelay: 2000, // Fixed delay
+    staleTime: 30 * 60 * 1000, // 30 minutes - longer for batch queries
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours - keep batch data longer
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    refetchOnMount: false, // Don't refetch if we have cached data
+    // Don't block other queries if this one fails
+    throwOnError: false,
   });
 }

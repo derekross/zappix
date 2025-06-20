@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
@@ -21,6 +21,9 @@ interface NotificationProviderProps {
 
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const { user } = useCurrentUser();
+  const currentUserRef = useRef(user?.pubkey);
+  const isUpdatingRef = useRef(false);
+  
   const [readNotifications, setReadNotifications] = useLocalStorage<string[]>(
     `notifications-read-${user?.pubkey || 'anonymous'}`,
     []
@@ -37,90 +40,132 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     new Set(clearedNotifications)
   );
 
-  // Update the sets when localStorage changes
+  // Update the sets when localStorage changes, but only if we're not in the middle of an update
+  // and the user hasn't changed
   useEffect(() => {
-    setReadNotificationsSet(new Set(readNotifications));
-  }, [readNotifications]);
+    if (!isUpdatingRef.current && currentUserRef.current === user?.pubkey) {
+      setReadNotificationsSet(new Set(readNotifications));
+    }
+  }, [readNotifications, user?.pubkey]);
 
   useEffect(() => {
-    setClearedNotificationsSet(new Set(clearedNotifications));
-  }, [clearedNotifications]);
+    if (!isUpdatingRef.current && currentUserRef.current === user?.pubkey) {
+      setClearedNotificationsSet(new Set(clearedNotifications));
+    }
+  }, [clearedNotifications, user?.pubkey]);
 
-  // Clear read and cleared notifications when user changes
+  // Handle user changes - reset state and load user-specific data
   useEffect(() => {
-    if (user?.pubkey) {
-      const userReadNotifications = localStorage.getItem(`notifications-read-${user.pubkey}`);
-      if (userReadNotifications) {
+    const newUserPubkey = user?.pubkey;
+    
+    // If user changed, update the ref and reset state
+    if (currentUserRef.current !== newUserPubkey) {
+      currentUserRef.current = newUserPubkey;
+      
+      if (newUserPubkey) {
+        // Load user-specific data from localStorage
+        const userReadKey = `notifications-read-${newUserPubkey}`;
+        const userClearedKey = `notifications-cleared-${newUserPubkey}`;
+        
+        const userReadNotifications = localStorage.getItem(userReadKey);
+        const userClearedNotifications = localStorage.getItem(userClearedKey);
+        
         try {
-          const parsed = JSON.parse(userReadNotifications);
-          setReadNotificationsSet(new Set(parsed));
-        } catch {
+          const readData = userReadNotifications ? JSON.parse(userReadNotifications) : [];
+          const clearedData = userClearedNotifications ? JSON.parse(userClearedNotifications) : [];
+          
+          setReadNotificationsSet(new Set(readData));
+          setClearedNotificationsSet(new Set(clearedData));
+        } catch (error) {
+          console.warn('Failed to parse notification data from localStorage:', error);
           setReadNotificationsSet(new Set());
-        }
-      } else {
-        setReadNotificationsSet(new Set());
-      }
-
-      const userClearedNotifications = localStorage.getItem(`notifications-cleared-${user.pubkey}`);
-      if (userClearedNotifications) {
-        try {
-          const parsed = JSON.parse(userClearedNotifications);
-          setClearedNotificationsSet(new Set(parsed));
-        } catch {
           setClearedNotificationsSet(new Set());
         }
       } else {
+        // No user logged in, clear state
+        setReadNotificationsSet(new Set());
         setClearedNotificationsSet(new Set());
       }
-    } else {
-      setReadNotificationsSet(new Set());
-      setClearedNotificationsSet(new Set());
     }
   }, [user?.pubkey]);
 
-  const markAsRead = (notificationId: string) => {
+  const markAsRead = useCallback((notificationId: string) => {
     if (!readNotificationsSet.has(notificationId)) {
+      isUpdatingRef.current = true;
+      
       const newReadNotifications = [...readNotifications, notificationId];
+      
+      // Update both state and localStorage atomically
       setReadNotifications(newReadNotifications);
       setReadNotificationsSet(new Set(newReadNotifications));
+      
+      // Reset the updating flag after a brief delay to allow localStorage to update
+      setTimeout(() => {
+        isUpdatingRef.current = false;
+      }, 10);
     }
-  };
+  }, [readNotifications, readNotificationsSet, setReadNotifications]);
 
-  const markAllAsRead = (notificationIds: string[]) => {
+  const markAllAsRead = useCallback((notificationIds: string[]) => {
     const newReadNotifications = [...new Set([...readNotifications, ...notificationIds])];
     
-    // Update both localStorage and state synchronously
-    setReadNotifications(newReadNotifications);
-    setReadNotificationsSet(new Set(newReadNotifications));
-    
+    // Only update if there are actually new notifications to mark as read
+    if (newReadNotifications.length > readNotifications.length) {
+      isUpdatingRef.current = true;
+      
+      // Update both localStorage and state atomically
+      setReadNotifications(newReadNotifications);
+      setReadNotificationsSet(new Set(newReadNotifications));
+      
+      // Reset the updating flag after a brief delay
+      setTimeout(() => {
+        isUpdatingRef.current = false;
+      }, 10);
+    }
+  }, [readNotifications, setReadNotifications]);
 
-  };
-
-  const clearNotification = (notificationId: string) => {
+  const clearNotification = useCallback((notificationId: string) => {
     if (!clearedNotificationsSet.has(notificationId)) {
+      isUpdatingRef.current = true;
+      
       const newClearedNotifications = [...clearedNotifications, notificationId];
+      
+      // Update both state and localStorage atomically
       setClearedNotifications(newClearedNotifications);
       setClearedNotificationsSet(new Set(newClearedNotifications));
+      
+      // Reset the updating flag after a brief delay
+      setTimeout(() => {
+        isUpdatingRef.current = false;
+      }, 10);
     }
-  };
+  }, [clearedNotifications, clearedNotificationsSet, setClearedNotifications]);
 
-  const clearAllNotifications = (notificationIds: string[]) => {
+  const clearAllNotifications = useCallback((notificationIds: string[]) => {
     const newClearedNotifications = [...new Set([...clearedNotifications, ...notificationIds])];
     
-    // Update both localStorage and state synchronously
-    setClearedNotifications(newClearedNotifications);
-    setClearedNotificationsSet(new Set(newClearedNotifications));
-    
+    // Only update if there are actually new notifications to clear
+    if (newClearedNotifications.length > clearedNotifications.length) {
+      isUpdatingRef.current = true;
+      
+      // Update both localStorage and state atomically
+      setClearedNotifications(newClearedNotifications);
+      setClearedNotificationsSet(new Set(newClearedNotifications));
+      
+      // Reset the updating flag after a brief delay
+      setTimeout(() => {
+        isUpdatingRef.current = false;
+      }, 10);
+    }
+  }, [clearedNotifications, setClearedNotifications]);
 
-  };
-
-  const isRead = (notificationId: string) => {
+  const isRead = useCallback((notificationId: string) => {
     return readNotificationsSet.has(notificationId);
-  };
+  }, [readNotificationsSet]);
 
-  const isCleared = (notificationId: string) => {
+  const isCleared = useCallback((notificationId: string) => {
     return clearedNotificationsSet.has(notificationId);
-  };
+  }, [clearedNotificationsSet]);
 
   return (
     <NotificationContext.Provider

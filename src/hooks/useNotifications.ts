@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useNostr } from "@nostrify/react";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useCurrentUser } from "./useCurrentUser";
-import { useEffect } from "react";
 
 export interface NotificationEvent {
   id: string;
@@ -29,140 +28,112 @@ export function useNotifications() {
         return [];
       }
 
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(10000)]);
+      // Use a shorter timeout to prevent hanging
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(8000)]);
       
       try {
+        if (import.meta.env.DEV) {
+          console.log('Fetching notifications for user:', user.pubkey);
+        }
         
-        // Strategy 1: Get user's image and video posts first
-        const userPosts = await nostr.query([
-          {
-            kinds: [20, 22, 34236], // Image and video posts
+        // Simplified approach: Get user's posts and notifications in parallel
+        const [userPosts, reactions, comments, zaps] = await Promise.all([
+          // Get user's image and video posts
+          nostr.query([{
+            kinds: [20, 22, 34236],
             authors: [user.pubkey],
-            limit: 100, // Get recent posts to check for notifications
-          }
-        ], { signal });
-
-        // Strategy 2: Also try to find notifications by looking for events that mention the user
-        // This can catch notifications even if we don't have all the user's posts indexed
-        const mentionNotifications = await Promise.all([
-          // Look for reactions mentioning the user
-          nostr.query([
-            {
-              kinds: [7],
-              '#p': [user.pubkey],
-              limit: 25,
-            }
-          ], { signal }),
-          // Look for comments (kind 1111) mentioning the user  
-          nostr.query([
-            {
-              kinds: [1111],
-              '#p': [user.pubkey],
-              limit: 25,
-            }
-          ], { signal }),
-          // Look for zaps mentioning the user
-          nostr.query([
-            {
-              kinds: [9735],
-              '#p': [user.pubkey],
-              limit: 25,
-            }
-          ], { signal }),
+            limit: 50, // Reduced limit for better performance
+          }], { signal }),
+          
+          // Get reactions mentioning the user
+          nostr.query([{
+            kinds: [7],
+            '#p': [user.pubkey],
+            limit: 30,
+          }], { signal }),
+          
+          // Get comments mentioning the user
+          nostr.query([{
+            kinds: [1111],
+            '#p': [user.pubkey],
+            limit: 30,
+          }], { signal }),
+          
+          // Get zaps mentioning the user
+          nostr.query([{
+            kinds: [9735],
+            '#p': [user.pubkey],
+            limit: 30,
+          }], { signal }),
         ]);
 
-        const [mentionReactions, mentionComments, mentionZaps] = mentionNotifications;
-
-        if (userPosts.length === 0 && mentionReactions.length === 0 && mentionComments.length === 0 && mentionZaps.length === 0) {
-          return [];
+        if (import.meta.env.DEV) {
+          console.log('Notification query results:', {
+            userPosts: userPosts.length,
+            reactions: reactions.length,
+            comments: comments.length,
+            zaps: zaps.length
+          });
         }
 
-        // Combine both strategies: post-based and mention-based notifications
-        let reactions: NostrEvent[] = [];
-        let comments: NostrEvent[] = [];
-        let zaps: NostrEvent[] = [];
+        // If we have user posts, also get notifications for those posts
+        let postReactions: NostrEvent[] = [];
+        let postComments: NostrEvent[] = [];
+        let postZaps: NostrEvent[] = [];
 
-        // Strategy 1: Post-based notifications (if we have posts)
         if (userPosts.length > 0) {
           const userPostIds = userPosts.map(post => post.id);
-
-          const postBasedNotifications = await Promise.all([
-            nostr.query([{ kinds: [7], '#e': userPostIds, limit: 50 }], { signal }),
-            nostr.query([{ kinds: [1111], '#e': userPostIds, limit: 50 }], { signal }),
-            nostr.query([{ kinds: [9735], '#e': userPostIds, limit: 50 }], { signal }),
-          ]);
-
-          reactions = postBasedNotifications[0];
-          comments = postBasedNotifications[1];
-          zaps = postBasedNotifications[2];
+          
+          try {
+            [postReactions, postComments, postZaps] = await Promise.all([
+              nostr.query([{ kinds: [7], '#e': userPostIds, limit: 30 }], { signal }),
+              nostr.query([{ kinds: [1111], '#e': userPostIds, limit: 30 }], { signal }),
+              nostr.query([{ kinds: [9735], '#e': userPostIds, limit: 30 }], { signal }),
+            ]);
+          } catch (error) {
+            console.warn('Failed to fetch post-based notifications:', error);
+            // Continue with mention-based notifications only
+          }
         }
 
-        // Strategy 2: Merge with mention-based notifications
-        // Combine and deduplicate
-        const allReactions = [...reactions, ...mentionReactions].filter((event, index, self) => 
-          index === self.findIndex(e => e.id === event.id)
-        );
-        const allComments = [...comments, ...mentionComments].filter((event, index, self) => 
-          index === self.findIndex(e => e.id === event.id)
-        );
-        const allZaps = [...zaps, ...mentionZaps].filter((event, index, self) => 
-          index === self.findIndex(e => e.id === event.id)
-        );
+        // Combine and deduplicate all notifications
+        const allReactions = [...reactions, ...postReactions]
+          .filter((event, index, self) => index === self.findIndex(e => e.id === event.id))
+          .filter(event => event.pubkey !== user.pubkey); // Filter out user's own reactions
 
-        // Filter out user's own interactions
-        const filteredReactions = allReactions.filter(event => event.pubkey !== user.pubkey);
-        const filteredComments = allComments.filter(event => event.pubkey !== user.pubkey);
-        const filteredZaps = allZaps.filter(event => event.pubkey !== user.pubkey);
+        const allComments = [...comments, ...postComments]
+          .filter((event, index, self) => index === self.findIndex(e => e.id === event.id))
+          .filter(event => event.pubkey !== user.pubkey); // Filter out user's own comments
+
+        const allZaps = [...zaps, ...postZaps]
+          .filter((event, index, self) => index === self.findIndex(e => e.id === event.id))
+          .filter(event => event.pubkey !== user.pubkey); // Filter out user's own zaps
 
         // Create notification objects
         const notifications: NotificationEvent[] = [];
 
-        // Helper function to check if a notification event references a valid target
-        const isValidNotification = async (event: NostrEvent, _eventType: 'reaction' | 'comment' | 'zap') => {
-          // First, try to find the target post in our known user posts
-          const targetPost = userPosts.find(post => 
-            event.tags.some(tag => tag[0] === 'e' && tag[1] === post.id)
-          );
-          
-          if (targetPost && isImageOrVideoEvent(targetPost)) {
-            return { valid: true, targetPost };
-          }
-          
-          // If we don't have the target post locally, check if the event references
-          // an image/video post by querying for the referenced event
+        // Helper function to find target post for a notification
+        const findTargetPost = (event: NostrEvent): NostrEvent | undefined => {
+          // Look for referenced event IDs in tags
           const referencedEventIds = event.tags
             .filter(tag => tag[0] === 'e')
             .map(tag => tag[1]);
             
-          if (referencedEventIds.length > 0) {
-            try {
-              const referencedEvents = await nostr.query([
-                {
-                  ids: referencedEventIds,
-                  kinds: [20, 22, 34236], // Only look for our supported kinds
-                  authors: [user.pubkey], // Only the user's own posts
-                  limit: 10,
-                }
-              ], { signal });
-              
-              // Find the first valid referenced event
-              const validTarget = referencedEvents.find(isImageOrVideoEvent);
-              if (validTarget) {
-                return { valid: true, targetPost: validTarget };
-              }
-            } catch (error) {
-              // If query fails, skip this notification
-              console.warn('Failed to verify notification target:', error);
+          // Find the target post in our user posts
+          for (const eventId of referencedEventIds) {
+            const targetPost = userPosts.find(post => post.id === eventId);
+            if (targetPost && isImageOrVideoEvent(targetPost)) {
+              return targetPost;
             }
           }
           
-          return { valid: false, targetPost: undefined };
+          return undefined;
         };
 
         // Process reactions
-        for (const reaction of filteredReactions) {
-          const { valid, targetPost } = await isValidNotification(reaction, 'reaction');
-          if (valid) {
+        for (const reaction of allReactions) {
+          const targetPost = findTargetPost(reaction);
+          if (targetPost) {
             notifications.push({
               id: reaction.id,
               type: 'reaction',
@@ -175,9 +146,9 @@ export function useNotifications() {
         }
 
         // Process comments
-        for (const comment of filteredComments) {
-          const { valid, targetPost } = await isValidNotification(comment, 'comment');
-          if (valid) {
+        for (const comment of allComments) {
+          const targetPost = findTargetPost(comment);
+          if (targetPost) {
             notifications.push({
               id: comment.id,
               type: 'comment',
@@ -190,9 +161,9 @@ export function useNotifications() {
         }
 
         // Process zaps
-        for (const zap of filteredZaps) {
-          const { valid, targetPost } = await isValidNotification(zap, 'zap');
-          if (valid) {
+        for (const zap of allZaps) {
+          const targetPost = findTargetPost(zap);
+          if (targetPost) {
             notifications.push({
               id: zap.id,
               type: 'zap',
@@ -211,6 +182,9 @@ export function useNotifications() {
             index === self.findIndex(n => n.id === notification.id)
           );
 
+        if (import.meta.env.DEV) {
+          console.log('Final notifications:', sortedNotifications.length);
+        }
         return sortedNotifications;
       } catch (error) {
         console.error('Error fetching notifications:', error);
@@ -218,22 +192,17 @@ export function useNotifications() {
       }
     },
     enabled: !!user?.pubkey,
-    staleTime: 30000, // 30 seconds - longer stale time to reduce conflicts with read state
-    refetchInterval: 60000, // 60 seconds - less aggressive auto-refresh
+    staleTime: 60000, // 1 minute - longer stale time for better consistency
+    refetchInterval: 120000, // 2 minutes - less aggressive auto-refresh
     refetchIntervalInBackground: false, // Don't refresh when tab is not active
     refetchOnWindowFocus: true, // Refresh when user returns to tab
-    refetchOnMount: true, // Fetch when component mounts if no data exists
+    refetchOnMount: 'always', // Always fetch when component mounts
     refetchOnReconnect: true, // Refresh when network reconnects
-    retry: 3,
-    retryDelay: 1000,
+    retry: 1, // Reduce retries to prevent blocking
+    retryDelay: 2000, // Fixed 2 second delay
+    // Don't block other queries if this one fails
+    throwOnError: false,
   });
-
-  // Force immediate fetch when user becomes available
-  useEffect(() => {
-    if (user?.pubkey && !query.isFetching && !query.data?.length) {
-      query.refetch();
-    }
-  }, [user?.pubkey, query]);
 
   return query;
 }

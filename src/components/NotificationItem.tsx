@@ -2,7 +2,7 @@ import { Heart, MessageCircle, Zap, Image, Video } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useAuthor } from '@/hooks/useAuthor';
+import { useAuthorFast } from '@/hooks/useAuthorFast';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { genUserName } from '@/lib/genUserName';
 import type { NotificationEvent } from '@/hooks/useNotifications';
@@ -15,13 +15,11 @@ interface NotificationItemProps {
 
 export function NotificationItem({ notification }: NotificationItemProps) {
   const { event, targetEvent, type, created_at } = notification;
-  const author = useAuthor(event.pubkey);
+  const author = useAuthorFast(event.pubkey);
   const { isRead, markAsRead } = useNotificationContext();
   const navigate = useNavigate();
   
-  const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(event.pubkey);
-  const profileImage = metadata?.picture;
+  const { displayName, profileImage } = author;
   const isNotificationRead = isRead(notification.id);
 
   const handleClick = () => {

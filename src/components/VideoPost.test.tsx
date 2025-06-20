@@ -186,4 +186,21 @@ describe('VideoPost', () => {
     // Verify the component structure remains intact after click
     expect(screen.getByText('Test Video')).toBeInTheDocument();
   });
+
+  it('works correctly without VideoFeedProvider context', () => {
+    render(
+      <TestApp>
+        <VideoPost event={mockVideoEvent} />
+      </TestApp>
+    );
+
+    // Check that video post renders correctly even without context
+    expect(screen.getByText('Test Video')).toBeInTheDocument();
+    expect(screen.getByText('Swift Falcon')).toBeInTheDocument();
+    expect(screen.getByText('Test video post content')).toBeInTheDocument();
+    
+    // Check that hashtag badges are rendered
+    expect(screen.getByText('video')).toBeInTheDocument();
+    expect(screen.getByText('test')).toBeInTheDocument();
+  });
 });
