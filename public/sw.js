@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v2.1.0";
+const CACHE_VERSION = "v0.0.0-1750380084935";
 const CACHE_NAME = `Zappix-${CACHE_VERSION}`;
 const urlsToCache = [
   "/",
@@ -8,9 +8,49 @@ const urlsToCache = [
   "/icon-512.png",
 ];
 
+// Skip waiting and immediately activate new service worker
 self.addEventListener("install", (event) => {
+  console.log("Service Worker installing...");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("Caching app shell");
+      return cache.addAll(urlsToCache);
+    }).then(() => {
+      // Skip waiting to activate immediately
+      return self.skipWaiting();
+    })
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  console.log("Service Worker activating...");
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log("Deleting old cache:", cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
+      // Take control of all clients immediately
+      return self.clients.claim();
+    }).then(() => {
+      // Notify all clients that the service worker has been updated
+      return self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({
+            type: "SW_UPDATED",
+            payload: {
+              version: CACHE_VERSION,
+              timestamp: Date.now()
+            }
+          });
+        });
+      });
+    })
   );
 });
 
@@ -34,16 +74,9 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
+// Handle messages from the main thread
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });

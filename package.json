@@ -1,11 +1,12 @@
 {
-  "name": "mkstack",
+  "name": "Zappix",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.2.0",
   "type": "module",
   "scripts": {
     "dev": "npm i && vite",
-    "build": "npm i && vite build && cp dist/index.html dist/404.html",
+    "dev:update-sw": "node scripts/update-sw-version.js",
+    "build": "npm i && node scripts/update-sw-version.js && vite build && cp dist/index.html dist/404.html",
     "test": "npm i && tsc -p tsconfig.app.json --noEmit && eslint && vitest run && vite build",
     "deploy": "npm run build && npx -y nostr-deploy-cli deploy --skip-setup"
   },

@@ -1,7 +1,7 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
-import { ChevronDown, LogOut, UserIcon, UserPlus, Settings, Bookmark, User, Sun, Moon } from 'lucide-react';
+import { ChevronDown, LogOut, UserIcon, UserPlus, Settings, Bookmark, User } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar.tsx'
 
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { genUserName } from '@/lib/genUserName';
-import { useTheme } from '@/hooks/useTheme';
 
 interface AccountSwitcherProps {
   onAddAccountClick: () => void;
@@ -24,7 +23,6 @@ interface AccountSwitcherProps {
 
 export function AccountSwitcher({ onAddAccountClick, onSettingsClick, onBookmarksClick, onProfileClick }: AccountSwitcherProps) {
   const { currentUser, otherUsers, setLogin, removeLogin } = useLoggedInAccounts();
-  const { theme, setTheme } = useTheme();
 
   if (!currentUser) return null;
 
@@ -92,14 +90,7 @@ export function AccountSwitcher({ onAddAccountClick, onSettingsClick, onBookmark
             <span>Settings</span>
           </DropdownMenuItem>
         )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-          className='flex items-center gap-2 cursor-pointer p-2 rounded-md'
-        >
-          {theme === 'light' ? <Sun className='w-4 h-4' /> : <Moon className='w-4 h-4' />}
-          <span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
-        </DropdownMenuItem>
+
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={onAddAccountClick}

@@ -1,4 +1,4 @@
-import { Settings, Server, Zap, Wifi } from 'lucide-react';
+import { Settings, Server, Zap, Wifi, Smartphone } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RelayConfiguration } from './RelayConfiguration';
 import { ZapConfiguration } from './ZapConfiguration';
 import { BlossomConfiguration } from './BlossomConfiguration';
+import { AppSettings } from './AppSettings';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { cn } from '@/lib/utils';
 
@@ -43,8 +44,12 @@ export function SettingsPage() {
         </p>
       </div>
       
-      <Tabs defaultValue="relays" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="app" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="app" className="flex items-center space-x-2">
+            <Smartphone className="h-4 w-4" />
+            <span className="hidden sm:inline">App</span>
+          </TabsTrigger>
           <TabsTrigger value="relays" className="flex items-center space-x-2">
             <Wifi className="h-4 w-4" />
             <span className="hidden sm:inline">Relays</span>
@@ -58,6 +63,10 @@ export function SettingsPage() {
             <span className="hidden sm:inline">Media</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="app" className="space-y-6">
+          <AppSettings />
+        </TabsContent>
 
         <TabsContent value="relays" className="space-y-6">
           <RelayConfiguration />

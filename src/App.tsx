@@ -13,6 +13,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { AppProvider } from "@/components/AppProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { PWAUpdateNotification } from "@/components/PWAUpdateNotification";
 import { AppConfig } from "@/contexts/AppContext";
 import AppRouter from "./AppRouter";
 
@@ -61,6 +62,7 @@ export function App() {
                 <TooltipProvider>
                   <Toaster />
                   <Sonner />
+                  <PWAUpdateNotification />
                   <Suspense>
                     <AppRouter />
                   </Suspense>
