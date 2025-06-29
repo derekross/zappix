@@ -10,17 +10,17 @@ const Index = () => {
     switch (location.pathname) {
       case '/videos':
         return {
-          title: 'Flix - Zappix',
+          title: 'Flix - ZapTok',
           description: 'Discover and share vertical videos on the decentralized Nostr network. TikTok-style feed with short-form content from creators worldwide.',
         };
       case '/discover':
         return {
-          title: 'Discover - Zappix',
+          title: 'Discover - ZapTok',
           description: 'Explore trending hashtags and discover new content on the decentralized Nostr network.',
         };
       default:
         return {
-          title: 'Zappix - Social Media on Nostr',
+          title: 'ZapTok - Social Media on Nostr',
           description: 'Share and discover amazing images and videos on the decentralized Nostr network. Built with React, TailwindCSS, and Nostrify.',
         };
     }

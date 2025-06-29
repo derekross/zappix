@@ -194,7 +194,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                   }}
                   className="font-bold text-lg"
                 >
-                  ← Zappix
+                  ← ZapTok
                 </Button>
               </div>
             </header>
@@ -219,7 +219,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                   >
                     <Camera className="h-6 w-6 text-primary" />
                     <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                      Zappix
+                      ZapTok
                     </h1>
                   </button>
                 </div>
@@ -317,7 +317,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 >
                   <Camera className="h-6 w-6 text-primary" />
                   <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    Zappix
+                    ZapTok
                   </h1>
                 </button>
                 <div className="flex-1 flex justify-end">
@@ -399,7 +399,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                   >
                     <Camera className="h-6 w-6 text-primary" />
                     <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                      Zappix
+                      ZapTok
                     </h1>
                   </button>
                 </div>
@@ -500,7 +500,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               >
                 <Camera className="h-6 w-6 text-primary" />
                 <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  Zappix
+                  ZapTok
                 </h1>
               </button>
               <div className="flex-1 flex justify-end">
@@ -743,7 +743,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 >
                   <Camera className="h-6 w-6 text-primary" />
                   <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    Zappix
+                    ZapTok
                   </h1>
                 </button>
               </div>

@@ -1,5 +1,5 @@
 const CACHE_VERSION = "v2.2.0-1750380372196";
-const CACHE_NAME = `Zappix-${CACHE_VERSION}`;
+const CACHE_NAME = `ZapTok-${CACHE_VERSION}`;
 const urlsToCache = [
   "/",
   "/index.html",

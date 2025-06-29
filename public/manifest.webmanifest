@@ -1,6 +1,6 @@
 {
-  "name": "Zappix - Social Image Sharing on Nostr",
-  "short_name": "Zappix",
+  "name": "ZapTok - Social Image Sharing on Nostr",
+  "short_name": "ZapTok",
   "description": "Share and discover amazing images on the decentralized Nostr network",
   "start_url": "/",
   "display": "standalone",

@@ -130,8 +130,8 @@ export function PublicUserProfilePage({ pubkey }: PublicUserProfilePageProps) {
   const bannerImage = metadata?.banner;
   
   useSeoMeta({
-    title: `${displayName} - Zappix`,
-    description: metadata?.about || `View ${displayName}'s profile on Zappix`,
+    title: `${displayName} - ZapTok`,
+    description: metadata?.about || `View ${displayName}'s profile on ZapTok`,
   });
   
   if (author.isLoading) {
@@ -145,7 +145,7 @@ export function PublicUserProfilePage({ pubkey }: PublicUserProfilePageProps) {
             >
               <Camera className="h-6 w-6 text-primary" />
               <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                Zappix
+                ZapTok
               </h1>
             </button>
             <LoginArea className="max-w-60" />
@@ -177,7 +177,7 @@ export function PublicUserProfilePage({ pubkey }: PublicUserProfilePageProps) {
             >
               <Camera className="h-6 w-6 text-primary" />
               <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                Zappix
+                ZapTok
               </h1>
             </button>
             <LoginArea className="max-w-60" />
@@ -217,7 +217,7 @@ export function PublicUserProfilePage({ pubkey }: PublicUserProfilePageProps) {
           >
             <Camera className="h-6 w-6 text-primary" />
             <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Zappix
+              ZapTok
             </h1>
           </button>
           <LoginArea className="max-w-60" />
