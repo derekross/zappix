@@ -3,15 +3,12 @@ import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from './useCurrentUser';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-// Validator function for NIP-22 comment events
 function validateCommentEvent(event: NostrEvent): boolean {
   if (event.kind !== 1111) return false;
 
-  // Must have uppercase tags for root scope
   const hasRootScope = event.tags.some(([name]) => ['E', 'A', 'I'].includes(name));
   if (!hasRootScope) return false;
 
-  // Must have K tag for root kind
   const kTag = event.tags.find(([name]) => name === 'K');
   if (!kTag || !kTag[1]) return false;
 
@@ -21,39 +18,43 @@ function validateCommentEvent(event: NostrEvent): boolean {
 export function useComments(eventId: string, _authorPubkey: string) {
   const { nostr } = useNostr();
 
-  return useInfiniteQuery({
+  const result = useInfiniteQuery({
     queryKey: ['comments', eventId],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-      
-      const filter: { kinds: number[]; '#E': string[]; limit: number; until?: number } = { 
-        kinds: [1111], 
-        '#E': [eventId], // Comments on the root event
-        limit: 20 // Smaller page size for better performance
+
+      const filter: { kinds: number[]; '#E': string[]; limit: number; until?: number } = {
+        kinds: [1111],
+        '#E': [eventId],
+        limit: 20,
       };
 
-      // Add pagination using 'until' timestamp (going backwards in time)
       if (pageParam) {
-        filter.until = pageParam - 1; // Subtract 1 to avoid getting the same comment again
+        filter.until = pageParam - 1;
       }
-      
+
       const events = await nostr.query([filter], { signal: querySignal });
-      
       const validComments = events.filter(validateCommentEvent);
-      
-      // Sort by creation time (newest first for this page)
       const sortedComments = validComments.sort((a, b) => b.created_at - a.created_at);
-      
+
       return {
         comments: sortedComments,
         nextCursor: sortedComments.length > 0 ? sortedComments[sortedComments.length - 1].created_at : undefined,
-        hasMore: sortedComments.length === filter.limit, // Only has more if we got a full page
+        hasMore: sortedComments.length === filter.limit,
       };
     },
     initialPageParam: undefined as number | undefined,
-    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextCursor : undefined),
     staleTime: 30000,
   });
+
+  return {
+    ...result,
+    refetch: async () => {
+      // Reset the infinite query and refetch first page
+      await result.refetch();
+    },
+  };
 }
 
 export function useCommentReplies(commentId: string) {
@@ -63,15 +64,16 @@ export function useCommentReplies(commentId: string) {
     queryKey: ['comment-replies', commentId],
     queryFn: async (c) => {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(3000)]);
-      
-      const events = await nostr.query([{ 
-        kinds: [1111], 
-        '#e': [commentId], // Replies to this comment
-        limit: 50 
-      }], { signal });
-      
+
+      const events = await nostr.query([
+        {
+          kinds: [1111],
+          '#e': [commentId],
+          limit: 50,
+        },
+      ], { signal });
+
       const validReplies = events.filter(validateCommentEvent);
-      
       return validReplies.sort((a, b) => a.created_at - b.created_at);
     },
     staleTime: 30000,
@@ -84,13 +86,13 @@ export function useCreateComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
-      content, 
-      rootEventId, 
-      rootAuthorPubkey, 
-      parentEventId, 
-      parentAuthorPubkey 
-    }: { 
+    mutationFn: async ({
+      content,
+      rootEventId,
+      rootAuthorPubkey,
+      parentEventId,
+      parentAuthorPubkey,
+    }: {
       content: string;
       rootEventId: string;
       rootAuthorPubkey: string;
@@ -100,24 +102,21 @@ export function useCreateComment() {
       if (!user?.signer) throw new Error('User not logged in');
 
       const tags = [
-        // Root scope tags (uppercase)
         ['E', rootEventId, '', rootAuthorPubkey],
-        ['K', '20'], // Root kind is image post (kind 20)
+        ['K', '20'],
         ['P', rootAuthorPubkey],
       ];
 
-      // Add parent tags if this is a reply to a comment
       if (parentEventId && parentAuthorPubkey) {
         tags.push(
           ['e', parentEventId, '', parentAuthorPubkey],
-          ['k', '1111'], // Parent kind is comment
+          ['k', '1111'],
           ['p', parentAuthorPubkey]
         );
       } else {
-        // Top-level comment - parent is the same as root
         tags.push(
           ['e', rootEventId, '', rootAuthorPubkey],
-          ['k', '20'], // Parent kind is image post
+          ['k', '20'],
           ['p', rootAuthorPubkey]
         );
       }
@@ -133,7 +132,6 @@ export function useCreateComment() {
       return event;
     },
     onSuccess: (_, variables) => {
-      // Invalidate comments query to refetch
       queryClient.invalidateQueries({ queryKey: ['comments', variables.rootEventId] });
       if (variables.parentEventId) {
         queryClient.invalidateQueries({ queryKey: ['comment-replies', variables.parentEventId] });
