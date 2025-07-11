@@ -9,7 +9,7 @@ import {
 import { useZaps } from "@/hooks/useZaps";
 import { ZapButton } from "./ZapButton";
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useComments, useCreateComment } from "@/hooks/useComments";
+import { useComments, useCommentReplies, useCreateComment } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuthor } from "@/hooks/useAuthor";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
   const removeReaction = useRemoveReaction();
   const { user } = useCurrentUser();
   const { toast } = useToast();
+  const replies = useCommentReplies(comment.id);
 
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? genUserName(comment.pubkey);
@@ -103,15 +104,13 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
           eventId: comment.id,
           authorPubkey: comment.pubkey,
           reaction: "+",
-          kind: "1111", // Comment kind
+          kind: "1111",
         });
       }
     } catch {
       toast({
         title: "Error",
-        description: hasLiked
-          ? "Failed to remove like"
-          : "Failed to like comment",
+        description: hasLiked ? "Failed to remove like" : "Failed to like comment",
         variant: "destructive",
       });
     }
@@ -146,9 +145,7 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
               <Heart
                 className={cn(
                   "h-3 w-3 mr-1 transition-colors",
-                  hasLiked
-                    ? "fill-red-500 text-red-500"
-                    : "text-muted-foreground hover:text-red-500"
+                  hasLiked ? "fill-red-500 text-red-500" : "text-muted-foreground hover:text-red-500"
                 )}
               />
               {likeCount}
@@ -203,6 +200,19 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
           </div>
         </div>
       )}
+
+      {replies.data?.length > 0 && (
+        <div className="ml-6 pl-4 border-l border-muted space-y-4">
+          {replies.data.map((reply) => (
+            <Comment
+              key={reply.id}
+              comment={reply}
+              rootEventId={rootEventId}
+              rootAuthorPubkey={rootAuthorPubkey}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -216,33 +226,19 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
 
-  // Intersection observer for infinite scrolling
-  const { ref: loadMoreRef, inView } = useInView({
-    threshold: 0,
-    rootMargin: "100px",
-  });
+  const { ref: loadMoreRef, inView } = useInView({ threshold: 0, rootMargin: "100px" });
 
-  // Load more comments when the load more element comes into view
   useEffect(() => {
     if (inView && comments.hasNextPage && !comments.isFetchingNextPage) {
       comments.fetchNextPage();
     }
   }, [inView, comments]);
 
-  // Flatten all pages into a single array of comments, deduplicate, and sort chronologically (oldest first)
-  const allComments =
-    comments.data?.pages?.flatMap((page) => page.comments) || [];
-
-  // Deduplicate comments by ID
-  const uniqueComments = allComments.filter(
-    (comment, index, array) =>
-      array.findIndex((c) => c.id === comment.id) === index
+  const allComments = comments.data?.pages?.flatMap((page) => page.comments) || [];
+  const uniqueComments = allComments.filter((comment, index, array) =>
+    array.findIndex((c) => c.id === comment.id) === index
   );
-
-  // Sort chronologically (oldest first)
-  const sortedComments = uniqueComments.sort(
-    (a, b) => a.created_at - b.created_at
-  );
+  const sortedComments = uniqueComments.sort((a, b) => a.created_at - b.created_at);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !user) return;
@@ -255,6 +251,8 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
       });
 
       setNewComment("");
+      await comments.refetch();
+
       toast({
         title: "Comment posted!",
         description: "Your comment has been published",
@@ -270,8 +268,7 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
 
   return (
     <div className="border-t bg-muted/30">
-      <div className={cn("p-4 space-y-4", isMobile && "px-2")}>
-        {/* New Comment Form */}
+      <div className={cn("p-4 space-y-4", isMobile && "px-2")}>        
         {user ? (
           <div className="space-y-3">
             <Textarea
@@ -297,7 +294,6 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
           </p>
         )}
 
-        {/* Comments List */}
         {comments.data && sortedComments.length > 0 && (
           <>
             <Separator />
@@ -315,7 +311,6 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
                 />
               ))}
 
-              {/* Load more trigger element */}
               {comments.hasNextPage && (
                 <div ref={loadMoreRef} className="flex justify-center py-4">
                   {comments.isFetchingNextPage ? (
@@ -336,7 +331,6 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
                 </div>
               )}
 
-              {/* End of comments indicator */}
               {!comments.hasNextPage && sortedComments.length > 10 && (
                 <div className="text-center py-2">
                   <p className="text-muted-foreground text-xs">
