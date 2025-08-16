@@ -8,7 +8,7 @@ import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nos
  * Hook for intelligently prefetching profiles based on visible content
  */
 export function useProfilePrefetch() {
-  const { prefetchProfiles, isProfileCached } = useProfileCache();
+  const { isProfileCached } = useProfileCache();
   const queryClient = useQueryClient();
   const { nostr } = useNostr();
   const prefetchQueueRef = useRef<Set<string>>(new Set());

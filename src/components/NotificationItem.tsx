@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuthorFast } from '@/hooks/useAuthorFast';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { genUserName } from '@/lib/genUserName';
 import type { NotificationEvent } from '@/hooks/useNotifications';
 import { useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';

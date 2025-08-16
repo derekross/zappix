@@ -44,7 +44,7 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
   const removeReaction = useRemoveReaction();
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  const replies = useCommentReplies(comment.id);
+  const replies = useCommentReplies(comment.id, rootEventId);
 
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? genUserName(comment.pubkey);
@@ -115,6 +115,9 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
       });
     }
   };
+
+  const replyList = replies.data ?? [];
+  console.log('Comment', comment.id, comment.tags);
 
   return (
     <div className="space-y-2">
@@ -201,9 +204,9 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
         </div>
       )}
 
-      {replies.data?.length > 0 && (
+      {replyList.length > 0 && (
         <div className="ml-6 pl-4 border-l border-muted space-y-4">
-          {replies.data.map((reply) => (
+          {replyList.map((reply) => (
             <Comment
               key={reply.id}
               comment={reply}
@@ -238,7 +241,13 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
   const uniqueComments = allComments.filter((comment, index, array) =>
     array.findIndex((c) => c.id === comment.id) === index
   );
-  const sortedComments = uniqueComments.sort((a, b) => a.created_at - b.created_at);
+
+  // Only show comments as top-level if the last 'e' tag is for the root event (NIP-10 threading)
+  const topLevelComments = uniqueComments.filter(comment => {
+    const eTags = comment.tags.filter(tag => tag[0] === 'e');
+    return eTags.length > 0 && eTags[eTags.length - 1][1] === eventId;
+  });
+  const sortedComments = topLevelComments.sort((a, b) => a.created_at - b.created_at);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !user) return;
@@ -302,14 +311,17 @@ export function CommentSection({ eventId, authorPubkey }: CommentSectionProps) {
                 Comments ({sortedComments.length})
               </h4>
 
-              {sortedComments.map((comment) => (
-                <Comment
-                  key={comment.id}
-                  comment={comment}
-                  rootEventId={eventId}
-                  rootAuthorPubkey={authorPubkey}
-                />
-              ))}
+              {sortedComments.map((comment) => {
+                console.log('Top-level candidate', comment.id, comment.tags);
+                return (
+                  <Comment
+                    key={comment.id}
+                    comment={comment}
+                    rootEventId={eventId}
+                    rootAuthorPubkey={authorPubkey}
+                  />
+                );
+              })}
 
               {comments.hasNextPage && (
                 <div ref={loadMoreRef} className="flex justify-center py-4">

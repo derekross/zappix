@@ -29,7 +29,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { genUserName } from "@/lib/genUserName";
 import { ImagePostActions } from "./ImagePostActions";
 import { CommentSection } from "./CommentSection";
 import { ZapButton } from "./ZapButton";

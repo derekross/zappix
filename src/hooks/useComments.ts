@@ -23,9 +23,9 @@ export function useComments(eventId: string, _authorPubkey: string) {
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
 
-      const filter: { kinds: number[]; '#E': string[]; limit: number; until?: number } = {
+      const filter: { kinds: number[]; '#e': string[]; limit: number; until?: number } = {
         kinds: [1111],
-        '#E': [eventId],
+        '#e': [eventId],
         limit: 20,
       };
 
@@ -57,7 +57,7 @@ export function useComments(eventId: string, _authorPubkey: string) {
   };
 }
 
-export function useCommentReplies(commentId: string) {
+export function useCommentReplies(commentId: string, rootEventId: string) {
   const { nostr } = useNostr();
 
   return useQuery({
@@ -73,7 +73,16 @@ export function useCommentReplies(commentId: string) {
         },
       ], { signal });
 
-      const validReplies = events.filter(validateCommentEvent);
+      const validReplies = events.filter(validateCommentEvent)
+        // Only include if the last 'e' tag is for this commentId and there is also an 'e' tag for the root event
+        .filter(event => {
+          const eTags = event.tags.filter(tag => tag[0] === 'e');
+          if (eTags.length < 2) return false;
+          const hasRoot = eTags.some(tag => tag[1] === rootEventId);
+          const lastETag = eTags[eTags.length - 1];
+          return hasRoot && lastETag[1] === commentId;
+        });
+
       return validReplies.sort((a, b) => a.created_at - b.created_at);
     },
     staleTime: 30000,
@@ -108,7 +117,9 @@ export function useCreateComment() {
       ];
 
       if (parentEventId && parentAuthorPubkey) {
+        // NIP-10: first 'e' tag is root, second is parent comment
         tags.push(
+          ['e', rootEventId, '', rootAuthorPubkey],
           ['e', parentEventId, '', parentAuthorPubkey],
           ['k', '1111'],
           ['p', parentAuthorPubkey]
