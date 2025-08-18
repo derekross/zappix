@@ -11,31 +11,54 @@ interface TestAppProps {
   children: React.ReactNode;
 }
 
+// Create a single query client instance for all tests to avoid memory leaks
+let queryClient: QueryClient | null = null;
+
+function getQueryClient() {
+  if (!queryClient) {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0, // Clear cache immediately after test
+        },
+        mutations: {
+          retry: false,
+          gcTime: 0, // Clear cache immediately after test
+        },
+      },
+    });
+  }
+  return queryClient;
+}
+
+// Function to clean up query client between tests
+export function cleanupQueryClient() {
+  if (queryClient) {
+    queryClient.clear();
+    queryClient = null;
+  }
+}
+
+const defaultConfig: AppConfig = {
+  theme: 'light',
+};
+
+const defaultRelays = [
+  { url: 'wss://relay.nostr.band', name: 'Nostr.Band' },
+  { url: 'wss://relay.primal.net', name: 'Primal' },
+  { url: 'wss://relay.olas.app', name: 'Olas' },
+  { url: 'wss://nos.lol', name: 'nos.lol' },
+];
+
 export function TestApp({ children }: TestAppProps) {
   const head = createHead();
-
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-
-  const defaultConfig: AppConfig = {
-    theme: 'light',
-  };
-
-  const defaultRelays = [
-    { url: 'wss://relay.nostr.band', name: 'Nostr.Band' },
-    { url: 'wss://relay.primal.net', name: 'Primal' },
-    { url: 'wss://relay.olas.app', name: 'Olas' },
-    { url: 'wss://nos.lol', name: 'nos.lol' },
-  ];
+  const client = getQueryClient();
 
   return (
     <UnheadProvider head={head}>
       <AppProvider storageKey='test-app-config' defaultConfig={defaultConfig} defaultRelays={defaultRelays}>
-        <QueryClientProvider client={queryClient}>
+        <QueryClientProvider client={client}>
           <NostrLoginProvider storageKey='test-login'>
             <NostrProvider>
               <NotificationProvider>

@@ -46,6 +46,13 @@ export function updateCurrentUserRelayList(
   currentUserRelayList = relayList;
 }
 
+// Function to reset global state (for testing)
+export function resetNostrProviderState() {
+  currentUserRelayList = null;
+  currentUserPubkey = null;
+  relayListCache.clear();
+}
+
 const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   const { children } = props;
   const { defaultRelays } = useAppContext();
