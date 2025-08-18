@@ -61,12 +61,13 @@ export function CreatePostDialog({
   const [media, setMedia] = useState<UploadedMedia[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentFileName, setCurrentFileName] = useState("");
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [postType, setPostType] = useState<"image" | "video">("image");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useCurrentUser();
-  const { mutateAsync: uploadFile } = useUploadFile();
+  const uploadFileMutation = useUploadFile();
   const { mutate: createEvent } = useNostrPublish();
   const { toast } = useToast();
 
@@ -111,50 +112,114 @@ export function CreatePostDialog({
   }> => {
     return new Promise((resolve, reject) => {
       const video = document.createElement("video");
-      video.src = URL.createObjectURL(file);
-      video.preload = "metadata";
+      let objectUrl: string | null = null;
+      let timeoutId: NodeJS.Timeout | null = null;
+      let resolved = false;
 
-      video.onloadedmetadata = () => {
-        try {
-          // Ensure we have valid dimensions
-          const width = video.videoWidth;
-          const height = video.videoHeight;
-          const duration = video.duration;
-
-          // Validate that we got actual metadata
-          if (!width || !height || width <= 0 || height <= 0) {
-            reject(new Error("Could not determine video dimensions"));
-            return;
-          }
-
-          if (isNaN(duration) || duration <= 0) {
-            reject(new Error("Could not determine video duration"));
-            return;
-          }
-
-          resolve({
-            width,
-            height,
-            duration: Math.round(duration),
-          });
-        } catch (error) {
-          reject(error);
-        } finally {
-          // Clean up the object URL
-          URL.revokeObjectURL(video.src);
+      const cleanup = () => {
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
         }
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        // Remove event listeners
+        video.onloadedmetadata = null;
+        video.onerror = null;
+        video.oncanplay = null;
       };
 
-      video.onerror = () => {
-        URL.revokeObjectURL(video.src);
-        reject(new Error("Failed to load video"));
+      const resolveOnce = (result: { width: number; height: number; duration: number; thumbnail?: string }) => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        resolve(result);
       };
 
-      // Timeout after 10 seconds (increased from 5)
-      setTimeout(() => {
-        URL.revokeObjectURL(video.src);
-        reject(new Error("Video metadata loading timeout"));
-      }, 10000);
+      const rejectOnce = (error: Error) => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        reject(error);
+      };
+
+      try {
+        objectUrl = URL.createObjectURL(file);
+        video.src = objectUrl;
+        video.preload = "metadata";
+        video.muted = true; // Ensure muted for autoplay policies
+        video.playsInline = true;
+
+        video.onloadedmetadata = () => {
+          try {
+            console.log("Video metadata loaded:", {
+              videoWidth: video.videoWidth,
+              videoHeight: video.videoHeight,
+              duration: video.duration,
+              readyState: video.readyState
+            });
+
+            // Ensure we have valid dimensions
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+            const duration = video.duration;
+
+            // Validate that we got actual metadata
+            if (!width || !height || width <= 0 || height <= 0) {
+              rejectOnce(new Error(`Invalid video dimensions: ${width}x${height}`));
+              return;
+            }
+
+            if (isNaN(duration) || duration <= 0) {
+              rejectOnce(new Error(`Invalid video duration: ${duration}`));
+              return;
+            }
+
+            resolveOnce({
+              width,
+              height,
+              duration: Math.round(duration),
+            });
+          } catch (error) {
+            rejectOnce(error instanceof Error ? error : new Error("Metadata processing failed"));
+          }
+        };
+
+        video.onerror = (e) => {
+          console.error("Video loading error:", e);
+          rejectOnce(new Error("Failed to load video file"));
+        };
+
+        // Also try oncanplay as a fallback
+        video.oncanplay = () => {
+          if (video.videoWidth > 0 && video.videoHeight > 0 && video.duration > 0) {
+            // Only trigger if onloadedmetadata hasn't fired yet
+            setTimeout(() => {
+              if (!resolved) {
+                console.log("Using canplay fallback for metadata");
+                resolveOnce({
+                  width: video.videoWidth,
+                  height: video.videoHeight,
+                  duration: Math.round(video.duration),
+                });
+              }
+            }, 100);
+          }
+        };
+
+        // Timeout after 15 seconds
+        timeoutId = setTimeout(() => {
+          console.error("Video metadata timeout after 15 seconds");
+          rejectOnce(new Error("Video metadata loading timeout - please try a different video file"));
+        }, 15000);
+
+        // Force load the video
+        video.load();
+      } catch (error) {
+        rejectOnce(error instanceof Error ? error : new Error("Failed to process video file"));
+      }
     });
   };
 
@@ -169,6 +234,7 @@ export function CreatePostDialog({
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        setCurrentFileName(file.name);
         const isImage = file.type.startsWith("image/");
         const isVideo = file.type.startsWith("video/");
 
@@ -214,6 +280,20 @@ export function CreatePostDialog({
               variant: "destructive",
             });
             continue;
+          }
+
+          // Warn about very large files
+          const fileSizeMB = file.size / (1024 * 1024);
+          if (fileSizeMB > 200) {
+            toast({
+              title: "Large file warning",
+              description: `This ${fileSizeMB.toFixed(1)}MB video may take a long time to upload and might fail. Consider compressing it or try a smaller test video first.`,
+            });
+          } else if (fileSizeMB > 50) {
+            toast({
+              title: "Large file notice",
+              description: `Uploading ${fileSizeMB.toFixed(1)}MB video. This may take several minutes.`,
+            });
           }
         }
 
@@ -299,9 +379,42 @@ export function CreatePostDialog({
           // All videos are kind 22 (short vertical videos)
         }
 
-        // Upload file
-        const tags = await uploadFile(file);
-        const url = tags[0][1]; // First tag contains the URL
+        // Upload file to server
+        console.log(`Starting file upload for: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+
+        let tags: string[][];
+        let url: string;
+
+        try {
+          // Use the new progress callback feature
+          tags = await uploadFileMutation.mutateAsync({
+            file,
+            options: {
+              onProgress: (progress) => {
+                console.log(`Upload progress for ${file.name}: ${progress}%`);
+                setUploadProgress(progress);
+              }
+            }
+          });
+          console.log(`Upload completed for: ${file.name}`, tags);
+
+          if (!tags || tags.length === 0 || !tags[0] || !tags[0][1]) {
+            throw new Error("Upload returned invalid response - no URL received");
+          }
+
+          url = tags[0][1]; // First tag contains the URL
+          console.log(`File URL received: ${url}`);
+
+        } catch (uploadError) {
+          console.error(`Upload failed for ${file.name}:`, uploadError);
+
+          toast({
+            title: "Upload failed",
+            description: `Failed to upload ${file.name}: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`,
+            variant: "destructive",
+          });
+          continue; // Skip this file and continue with next one
+        }
 
         // Create imeta tag with all required fields
         const imetaTag: string[] = [
@@ -366,6 +479,7 @@ export function CreatePostDialog({
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+      setCurrentFileName("");
     }
   };
 
@@ -573,7 +687,7 @@ export function CreatePostDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             {postType === "image" ? (
@@ -585,7 +699,7 @@ export function CreatePostDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 w-full min-w-0">
           {/* Create Selector */}
           <div className="space-y-2">
             <Label>Create</Label>
@@ -695,14 +809,20 @@ export function CreatePostDialog({
               variant="outline"
               className="w-full h-32 border-dashed"
               onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
+              disabled={isUploading || uploadFileMutation.isPending}
             >
               <div className="text-center space-y-2">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                {isUploading ? (
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto" />
+                ) : (
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                )}
                 <div>
                   <p className="font-medium">
                     {isUploading
-                      ? "Uploading..."
+                      ? postType === "video"
+                        ? "Processing Videos..."
+                        : "Uploading Images..."
                       : `Upload ${
                           postType === "image"
                             ? "Images"
@@ -710,7 +830,11 @@ export function CreatePostDialog({
                         }`}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {postType === "image"
+                    {isUploading
+                      ? postType === "video"
+                        ? "Validating format, orientation, and uploading to server..."
+                        : "Processing images and uploading to server..."
+                      : postType === "image"
                       ? "Click to select multiple images"
                       : "Click to select vertical videos (max 3 minutes each)"}
                   </p>
@@ -719,7 +843,39 @@ export function CreatePostDialog({
             </Button>
 
             {isUploading && (
-              <Progress value={uploadProgress} className="w-full" />
+              <div className="space-y-3 p-4 bg-primary/5 border border-primary/20 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between min-w-0">
+                  <div className="flex items-center space-x-2 min-w-0 flex-1">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent flex-shrink-0" />
+                    <span className="text-sm font-medium truncate">
+                      {postType === "video" ? "Processing video..." : "Uploading images..."}
+                    </span>
+                  </div>
+                  <span className="text-sm text-muted-foreground flex-shrink-0 ml-2">
+                    {Math.round(uploadProgress)}%
+                  </span>
+                </div>
+                <Progress value={uploadProgress} className="w-full h-2" />
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground text-center break-words">
+                    {uploadProgress === 0
+                      ? postType === "video"
+                        ? "Validating video format and orientation..."
+                        : "Preparing files for upload..."
+                      : uploadProgress < 10
+                      ? postType === "video"
+                        ? `Starting upload of "${currentFileName.length > 20 ? currentFileName.substring(0, 20) + '...' : currentFileName}"...`
+                        : `Starting upload of "${currentFileName.length > 20 ? currentFileName.substring(0, 20) + '...' : currentFileName}"...`
+                      : uploadProgress < 90
+                      ? postType === "video"
+                        ? `Uploading large video file... This may take several minutes.`
+                        : `Uploading "${currentFileName.length > 20 ? currentFileName.substring(0, 20) + '...' : currentFileName}"...`
+                      : uploadProgress < 100
+                      ? "Processing metadata and finalizing upload..."
+                      : "Upload complete! Processing metadata..."}
+                  </p>
+                </div>
+              </div>
             )}
 
             <input
@@ -846,7 +1002,7 @@ export function CreatePostDialog({
             <Button
               onClick={handleSubmit}
               disabled={
-                !user || media.length === 0 || !content.trim() || isUploading
+                !user || media.length === 0 || !content.trim() || isUploading || uploadFileMutation.isPending
               }
               className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
             >

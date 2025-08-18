@@ -203,6 +203,22 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
           </div>
         </div>
       )}
+<<<<<<< HEAD
+=======
+
+      {replies.data && replies.data.length > 0 && (
+        <div className="ml-6 pl-4 border-l border-muted space-y-4">
+          {replies.data.map((reply) => (
+            <Comment
+              key={reply.id}
+              comment={reply}
+              rootEventId={rootEventId}
+              rootAuthorPubkey={rootAuthorPubkey}
+            />
+          ))}
+        </div>
+      )}
+>>>>>>> 09e99c0 (fix: uploads)
     </div>
   );
 }

@@ -34,7 +34,6 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { genUserName } from "@/lib/genUserName";
 import { ImagePostActions } from "./ImagePostActions";
 import { CommentSection } from "./CommentSection";
 import { ZapButton } from "./ZapButton";

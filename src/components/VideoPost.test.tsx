@@ -36,10 +36,16 @@ const mockVideoEventWithThumbnail: NostrEvent = {
 
 describe('VideoPost', () => {
   it('renders video post with correct structure', () => {
+    const mockOnMuteToggle = vi.fn();
     render(
       <TestApp>
         <VideoFeedProvider>
-          <VideoPost event={mockVideoEvent} />
+          <VideoPost
+            event={mockVideoEvent}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={mockOnMuteToggle}
+          />
         </VideoFeedProvider>
       </TestApp>
     );
@@ -52,11 +58,18 @@ describe('VideoPost', () => {
 
   it('renders hashtag badges correctly', () => {
     const mockHashtagClick = vi.fn();
-    
+    const mockOnMuteToggle = vi.fn();
+
     render(
       <TestApp>
         <VideoFeedProvider>
-          <VideoPost event={mockVideoEvent} onHashtagClick={mockHashtagClick} />
+          <VideoPost
+            event={mockVideoEvent}
+            onHashtagClick={mockHashtagClick}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={mockOnMuteToggle}
+          />
         </VideoFeedProvider>
       </TestApp>
     );
@@ -68,11 +81,18 @@ describe('VideoPost', () => {
 
   it('calls onHashtagClick when hashtag badge is clicked', () => {
     const mockHashtagClick = vi.fn();
-    
+    const mockOnMuteToggle = vi.fn();
+
     render(
       <TestApp>
         <VideoFeedProvider>
-          <VideoPost event={mockVideoEvent} onHashtagClick={mockHashtagClick} />
+          <VideoPost
+            event={mockVideoEvent}
+            onHashtagClick={mockHashtagClick}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={mockOnMuteToggle}
+          />
         </VideoFeedProvider>
       </TestApp>
     );
@@ -93,11 +113,17 @@ describe('VideoPost', () => {
         ['t', 'test'],
       ],
     };
+    const mockOnMuteToggle = vi.fn();
 
     const { container } = render(
       <TestApp>
         <VideoFeedProvider>
-          <VideoPost event={eventWithoutVideos} />
+          <VideoPost
+            event={eventWithoutVideos}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={mockOnMuteToggle}
+          />
         </VideoFeedProvider>
       </TestApp>
     );
@@ -107,10 +133,16 @@ describe('VideoPost', () => {
   });
 
   it('renders video with thumbnail when available', () => {
+    const mockOnMuteToggle = vi.fn();
     render(
       <TestApp>
         <VideoFeedProvider>
-          <VideoPost event={mockVideoEventWithThumbnail} />
+          <VideoPost
+            event={mockVideoEventWithThumbnail}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={mockOnMuteToggle}
+          />
         </VideoFeedProvider>
       </TestApp>
     );
@@ -121,10 +153,16 @@ describe('VideoPost', () => {
   });
 
   it('renders profile information correctly', () => {
+    const mockOnMuteToggle = vi.fn();
     render(
       <TestApp>
         <VideoFeedProvider>
-          <VideoPost event={mockVideoEvent} />
+          <VideoPost
+            event={mockVideoEvent}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={mockOnMuteToggle}
+          />
         </VideoFeedProvider>
       </TestApp>
     );
@@ -136,15 +174,21 @@ describe('VideoPost', () => {
   });
 
   it('renders video controls with proper positioning', () => {
+    const mockOnMuteToggle = vi.fn();
     const { container } = render(
       <TestApp>
         <VideoFeedProvider>
-          <VideoPost event={mockVideoEvent} />
+          <VideoPost
+            event={mockVideoEvent}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={mockOnMuteToggle}
+          />
         </VideoFeedProvider>
       </TestApp>
     );
 
-    // The video container should have the correct aspect ratio for vertical videos
+    // The video container should have correct aspect ratio for vertical videos
     const videoContainer = container.querySelector("[title=\"Click to play/pause\"]");
     expect(videoContainer).toBeInTheDocument();
   });
@@ -153,7 +197,12 @@ describe('VideoPost', () => {
     render(
       <TestApp>
         <VideoFeedProvider>
-          <VideoPost event={mockVideoEvent} />
+          <VideoPost
+            event={mockVideoEvent}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={vi.fn()}
+          />
         </VideoFeedProvider>
       </TestApp>
     );
@@ -169,7 +218,12 @@ describe('VideoPost', () => {
     const { container } = render(
       <TestApp>
         <VideoFeedProvider>
-          <VideoPost event={mockVideoEvent} />
+          <VideoPost
+            event={mockVideoEvent}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={vi.fn()}
+          />
         </VideoFeedProvider>
       </TestApp>
     );
@@ -190,7 +244,12 @@ describe('VideoPost', () => {
   it('works correctly without VideoFeedProvider context', () => {
     render(
       <TestApp>
-        <VideoPost event={mockVideoEvent} />
+        <VideoPost
+            event={mockVideoEvent}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={vi.fn()}
+          />
       </TestApp>
     );
 
@@ -198,7 +257,7 @@ describe('VideoPost', () => {
     expect(screen.getByText('Test Video')).toBeInTheDocument();
     expect(screen.getByText('Swift Falcon')).toBeInTheDocument();
     expect(screen.getByText('Test video post content')).toBeInTheDocument();
-    
+
     // Check that hashtag badges are rendered
     expect(screen.getByText('video')).toBeInTheDocument();
     expect(screen.getByText('test')).toBeInTheDocument();

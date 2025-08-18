@@ -84,6 +84,7 @@ export function useCreateComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
+<<<<<<< HEAD
     mutationFn: async ({ 
       content, 
       rootEventId, 
@@ -91,25 +92,45 @@ export function useCreateComment() {
       parentEventId, 
       parentAuthorPubkey 
     }: { 
+=======
+    mutationFn: async ({
+      content,
+      rootEventId,
+      rootAuthorPubkey,
+      rootEventKind,
+      parentEventId,
+      parentAuthorPubkey,
+    }: {
+>>>>>>> 09e99c0 (fix: uploads)
       content: string;
       rootEventId: string;
       rootAuthorPubkey: string;
+      rootEventKind?: number;
       parentEventId?: string;
       parentAuthorPubkey?: string;
     }) => {
       if (!user?.signer) throw new Error('User not logged in');
 
+      // Determine the root event kind - default to text note if not provided
+      const rootKind = rootEventKind || 1;
+
       const tags = [
         // Root scope tags (uppercase)
         ['E', rootEventId, '', rootAuthorPubkey],
+<<<<<<< HEAD
         ['K', '20'], // Root kind is image post (kind 20)
+=======
+        ['K', rootKind.toString()],
+>>>>>>> 09e99c0 (fix: uploads)
         ['P', rootAuthorPubkey],
       ];
 
       // Add parent tags if this is a reply to a comment
       if (parentEventId && parentAuthorPubkey) {
+        // This is a reply to another comment
         tags.push(
           ['e', parentEventId, '', parentAuthorPubkey],
+<<<<<<< HEAD
           ['k', '1111'], // Parent kind is comment
           ['p', parentAuthorPubkey]
         );
@@ -118,19 +139,34 @@ export function useCreateComment() {
         tags.push(
           ['e', rootEventId, '', rootAuthorPubkey],
           ['k', '20'], // Parent kind is image post
+=======
+          ['k', '1111'], // Parent is a comment
+          ['p', parentAuthorPubkey]
+        );
+      } else {
+        // This is a direct comment on the root event
+        tags.push(
+          ['e', rootEventId, '', rootAuthorPubkey],
+          ['k', rootKind.toString()], // Parent is the root event
+>>>>>>> 09e99c0 (fix: uploads)
           ['p', rootAuthorPubkey]
         );
       }
 
-      const event = await user.signer.signEvent({
-        kind: 1111,
-        content,
-        tags,
-        created_at: Math.floor(Date.now() / 1000),
-      });
+      try {
+        const event = await user.signer.signEvent({
+          kind: 1111,
+          content,
+          tags,
+          created_at: Math.floor(Date.now() / 1000),
+        });
 
-      await nostr.event(event);
-      return event;
+        await nostr.event(event);
+        return event;
+      } catch (error) {
+        console.error('Failed to create comment:', error);
+        throw error;
+      }
     },
     onSuccess: (_, variables) => {
       // Invalidate comments query to refetch

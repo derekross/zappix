@@ -8,11 +8,27 @@ interface NostrProviderProps {
   children: React.ReactNode;
 }
 
-// Cache for relay lists to avoid repeated queries
+// Cache for relay lists to avoid repeated queries - with size limit to prevent memory leaks
+const MAX_RELAY_CACHE_SIZE = 1000;
 const relayListCache = new Map<
   string,
-  { writeRelays: string[]; readRelays: string[] }
+  { writeRelays: string[]; readRelays: string[]; timestamp: number }
 >();
+
+// Clean up old entries from relay cache
+function cleanupRelayCache() {
+  if (relayListCache.size <= MAX_RELAY_CACHE_SIZE) return;
+
+  const entries = Array.from(relayListCache.entries());
+  // Sort by timestamp, oldest first
+  entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+  // Remove oldest 20% of entries
+  const toRemove = Math.floor(entries.length * 0.2);
+  for (let i = 0; i < toRemove; i++) {
+    relayListCache.delete(entries[i][0]);
+  }
+}
 
 // Special cache for the current user's relay list (updated by OutboxEnhancer)
 let currentUserRelayList: {
@@ -51,9 +67,16 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Function to get relay hints for a specific pubkey
   const getRelayHints = useCallback(
     async (pubkey: string, signal?: AbortSignal) => {
-      // Check cache first
+      // Check cache first - but ignore entries older than 30 minutes
       if (relayListCache.has(pubkey)) {
-        return relayListCache.get(pubkey)!;
+        const cached = relayListCache.get(pubkey)!;
+        const now = Date.now();
+        if (now - cached.timestamp < 30 * 60 * 1000) { // 30 minutes
+          return { writeRelays: cached.writeRelays, readRelays: cached.readRelays };
+        } else {
+          // Remove stale entry
+          relayListCache.delete(pubkey);
+        }
       }
 
       try {
@@ -90,7 +113,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
         if (relayEvents.length === 0) {
           const fallback = { writeRelays: [], readRelays: [] };
-          relayListCache.set(pubkey, fallback);
+          relayListCache.set(pubkey, { ...fallback, timestamp: Date.now() });
+          cleanupRelayCache();
           return fallback;
         }
 
@@ -117,11 +141,13 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         }
 
         const hints = { writeRelays, readRelays };
-        relayListCache.set(pubkey, hints);
+        relayListCache.set(pubkey, { ...hints, timestamp: Date.now() });
+        cleanupRelayCache();
         return hints;
       } catch {
         const fallback = { writeRelays: [], readRelays: [] };
-        relayListCache.set(pubkey, fallback);
+        relayListCache.set(pubkey, { ...fallback, timestamp: Date.now() });
+        cleanupRelayCache();
         return fallback;
       }
     },
@@ -142,11 +168,6 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           relayMap.set(url, filters);
         }
 
-        // Debug logging for bookmark queries specifically
-        const hasBookmarkQuery = filters.some(f => f.kinds?.includes(10003));
-        if (hasBookmarkQuery) {
-          console.log('NostrProvider reqRouter - Bookmark query detected:', filters);
-        }
 
         try {
           // OUTBOX MODEL: Only apply for specific query patterns
@@ -161,17 +182,13 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
               filter.authors.length === 1 &&
               filter.authors[0] === currentUserPubkey &&
               filter.kinds &&
-              filter.kinds.some(kind => 
+              filter.kinds.some(kind =>
                 (kind >= 10000 && kind < 20000) || // replaceable events
                 (kind >= 30000 && kind < 40000) || // addressable events
                 kind === 0 || kind === 3 // legacy replaceable events
               );
 
             if (isFollowingFeed && filter.authors) {
-              console.log(
-                "Routing following feed query for authors:",
-                filter.authors
-              );
               // For each author, try to get their relay hints
               for (const author of filter.authors) {
                 try {
@@ -210,11 +227,6 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
             // Apply outbox model for current user's own replaceable events
             if (isCurrentUserReplaceable && currentUserRelayList?.writeRelays.length) {
-              console.log(
-                "Routing current user replaceable event query to write relays:",
-                filter.kinds,
-                currentUserRelayList.writeRelays
-              );
               for (const relay of currentUserRelayList.writeRelays.slice(0, 3)) {
                 const existingFilters = relayMap.get(relay) || [];
                 relayMap.set(relay, [...existingFilters, filter]);
@@ -275,10 +287,6 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
             event.pubkey === currentUserPubkey &&
             currentUserRelayList?.writeRelays.length
           ) {
-            console.log(
-              "Using current user write relays for outbox:",
-              currentUserRelayList.writeRelays
-            );
             for (const relay of currentUserRelayList.writeRelays.slice(0, 3)) {
               relays.add(relay);
             }
@@ -296,10 +304,6 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
             .map(([, pubkey]) => pubkey);
 
           if (mentionedUsers.length > 0) {
-            console.log(
-              "Publishing to mentioned users read relays:",
-              mentionedUsers
-            );
             const mentionRelayPromises = mentionedUsers.map((pubkey) =>
               getRelayHints(pubkey)
             );
@@ -314,8 +318,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
               if (relays.size >= 8) break;
             }
           }
-        } catch (error) {
-          console.warn("Error in outbox/inbox routing:", error);
+        } catch {
+          // Silently handle outbox/inbox routing errors
         }
 
         // Add remaining default relays as additional fallbacks
@@ -327,7 +331,6 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         }
 
         const finalRelays = [...relays];
-        console.log("Event will be published to relays:", finalRelays);
         return finalRelays;
       },
     }),

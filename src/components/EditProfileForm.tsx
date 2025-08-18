@@ -26,7 +26,7 @@ export const EditProfileForm: React.FC = () => {
 
   const { user, metadata } = useCurrentUser();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
-  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const uploadFileMutation = useUploadFile();
   const { toast } = useToast();
 
   // Initialize the form with default values
@@ -60,7 +60,7 @@ export const EditProfileForm: React.FC = () => {
   const uploadPicture = async (file: File, field: 'picture' | 'banner') => {
     try {
       // The first tuple in the array contains the URL
-      const [[_, url]] = await uploadFile(file);
+      const [[_, url]] = await uploadFileMutation.mutateAsync({ file });
       form.setValue(field, url);
       toast({
         title: 'Success',
@@ -148,10 +148,10 @@ export const EditProfileForm: React.FC = () => {
             <FormItem>
               <FormLabel>Bio</FormLabel>
               <FormControl>
-                <Textarea 
-                  placeholder="Tell others about yourself" 
-                  className="resize-none" 
-                  {...field} 
+                <Textarea
+                  placeholder="Tell others about yourself"
+                  className="resize-none"
+                  {...field}
                 />
               </FormControl>
               <FormDescription>
@@ -174,6 +174,7 @@ export const EditProfileForm: React.FC = () => {
                 description="URL to your profile picture. You can upload an image or provide a URL."
                 previewType="square"
                 onUpload={(file) => uploadPicture(file, 'picture')}
+                isUploading={uploadFileMutation.isPending}
               />
             )}
           />
@@ -189,6 +190,7 @@ export const EditProfileForm: React.FC = () => {
                 description="URL to a wide banner image for your profile. You can upload an image or provide a URL."
                 previewType="wide"
                 onUpload={(file) => uploadPicture(file, 'banner')}
+                isUploading={uploadFileMutation.isPending}
               />
             )}
           />
@@ -230,12 +232,12 @@ export const EditProfileForm: React.FC = () => {
           />
         </div>
 
-        <Button 
-          type="submit" 
-          className="w-full md:w-auto" 
-          disabled={isPending || isUploading}
+        <Button
+          type="submit"
+          className="w-full md:w-auto"
+          disabled={isPending || uploadFileMutation.isPending}
         >
-          {(isPending || isUploading) && (
+          {(isPending || uploadFileMutation.isPending) && (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           )}
           Save Profile
@@ -258,6 +260,7 @@ interface ImageUploadFieldProps {
   description: string;
   previewType: 'square' | 'wide';
   onUpload: (file: File) => void;
+  isUploading: boolean;
 }
 
 const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
@@ -267,6 +270,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   description,
   previewType,
   onUpload,
+  isUploading,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -284,8 +288,8 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
           />
         </FormControl>
         <div className="flex items-center gap-2">
-          <input 
-            type="file" 
+          <input
+            type="file"
             ref={fileInputRef}
             accept="image/*"
             className="hidden"
@@ -301,15 +305,20 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             variant="outline"
             size="sm"
             onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
           >
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Image
+            {isUploading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
+            {isUploading ? 'Uploading...' : 'Upload Image'}
           </Button>
           {field.value && (
             <div className={`h-10 ${previewType === 'square' ? 'w-10' : 'w-24'} rounded overflow-hidden`}>
-              <img 
-                src={field.value} 
-                alt={`${label} preview`} 
+              <img
+                src={field.value}
+                alt={`${label} preview`}
                 className="h-full w-full object-cover"
               />
             </div>

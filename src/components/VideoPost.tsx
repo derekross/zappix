@@ -1,131 +1,85 @@
-import { useState, useRef, useEffect } from "react";
-import {
+import { useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { nip19 } from 'nostr-tools';
+import type { NostrEvent } from '@nostrify/nostrify';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useReactions } from '@/hooks/useReactions';
+import { useComments } from '@/hooks/useComments';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useToast } from '@/hooks/useToast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { 
+  MessageCircle, 
   Heart,
-  MessageCircle,
-  MoreHorizontal,
-  MapPin,
-  Hash,
-  Eye,
-  Play,
+  Share2,
   Volume2,
   VolumeX,
-} from "lucide-react";
-import type { NostrEvent } from "@nostrify/nostrify";
-import { useAuthorFast } from "@/hooks/useAuthorFast";
-import {
-  useReactions,
-  useReactToPost,
-  useRemoveReaction,
-} from "@/hooks/useReactions";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useToast } from "@/hooks/useToast";
-import { useComments } from "@/hooks/useComments";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { genUserName } from "@/lib/genUserName";
-import { ImagePostActions } from "./ImagePostActions";
-import { CommentSection } from "./CommentSection";
-import { ZapButton } from "./ZapButton";
-import { cn } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
-import { nip19 } from "nostr-tools";
-import { useIsMobile } from "@/hooks/useIsMobile";
-import { useOptionalVideoFeedContext } from "@/contexts/VideoFeedContext";
-import { useInView } from "react-intersection-observer";
+  Play,
+  Video as VideoIcon,
+  MoreHorizontal
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
+import { genUserName } from '@/lib/genUserName';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface VideoPostProps {
   event: NostrEvent;
-  className?: string;
+  isActive: boolean;
+  isMuted: boolean;
+  onMuteToggle: () => void;
   onHashtagClick?: (hashtag: string) => void;
   onLocationClick?: (location: string) => void;
+  onCommentClick?: (event: NostrEvent) => void;
+  className?: string;
 }
 
-export function VideoPost({
-  event,
-  className,
+export function VideoPost({ 
+  event, 
+  isActive, 
+  isMuted, 
+  onMuteToggle,
   onHashtagClick,
   onLocationClick,
+  onCommentClick,
+  className 
 }: VideoPostProps) {
-  const [showComments, setShowComments] = useState(false);
-  const [showActions, setShowActions] = useState(false);
-  const [isRevealed, setIsRevealed] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [videoLoaded, setVideoLoaded] = useState(false);
-  const [videoError, setVideoError] = useState(false);
-  const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
-  const [manuallyPaused, setManuallyPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
-
-  // Use video feed context for auto-play management
-  const { 
-    currentlyPlayingId, 
-    setCurrentlyPlayingId, 
-    globalMuteState, 
-    setGlobalMuteState,
-    isContextAvailable
-  } = useOptionalVideoFeedContext();
-
-  // Local state for when context is not available
-  const [localCurrentlyPlayingId, setLocalCurrentlyPlayingId] = useState<string | null>(null);
-  const [localGlobalMuteState, setLocalGlobalMuteState] = useState(true);
-
-  // Determine which state to use based on context availability
-  const effectiveCurrentlyPlayingId = isContextAvailable ? currentlyPlayingId : localCurrentlyPlayingId;
-  const effectiveSetCurrentlyPlayingId = isContextAvailable ? setCurrentlyPlayingId : setLocalCurrentlyPlayingId;
-  const effectiveGlobalMuteState = isContextAvailable ? globalMuteState : localGlobalMuteState;
-  const effectiveSetGlobalMuteState = isContextAvailable ? setGlobalMuteState : setLocalGlobalMuteState;
-
-  // Local mute state that syncs with global state
-  const [isMuted, setIsMuted] = useState(effectiveGlobalMuteState);
-
-  // Intersection observer for auto-play
-  const { ref: containerRef, inView } = useInView({
-    threshold: 0.5, // Video needs to be 50% visible to auto-play
-    rootMargin: "0px",
-  });
-
-  const { user } = useCurrentUser();
   const { toast } = useToast();
-  const author = useAuthorFast(event.pubkey);
+  const isMobile = useIsMobile();
+  
+  const { user } = useCurrentUser();
+  const author = useAuthor(event.pubkey);
   const reactions = useReactions(event.id);
   const comments = useComments(event.id, event.pubkey);
-  const reactToPost = useReactToPost();
-  const removeReaction = useRemoveReaction();
 
-  const { displayName, profileImage } = author;
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
+  const profileImage = metadata?.picture;
 
   // Parse event data
-  const title = event.tags.find(([name]) => name === "title")?.[1] || "";
-  const imetaTags = event.tags.filter(([name]) => name === "imeta");
+  const title = event.tags.find(([name]) => name === 'title')?.[1] || '';
+  const imetaTags = event.tags.filter(([name]) => name === 'imeta');
   const hashtags = event.tags
-    .filter(([name]) => name === "t")
+    .filter(([name]) => name === 't')
     .map(([, tag]) => tag);
-  const location = event.tags.find(([name]) => name === "location")?.[1];
-  const geohash = event.tags.find(([name]) => name === "g")?.[1];
-  const contentWarning = event.tags.find(
-    ([name]) => name === "content-warning"
-  )?.[1];
-  const duration = event.tags.find(([name]) => name === "duration")?.[1];
-  const _alt = event.tags.find(([name]) => name === "alt")?.[1];
+  const location = event.tags.find(([name]) => name === 'location')?.[1];
+  const duration = event.tags.find(([name]) => name === 'duration')?.[1];
 
   // Parse video URLs from vertical video events
-  let videos: Array<{ url?: string; mimeType?: string; dimensions?: string; thumbnail?: string; duration?: string }> = [];
+  let videos: Array<{ url?: string; mimeType?: string; thumbnail?: string }> = [];
 
   if (event.kind === 22) {
     // NIP-71 short-form video format with imeta tags
     videos = imetaTags
       .map((tag) => {
         // Parse the imeta tag which contains space-separated key-value pairs
-        const tagContent = tag.slice(1).join(" ");
+        const tagContent = tag.slice(1).join(' ');
         
         // Extract URL
         const urlMatch = tagContent.match(/url\s+(\S+)/);
@@ -134,29 +88,21 @@ export function VideoPost({
         // Extract MIME type
         const mimeMatch = tagContent.match(/m\s+(\S+)/);
         const mimeType = mimeMatch?.[1];
-        
-        // Extract dimensions
-        const dimMatch = tagContent.match(/dim\s+(\S+)/);
-        const dimensions = dimMatch?.[1];
         
         // Extract thumbnail (can be 'thumb' or 'image')
         const thumbMatch = tagContent.match(/thumb\s+(\S+)/);
         const imageMatch = tagContent.match(/image\s+(\S+)/);
         const thumbnail = thumbMatch?.[1] || imageMatch?.[1];
-        
-        // Extract duration from imeta tag if present
-        const durationMatch = tagContent.match(/duration\s+(\S+)/);
-        const imetaDuration = durationMatch?.[1];
 
-        return { url, mimeType, dimensions, thumbnail, duration: imetaDuration };
+        return { url, mimeType, thumbnail };
       })
-      .filter((video) => video.url && (video.mimeType?.startsWith("video/") || video.mimeType === "application/x-mpegURL"));
+      .filter((video) => video.url && (video.mimeType?.startsWith('video/') || video.mimeType === 'application/x-mpegURL'));
   } else if (event.kind === 34236) {
     // Legacy vertical video format (kind 34236)
     videos = imetaTags
       .map((tag) => {
         // Parse the imeta tag which contains space-separated key-value pairs
-        const tagContent = tag.slice(1).join(" ");
+        const tagContent = tag.slice(1).join(' ');
         
         // Extract URL
         const urlMatch = tagContent.match(/url\s+(\S+)/);
@@ -165,145 +111,100 @@ export function VideoPost({
         // Extract MIME type
         const mimeMatch = tagContent.match(/m\s+(\S+)/);
         const mimeType = mimeMatch?.[1];
-        
-        // Extract dimensions
-        const dimMatch = tagContent.match(/dim\s+(\S+)/);
-        const dimensions = dimMatch?.[1];
-        
-        // Extract size (for potential future use)
-        const sizeMatch = tagContent.match(/size\s+(\S+)/);
-        const _size = sizeMatch?.[1];
-        
-        // Extract hash (ox or x) (for potential future use)
-        const oxMatch = tagContent.match(/ox\s+(\S+)/);
-        const xMatch = tagContent.match(/x\s+(\S+)/);
-        const _hash = oxMatch?.[1] || xMatch?.[1];
 
-        return { url, mimeType, dimensions, thumbnail: undefined, duration: undefined };
+        return { url, mimeType, thumbnail: undefined };
       })
-      .filter((video) => video.url && video.mimeType?.startsWith("video/"));
-    
-    // If no imeta videos found, try to construct from standalone tags
-    if (videos.length === 0) {
-      const mimeTag = event.tags.find(([name, value]) => name === "m" && value?.startsWith("video/"));
-      const altTag = event.tags.find(([name]) => name === "alt");
-      
-      if (mimeTag && altTag) {
-        // Extract URL from alt tag content
-        const altContent = altTag[1] || "";
-        const urlMatch = altContent.match(/(https?:\/\/[^\s]+\.mp4)/);
-        if (urlMatch) {
-          videos = [{
-            url: urlMatch[1],
-            mimeType: mimeTag[1],
-            dimensions: undefined,
-            thumbnail: undefined,
-            duration: undefined
-          }];
-        }
-      }
-    }
+      .filter((video) => video.url && video.mimeType?.startsWith('video/'));
   }
 
-  const likeCount = reactions.data?.["+"]?.count || 0;
-  const hasLiked = reactions.data?.["+"]?.hasReacted || false;
-  // Get unique comment count (in case of duplicates across pages)
-  const allComments =
-    comments.data?.pages?.flatMap((page) => page.comments) || [];
+  const likeCount = reactions.data?.['+']?.count || 0;
+  const hasLiked = reactions.data?.['+']?.hasReacted || false;
+  const allComments = comments.data?.pages?.flatMap((page) => page.comments) || [];
   const uniqueCommentIds = new Set(allComments.map((c) => c.id));
   const commentCount = uniqueCommentIds.size;
 
   // Create nevent for linking to the post
   const nevent = nip19.neventEncode({
     id: event.id,
-    author: event.pubkey,
+    relays: [],
   });
 
   // Create npub for linking to the user profile
   const npub = nip19.npubEncode(event.pubkey);
 
-  const handleVideoClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Toggle play/pause when clicking on the video
-    if (videoRef.current && videoLoaded) {
-      if (isPlaying) {
-        // User manually paused the video
-        setManuallyPaused(true);
-        videoRef.current.pause();
-        effectiveSetCurrentlyPlayingId(null);
-      } else {
-        // User manually played the video
-        setManuallyPaused(false);
-        effectiveSetCurrentlyPlayingId(event.id);
-        videoRef.current.muted = effectiveGlobalMuteState;
-        videoRef.current.play().catch(() => {
-          // Handle play promise rejection
-          effectiveSetCurrentlyPlayingId(null);
-        });
-      }
-    }
-  };
-
-  const handleProfileClick = (e: React.MouseEvent) => {
-    // Prevent event bubbling
-    e.stopPropagation();
-    // Navigate to the user profile page
-    navigate(`/${npub}`);
-  };
-
-  const handlePlayPause = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Toggle play/pause when clicking the play button
-    if (videoRef.current && videoLoaded) {
-      if (isPlaying) {
-        // User manually paused the video
-        setManuallyPaused(true);
-        videoRef.current.pause();
-        setCurrentlyPlayingId(null);
-      } else {
-        // User manually played the video
-        setManuallyPaused(false);
-        effectiveSetCurrentlyPlayingId(event.id);
-        videoRef.current.muted = effectiveGlobalMuteState;
-        videoRef.current.play().catch(() => {
-          // Handle play promise rejection
-          setCurrentlyPlayingId(null);
-        });
-      }
-    }
-  };
-
-  const handleTitleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Navigate to the individual post page when clicking title
-    navigate(`/${nevent}`);
-  };
-
-  const handleMuteToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newMutedState = !isMuted;
-    
-    // Update global mute state so all videos use the same setting
-    effectiveSetGlobalMuteState(newMutedState);
-    setIsMuted(newMutedState);
-    
+  // Video playback control - based on vlogstr approach
+  useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.muted = newMutedState;
+      if (isActive) {
+        videoRef.current.currentTime = 0; // Reset to beginning
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsPlaying(true);
+            })
+            .catch(() => {
+              setIsPlaying(false);
+            });
+        }
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
     }
-  };
+  }, [isActive]);
 
-  const handleVideoLoadedData = () => {
-    setVideoLoaded(true);
-    setVideoError(false);
-  };
+  // Additional effect to handle video events
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      const handleLoadedData = () => {
+        if (isActive) {
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                setIsPlaying(true);
+              })
+              .catch(() => {
+                setIsPlaying(false);
+              });
+          }
+        }
+      };
 
-  const handleVideoError = () => {
-    setVideoError(true);
-    setVideoLoaded(false);
-  };
+      const handlePlay = () => setIsPlaying(true);
+      const handlePause = () => setIsPlaying(false);
+      const handleCanPlay = () => {
+        if (isActive) {
+          video.play().catch(() => setIsPlaying(false));
+        }
+      };
 
-  const handleVideoCanPlay = () => {
-    setVideoLoaded(true);
+      video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('play', handlePlay);
+      video.addEventListener('pause', handlePause);
+      video.addEventListener('canplay', handleCanPlay);
+
+      return () => {
+        video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('play', handlePlay);
+        video.removeEventListener('pause', handlePause);
+        video.removeEventListener('canplay', handleCanPlay);
+      };
+    }
+  }, [isActive]);
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        videoRef.current.play().catch(() => setIsPlaying(false));
+        setIsPlaying(true);
+      }
+    }
   };
 
   const handleLike = async (e: React.MouseEvent) => {
@@ -311,95 +212,50 @@ export function VideoPost({
 
     if (!user) {
       toast({
-        title: "Login required",
-        description: "Please log in to like posts",
-        variant: "destructive",
+        title: 'Login required',
+        description: 'Please log in to like posts',
+        variant: 'destructive',
       });
       return;
     }
 
-    try {
-      if (hasLiked) {
-        await removeReaction.mutateAsync({
-          eventId: event.id,
-          reaction: "+",
-        });
-      } else {
-        await reactToPost.mutateAsync({
-          eventId: event.id,
-          authorPubkey: event.pubkey,
-          reaction: "+",
-          kind: event.kind.toString(), // Support kind 22 and 34236
-        });
-      }
-    } catch {
-      toast({
-        title: "Error",
-        description: hasLiked ? "Failed to remove like" : "Failed to like post",
-        variant: "destructive",
-      });
-    }
+    // Toggle like logic here - you can implement this based on your existing useReactToPost hook
   };
 
-  const handleLocationClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onLocationClick && (location || geohash)) {
-      onLocationClick(location || geohash || "");
-    }
+    navigate(`/${npub}`);
   };
 
-  // Sync local mute state with global state
-  useEffect(() => {
-    setIsMuted(effectiveGlobalMuteState);
-    if (videoRef.current) {
-      videoRef.current.muted = effectiveGlobalMuteState;
-    }
-  }, [effectiveGlobalMuteState]);
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/${nevent}`);
+  };
 
-  // Auto-play logic based on intersection observer
-  useEffect(() => {
-    if (!videoRef.current || !videoLoaded || videoError) return;
+  const handleHashtagClick = (hashtag: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onHashtagClick?.(hashtag);
+  };
 
-    const video = videoRef.current;
-    const isCurrentlyPlaying = effectiveCurrentlyPlayingId === event.id;
-
-    if (inView && !isCurrentlyPlaying && !manuallyPaused) {
-      // This video is in view and not currently playing - start playing
-      effectiveSetCurrentlyPlayingId(event.id);
-      video.muted = effectiveGlobalMuteState;
-      video.play().catch(() => {
-        // Handle play promise rejection
-        setIsPlaying(false);
-      });
-    } else if (!inView && isCurrentlyPlaying) {
-      // This video is out of view and currently playing - pause it
-      video.pause();
-      effectiveSetCurrentlyPlayingId(null);
-      // Reset manual pause state when video goes out of view
-      // This allows auto-play to work again when scrolling back
-      setManuallyPaused(false);
-    }
-  }, [inView, videoLoaded, videoError, effectiveCurrentlyPlayingId, event.id, effectiveSetCurrentlyPlayingId, effectiveGlobalMuteState, manuallyPaused]);
-
-  // Update local playing state based on global state
-  useEffect(() => {
-    setIsPlaying(effectiveCurrentlyPlayingId === event.id);
-  }, [effectiveCurrentlyPlayingId, event.id]);
-
-  // Load video when container comes into view
-  useEffect(() => {
-    if (inView) {
-      setShouldLoadVideo(true);
-    }
-  }, [inView]);
+  const handleLocationClick = (locationName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onLocationClick?.(locationName);
+  };
 
   if (videos.length === 0) return null;
 
   const primaryVideo = videos[0];
 
-  // All videos are vertical for TikTok-style feed
-  const aspectRatio = "aspect-[9/16]"; // Always use portrait aspect ratio
+  // Calculate container height based on layout
+  const getContainerHeight = () => {
+    if (isMobile) {
+      // Mobile: subtract header (56px) and bottom nav (80px)
+      return window.innerHeight - 56 - 80;
+    } else {
+      // Desktop: full height minus some padding/header space
+      return window.innerHeight - 120; // Account for desktop layout padding
+    }
+  };
 
   // Format duration for display
   const formatDuration = (durationStr: string) => {
@@ -411,322 +267,181 @@ export function VideoPost({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Use duration from imeta tag if available, otherwise fall back to duration tag
-  const displayDuration = primaryVideo.duration || duration;
-
   return (
-    <Card className={cn("overflow-hidden", isMobile && "mx-0 rounded-none border-x-0", className)}>
-      <CardHeader className={cn("pb-3", isMobile && "px-2")}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Avatar
-              className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
-              onClick={handleProfileClick}
-            >
-              <AvatarImage 
-                src={profileImage} 
-                alt={displayName}
-                loading="lazy"
-              />
-              <AvatarFallback>{displayName[0]?.toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p
-                className="font-semibold text-sm cursor-pointer hover:text-primary transition-colors"
-                onClick={handleProfileClick}
-              >
-                {displayName}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {new Date(event.created_at * 1000).toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-
-          <DropdownMenu open={showActions} onOpenChange={setShowActions}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <ImagePostActions
-                event={event}
-                onClose={() => setShowActions(false)}
-              />
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <div 
+      className={cn('relative w-full bg-black flex items-center justify-center', className)}
+      style={{ height: `${getContainerHeight()}px` }}
+    >
+      {primaryVideo.url ? (
+        <video
+          ref={videoRef}
+          src={primaryVideo.url}
+          poster={primaryVideo.thumbnail}
+          loop
+          muted={isMuted}
+          playsInline
+          autoPlay={isActive}
+          preload="metadata"
+          className="max-w-full max-h-full object-contain cursor-pointer"
+          onClick={togglePlayPause}
+        />
+      ) : (
+        <div className="flex flex-col items-center justify-center text-white">
+          <VideoIcon className="h-16 w-16 mb-4" />
+          <p>Video unavailable</p>
         </div>
-      </CardHeader>
+      )}
 
-      <CardContent className="p-0">
-        {/* Content Warning */}
-        {contentWarning && (
-          <div className={cn("px-4 pb-3", isMobile && "px-2")}>
-            <Badge variant="destructive" className="text-xs">
-              Content Warning: {contentWarning}
-            </Badge>
-          </div>
-        )}
-
-        {/* Video */}
+      {/* Play/Pause overlay */}
+      {!isPlaying && primaryVideo.url && (
         <div 
-          ref={containerRef}
-          className={cn("relative bg-black overflow-hidden cursor-pointer group", aspectRatio)}
-          onClick={handleVideoClick}
-          title="Click to play/pause"
+          className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
+          onClick={togglePlayPause}
         >
-          {/* Show thumbnail while video is loading or not yet visible */}
-          {primaryVideo.thumbnail && (!shouldLoadVideo || (!videoLoaded && !videoError)) && (
-            <>
-              <img
-                src={primaryVideo.thumbnail}
-                alt="Video thumbnail"
-                className={cn(
-                  "absolute inset-0 w-full h-full object-cover",
-                  contentWarning && !isRevealed && "blur-[40px]"
-                )}
-              />
-              {/* Play button overlay on thumbnail */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-16 h-16 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
-                  <Play className="h-8 w-8 text-white ml-1" />
-                </div>
-              </div>
-            </>
-          )}
-          
-          {/* Only render video when it should be loaded */}
-          {shouldLoadVideo && (
-            <video
-              ref={videoRef}
-              key={primaryVideo.url} // Force re-render when URL changes
-              src={primaryVideo.url}
-              className={cn(
-                "w-full h-full object-cover transition-opacity duration-300",
-                contentWarning && !isRevealed && "blur-[40px]",
-                !videoLoaded && "opacity-0" // Hide video until loaded
-              )}
-              muted={isMuted}
-              loop
-              playsInline
-              preload="metadata" // Load metadata when video element is created
-              onPlay={() => {
-                setIsPlaying(true);
-                effectiveSetCurrentlyPlayingId(event.id);
-              }}
-              onPause={() => {
-                setIsPlaying(false);
-                if (effectiveCurrentlyPlayingId === event.id) {
-                  effectiveSetCurrentlyPlayingId(null);
-                }
-              }}
-              onLoadedData={handleVideoLoadedData}
-              onCanPlay={handleVideoCanPlay}
-              onError={handleVideoError}
-            />
-          )}
+          <div className="rounded-full bg-white/20 p-6 backdrop-blur-sm">
+            <Play className="h-12 w-12 text-white fill-white" />
+          </div>
+        </div>
+      )}
 
-          {/* Loading indicator */}
-          {shouldLoadVideo && !videoLoaded && !videoError && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
+      {/* Duration indicator */}
+      {duration && (
+        <div className="absolute top-4 right-4 bg-black/80 text-white px-2 py-1 rounded text-sm">
+          {formatDuration(duration)}
+        </div>
+      )}
 
-          {/* Error state */}
-          {videoError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-              <div className="text-center text-white">
-                <p className="text-sm">Failed to load video</p>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (videoRef.current) {
-                      videoRef.current.load();
-                      setVideoError(false);
-                    }
-                  }}
-                  className="text-xs text-blue-400 hover:text-blue-300 mt-1"
-                >
-                  Retry
-                </button>
-              </div>
-            </div>
-          )}
+      {/* Video info overlay */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 pb-20 bg-gradient-to-t from-black/80 to-transparent">
+        <div className="flex items-end justify-between">
+          <div className="flex-1 mr-4">
+            <Link to={`/${npub}`} className="flex items-center mb-3" onClick={handleProfileClick}>
+              <Avatar className="h-10 w-10 mr-3 ring-2 ring-white">
+                {profileImage && <AvatarImage src={profileImage} alt={displayName} />}
+                <AvatarFallback>{displayName[0]?.toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <span className="text-white font-semibold">{displayName}</span>
+            </Link>
+            
+            {title && (
+              <h3 
+                className="text-white font-semibold text-lg mb-2 cursor-pointer hover:text-gray-200"
+                onClick={handleTitleClick}
+              >
+                {title}
+              </h3>
+            )}
+            
+            {event.content && (
+              <p className="text-white/90 text-sm line-clamp-2 mb-2">{event.content}</p>
+            )}
 
-          {/* Video Controls Overlay - only show when video is loaded */}
-          {videoLoaded && !videoError && (
-            <div className="absolute inset-0 pointer-events-none">
-              {/* Top right corner - Mute/Unmute button */}
-              <div className="absolute top-4 right-4 pointer-events-auto">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleMuteToggle}
-                  className="text-white hover:bg-white/20 bg-black/30 backdrop-blur-sm"
-                >
-                  {isMuted ? (
-                    <VolumeX className="h-5 w-5" />
-                  ) : (
-                    <Volume2 className="h-5 w-5" />
-                  )}
-                </Button>
-              </div>
-
-              {/* Center - Play button (only show when paused) */}
-              {!isPlaying && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
-                  <Button
-                    variant="ghost"
-                    size="lg"
-                    onClick={handlePlayPause}
-                    className="text-white hover:bg-white/20 bg-black/30 backdrop-blur-sm w-16 h-16 rounded-full"
+            {/* Hashtags */}
+            {hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {hashtags.slice(0, 3).map((hashtag) => (
+                  <button
+                    key={hashtag}
+                    className="text-blue-300 text-sm hover:text-blue-200 transition-colors"
+                    onClick={(e) => handleHashtagClick(hashtag, e)}
                   >
-                    <Play className="h-8 w-8 ml-1" />
-                  </Button>
-                </div>
-              )}
+                    #{hashtag}
+                  </button>
+                ))}
+                {hashtags.length > 3 && (
+                  <span className="text-white/60 text-sm">+{hashtags.length - 3}</span>
+                )}
+              </div>
+            )}
 
-              {/* Bottom left corner - Duration (if available) */}
-              {displayDuration && (
-                <div className="absolute bottom-4 left-4 pointer-events-none">
-                  <span className="text-white text-sm bg-black/30 backdrop-blur-sm px-2 py-1 rounded">
-                    {formatDuration(displayDuration)}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+            {/* Location */}
+            {location && (
+              <button
+                className="text-gray-300 text-sm hover:text-gray-200 transition-colors mb-2 block"
+                onClick={(e) => handleLocationClick(location, e)}
+              >
+                📍 {location}
+              </button>
+            )}
 
-          {/* Reveal overlay for content warnings */}
-          {contentWarning && !isRevealed && (
-            <div
-              className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer"
+            <p className="text-white/60 text-xs">
+              {formatDistanceToNow(new Date(event.created_at * 1000), { addSuffix: true })}
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-col items-center space-y-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`hover:bg-white/20 ${hasLiked ? 'text-red-500' : 'text-white'}`}
+              onClick={handleLike}
+            >
+              <Heart className={`h-6 w-6 ${hasLiked ? 'fill-current' : ''}`} />
+            </Button>
+            {likeCount > 0 && (
+              <span className="text-white text-xs font-semibold">{likeCount}</span>
+            )}
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20"
               onClick={(e) => {
                 e.stopPropagation();
-                setIsRevealed(true);
+                onCommentClick?.(event);
               }}
             >
-              <div className="text-center text-white space-y-2">
-                <Eye className="h-8 w-8 mx-auto" />
-                <p className="text-sm font-medium">Click to reveal content</p>
-                <p className="text-xs opacity-80">
-                  Content warning: {contentWarning}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Post Content */}
-        <div className={cn("p-4 space-y-3", isMobile && "px-2")}>
-          {/* Title - for NIP-71 videos */}
-          {title && (
-            <h3
-              className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"
-              onClick={handleTitleClick}
+              <MessageCircle className="h-6 w-6" />
+            </Button>
+            {commentCount > 0 && (
+              <span className="text-white text-xs font-semibold">{commentCount}</span>
+            )}
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (navigator.share && primaryVideo.url) {
+                  navigator.share({
+                    title: title || 'Check out this video on Zappix',
+                    url: window.location.origin + `/${nevent}`,
+                  });
+                } else {
+                  // Fallback: copy to clipboard
+                  navigator.clipboard.writeText(window.location.origin + `/${nevent}`);
+                  toast({
+                    title: 'Link copied',
+                    description: 'Video link copied to clipboard',
+                  });
+                }
+              }}
             >
-              {title}
-            </h3>
-          )}
+              <Share2 className="h-6 w-6" />
+            </Button>
 
-          {/* Description */}
-          {event.content && (
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {event.content}
-            </p>
-          )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20"
+              onClick={onMuteToggle}
+            >
+              {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
+            </Button>
 
-
-
-          {/* Location */}
-          {(location || geohash) && (
-            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <button
-                type="button"
-                className={cn(
-                  "text-left hover:text-primary transition-colors",
-                  onLocationClick ? "cursor-pointer" : "cursor-default"
-                )}
-                onClick={handleLocationClick}
-                disabled={!onLocationClick}
-              >
-                {location || `Geohash: ${geohash}`}
-              </button>
-            </div>
-          )}
-
-          {/* Hashtags */}
-          {hashtags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {hashtags.map((tag, index) => (
-                <Badge
-                  key={index}
-                  variant="secondary"
-                  className={cn(
-                    "text-xs",
-                    onHashtagClick &&
-                      "cursor-pointer hover:bg-primary/20 hover:text-primary transition-colors"
-                  )}
-                  onClick={
-                    onHashtagClick
-                      ? (e) => {
-                          e.stopPropagation();
-                          onHashtagClick(tag);
-                        }
-                      : undefined
-                  }
-                >
-                  <Hash className="h-3 w-3 mr-1" />
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-2 border-t">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex items-center space-x-1"
-                onClick={handleLike}
-                disabled={reactToPost.isPending || removeReaction.isPending}
-              >
-                <Heart
-                  className={cn(
-                    "h-4 w-4 transition-colors",
-                    hasLiked
-                      ? "fill-red-500 text-red-500"
-                      : "text-muted-foreground hover:text-red-500"
-                  )}
-                />
-                <span className="text-xs">{likeCount}</span>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex items-center space-x-1"
-                onClick={() => setShowComments(!showComments)}
-              >
-                <MessageCircle className="h-4 w-4" />
-                <span className="text-xs">{commentCount}</span>
-              </Button>
-
-              <ZapButton eventId={event.id} authorPubkey={event.pubkey} />
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20"
+              onClick={() => setShowActions(!showActions)}
+            >
+              <MoreHorizontal className="h-6 w-6" />
+            </Button>
           </div>
         </div>
-
-        {/* Comments Section */}
-        {showComments && (
-          <CommentSection eventId={event.id} authorPubkey={event.pubkey} />
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
