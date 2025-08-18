@@ -9,7 +9,7 @@ import {
 import { useZaps } from "@/hooks/useZaps";
 import { ZapButton } from "./ZapButton";
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useComments, useCreateComment } from "@/hooks/useComments";
+import { useComments, useCreateComment, useCommentReplies } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuthor } from "@/hooks/useAuthor";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
   const author = useAuthor(comment.pubkey);
   const reactions = useReactions(comment.id);
   const zaps = useZaps(comment.id);
+  const replies = useCommentReplies(comment.id);
   const createComment = useCreateComment();
   const reactToPost = useReactToPost();
   const removeReaction = useRemoveReaction();
@@ -203,8 +204,6 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
           </div>
         </div>
       )}
-<<<<<<< HEAD
-=======
 
       {replies.data && replies.data.length > 0 && (
         <div className="ml-6 pl-4 border-l border-muted space-y-4">
@@ -218,7 +217,6 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
           ))}
         </div>
       )}
->>>>>>> 09e99c0 (fix: uploads)
     </div>
   );
 }

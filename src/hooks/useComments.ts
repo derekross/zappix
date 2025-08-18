@@ -25,9 +25,9 @@ export function useComments(eventId: string, _authorPubkey: string) {
     queryKey: ['comments', eventId],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-      
-      const filter: { kinds: number[]; '#E': string[]; limit: number; until?: number } = { 
-        kinds: [1111], 
+
+      const filter: { kinds: number[]; '#E': string[]; limit: number; until?: number } = {
+        kinds: [1111],
         '#E': [eventId], // Comments on the root event
         limit: 20 // Smaller page size for better performance
       };
@@ -36,14 +36,14 @@ export function useComments(eventId: string, _authorPubkey: string) {
       if (pageParam) {
         filter.until = pageParam - 1; // Subtract 1 to avoid getting the same comment again
       }
-      
+
       const events = await nostr.query([filter], { signal: querySignal });
-      
+
       const validComments = events.filter(validateCommentEvent);
-      
+
       // Sort by creation time (newest first for this page)
       const sortedComments = validComments.sort((a, b) => b.created_at - a.created_at);
-      
+
       return {
         comments: sortedComments,
         nextCursor: sortedComments.length > 0 ? sortedComments[sortedComments.length - 1].created_at : undefined,
@@ -63,15 +63,15 @@ export function useCommentReplies(commentId: string) {
     queryKey: ['comment-replies', commentId],
     queryFn: async (c) => {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(3000)]);
-      
-      const events = await nostr.query([{ 
-        kinds: [1111], 
+
+      const events = await nostr.query([{
+        kinds: [1111],
         '#e': [commentId], // Replies to this comment
-        limit: 50 
+        limit: 50
       }], { signal });
-      
+
       const validReplies = events.filter(validateCommentEvent);
-      
+
       return validReplies.sort((a, b) => a.created_at - b.created_at);
     },
     staleTime: 30000,
@@ -84,15 +84,6 @@ export function useCreateComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-<<<<<<< HEAD
-    mutationFn: async ({ 
-      content, 
-      rootEventId, 
-      rootAuthorPubkey, 
-      parentEventId, 
-      parentAuthorPubkey 
-    }: { 
-=======
     mutationFn: async ({
       content,
       rootEventId,
@@ -101,7 +92,6 @@ export function useCreateComment() {
       parentEventId,
       parentAuthorPubkey,
     }: {
->>>>>>> 09e99c0 (fix: uploads)
       content: string;
       rootEventId: string;
       rootAuthorPubkey: string;
@@ -117,11 +107,7 @@ export function useCreateComment() {
       const tags = [
         // Root scope tags (uppercase)
         ['E', rootEventId, '', rootAuthorPubkey],
-<<<<<<< HEAD
-        ['K', '20'], // Root kind is image post (kind 20)
-=======
         ['K', rootKind.toString()],
->>>>>>> 09e99c0 (fix: uploads)
         ['P', rootAuthorPubkey],
       ];
 
@@ -130,16 +116,6 @@ export function useCreateComment() {
         // This is a reply to another comment
         tags.push(
           ['e', parentEventId, '', parentAuthorPubkey],
-<<<<<<< HEAD
-          ['k', '1111'], // Parent kind is comment
-          ['p', parentAuthorPubkey]
-        );
-      } else {
-        // Top-level comment - parent is the same as root
-        tags.push(
-          ['e', rootEventId, '', rootAuthorPubkey],
-          ['k', '20'], // Parent kind is image post
-=======
           ['k', '1111'], // Parent is a comment
           ['p', parentAuthorPubkey]
         );
@@ -148,7 +124,6 @@ export function useCreateComment() {
         tags.push(
           ['e', rootEventId, '', rootAuthorPubkey],
           ['k', rootKind.toString()], // Parent is the root event
->>>>>>> 09e99c0 (fix: uploads)
           ['p', rootAuthorPubkey]
         );
       }
