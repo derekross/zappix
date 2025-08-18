@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { vi, afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
 import { cleanupQueryClient } from './TestApp';
 import { resetNostrProviderState } from '@/components/NostrProvider';
 
@@ -43,6 +44,9 @@ global.ResizeObserver = vi.fn().mockImplementation((_callback) => ({
 
 // Clean up after each test to prevent memory leaks
 afterEach(() => {
+  // Clean up DOM - this is crucial for preventing multiple elements with same test id
+  cleanup();
+  
   // Clean up React Testing Library
   vi.clearAllMocks();
 
