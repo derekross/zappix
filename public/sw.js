@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v2.2.1-1755549216306";
+const CACHE_VERSION = "v2.2.7-1755635066714";
 const CACHE_NAME = `Zappix-${CACHE_VERSION}`;
 const urlsToCache = [
   "/",
