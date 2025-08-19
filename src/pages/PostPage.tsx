@@ -59,7 +59,7 @@ const PostPage = () => {
       }
 
       let eventId: string;
-      
+
       // Handle different event identifier types
       if (decodedQuery.data.type === "nevent") {
         eventId = decodedQuery.data.data.id;
@@ -176,6 +176,9 @@ const PostPage = () => {
         [21, 22].includes(postQuery.data.kind) ? (
           <VideoPost
             event={postQuery.data}
+            isActive={false}
+            isMuted={true}
+            onMuteToggle={() => {}}
             onHashtagClick={(hashtag) => navigate(`/hashtag/${hashtag}`)}
             onLocationClick={handleLocationClick}
           />

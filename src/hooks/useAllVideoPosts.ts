@@ -139,7 +139,9 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
           nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
         };
       } catch (error) {
-        console.error("Error querying discovery relays for videos:", error);
+        if (import.meta.env.DEV) {
+          console.error("Error querying discovery relays for videos:", error);
+        }
         throw error;
       }
     },
@@ -149,6 +151,8 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
     refetchInterval: false, // Disable automatic refetching to prevent constant refreshing
     retry: 2, // Reduce retry attempts
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+    maxPages: 20, // Limit to 20 pages (400 posts) to prevent memory issues
+    gcTime: 2 * 60 * 1000, // Clean up after 2 minutes instead of default
   });
 }
 
@@ -210,7 +214,9 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
               : undefined,
         };
       } catch (error) {
-        console.error("Error in following video feed query:", error);
+        if (import.meta.env.DEV) {
+          console.error("Error in following video feed query:", error);
+        }
         throw error;
       }
     },
@@ -221,6 +227,8 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
     refetchInterval: false, // Disable automatic refetching to prevent constant refreshing
     retry: 2, // Reduce retry attempts
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+    maxPages: 15, // Limit to 15 pages for following feed
+    gcTime: 2 * 60 * 1000, // Clean up after 2 minutes
   });
 }
 

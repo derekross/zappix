@@ -1,13 +1,13 @@
 {
   "name": "Zappix",
   "private": true,
-  "version": "2.2.1",
+  "version": "2.2.7",
   "type": "module",
   "scripts": {
     "dev": "npm i && vite",
     "dev:update-sw": "node scripts/update-sw-version.js",
     "build": "npm i && node scripts/update-sw-version.js && vite build && cp dist/index.html dist/404.html",
-    "test": "npm i && tsc -p tsconfig.app.json --noEmit && eslint && vitest run && vite build",
+    "test": "npm i && tsc -p tsconfig.app.json --noEmit && eslint && NODE_OPTIONS=\"--max-old-space-size=4096\" vitest run && vite build",
     "deploy": "npm run build && npx -y nostr-deploy-cli deploy --skip-setup"
   },
   "dependencies": {

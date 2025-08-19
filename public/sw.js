@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v2.2.0-1750380372196";
+const CACHE_VERSION = "v2.2.1-1755549216306";
 const CACHE_NAME = `Zappix-${CACHE_VERSION}`;
 const urlsToCache = [
   "/",
@@ -55,6 +55,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // Skip non-GET requests and chrome-extension requests
+  if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
@@ -69,6 +74,16 @@ self.addEventListener("fetch", (event) => {
           cache.put(event.request, responseToCache);
         });
         return response;
+      }).catch((error) => {
+        // Log error only in development
+        if (typeof importScripts === 'undefined') {
+          console.warn('Service Worker fetch failed:', error);
+        }
+        // Return a basic network error response
+        return new Response('Network error', {
+          status: 408,
+          statusText: 'Request Timeout'
+        });
       });
     })
   );

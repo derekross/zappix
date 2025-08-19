@@ -19,6 +19,18 @@ export default defineConfig(() => ({
     onConsoleLog(log) {
       return !log.includes("React Router Future Flag Warning");
     },
+    // Memory optimization settings
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        singleThread: true, // Use single thread to reduce memory usage
+        maxThreads: 1, // Limit to 1 thread
+      },
+    },
+    isolate: false, // Don't isolate tests to reduce memory overhead
+    maxWorkers: 1, // Limit workers to reduce memory usage
+    minWorkers: 1,
+    hookTimeout: 10000, // Increase timeout for slower operations
   },
   resolve: {
     alias: {

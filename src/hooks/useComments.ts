@@ -22,11 +22,10 @@ export function useComments(eventId: string, _authorPubkey: string) {
     queryKey: ['comments', eventId],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-
-      const filter: { kinds: number[]; '#e': string[]; limit: number; until?: number } = {
+      const filter: { kinds: number[]; '#E': string[]; limit: number; until?: number } = {
         kinds: [1111],
-        '#e': [eventId],
-        limit: 20,
+        '#E': [eventId], // Comments on the root event
+        limit: 20 // Smaller page size for better performance
       };
 
       if (pageParam) {
@@ -34,7 +33,10 @@ export function useComments(eventId: string, _authorPubkey: string) {
       }
 
       const events = await nostr.query([filter], { signal: querySignal });
+
       const validComments = events.filter(validateCommentEvent);
+
+      // Sort by creation time (newest first for this page)
       const sortedComments = validComments.sort((a, b) => b.created_at - a.created_at);
 
       return {
@@ -65,24 +67,13 @@ export function useCommentReplies(commentId: string, rootEventId: string) {
     queryFn: async (c) => {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(3000)]);
 
-      const events = await nostr.query([
-        {
-          kinds: [1111],
-          '#e': [commentId],
-          limit: 50,
-        },
-      ], { signal });
+      const events = await nostr.query([{
+        kinds: [1111],
+        '#e': [commentId], // Replies to this comment
+        limit: 50
+      }], { signal });
 
-      const validReplies = events.filter(validateCommentEvent)
-        // Only include if the last 'e' tag is for this commentId and there is also an 'e' tag for the root event
-        .filter(event => {
-          const eTags = event.tags.filter(tag => tag[0] === 'e');
-          if (eTags.length < 2) return false;
-          const hasRoot = eTags.some(tag => tag[1] === rootEventId);
-          const lastETag = eTags[eTags.length - 1];
-          return hasRoot && lastETag[1] === commentId;
-        });
-
+      const validReplies = events.filter(validateCommentEvent);
       return validReplies.sort((a, b) => a.created_at - b.created_at);
     },
     staleTime: 30000,
@@ -99,48 +90,60 @@ export function useCreateComment() {
       content,
       rootEventId,
       rootAuthorPubkey,
+      rootEventKind,
       parentEventId,
       parentAuthorPubkey,
     }: {
       content: string;
       rootEventId: string;
       rootAuthorPubkey: string;
+      rootEventKind?: number;
       parentEventId?: string;
       parentAuthorPubkey?: string;
     }) => {
       if (!user?.signer) throw new Error('User not logged in');
 
+      // Determine the root event kind - default to text note if not provided
+      const rootKind = rootEventKind || 1;
+
       const tags = [
         ['E', rootEventId, '', rootAuthorPubkey],
-        ['K', '20'],
+        ['K', rootKind.toString()],
         ['P', rootAuthorPubkey],
       ];
 
       if (parentEventId && parentAuthorPubkey) {
         // NIP-10: first 'e' tag is root, second is parent comment
+        // This is a reply to another comment
         tags.push(
           ['e', rootEventId, '', rootAuthorPubkey],
           ['e', parentEventId, '', parentAuthorPubkey],
-          ['k', '1111'],
+          ['k', '1111'], // Parent is a comment
           ['p', parentAuthorPubkey]
         );
       } else {
+        // This is a direct comment on the root event
         tags.push(
           ['e', rootEventId, '', rootAuthorPubkey],
-          ['k', '20'],
+          ['k', rootKind.toString()], // Parent is the root event
           ['p', rootAuthorPubkey]
         );
       }
 
-      const event = await user.signer.signEvent({
-        kind: 1111,
-        content,
-        tags,
-        created_at: Math.floor(Date.now() / 1000),
-      });
+      try {
+        const event = await user.signer.signEvent({
+          kind: 1111,
+          content,
+          tags,
+          created_at: Math.floor(Date.now() / 1000),
+        });
 
-      await nostr.event(event);
-      return event;
+        await nostr.event(event);
+        return event;
+      } catch (error) {
+        console.error('Failed to create comment:', error);
+        throw error;
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['comments', variables.rootEventId] });

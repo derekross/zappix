@@ -15,6 +15,7 @@ import { AppProvider } from "@/components/AppProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PWAUpdateNotification } from "@/components/PWAUpdateNotification";
 import { BackgroundProfileManager } from "@/components/BackgroundProfileManager";
+import { useMemoryMonitor } from "@/hooks/useMemoryMonitor";
 
 import { AppConfig } from "@/contexts/AppContext";
 import AppRouter from "./AppRouter";
@@ -28,7 +29,7 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       staleTime: 60000, // 1 minute
-      gcTime: Infinity,
+      gcTime: 5 * 60 * 1000, // 5 minutes (was Infinity - major memory leak!)
       // Don't retry profile queries aggressively to prevent blocking
       retry: (failureCount, error) => {
         // Don't retry timeout errors for profile queries
@@ -65,6 +66,11 @@ const defaultRelays = [
   { url: "wss://ditto.pub/relay", name: "Ditto" },
 ];
 
+function MemoryMonitorWrapper({ children }: { children: React.ReactNode }) {
+  useMemoryMonitor();
+  return <>{children}</>;
+}
+
 export function App() {
   return (
     <UnheadProvider head={head}>
@@ -74,22 +80,24 @@ export function App() {
         defaultRelays={defaultRelays}
       >
         <QueryClientProvider client={queryClient}>
-          <NostrLoginProvider storageKey="nostr:login">
-            <NostrProvider>
-              <OutboxEnhancer />
-              <NotificationProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <PWAUpdateNotification />
-                  <BackgroundProfileManager />
-                  <Suspense>
-                    <AppRouter />
-                  </Suspense>
-                </TooltipProvider>
-              </NotificationProvider>
-            </NostrProvider>
-          </NostrLoginProvider>
+          <MemoryMonitorWrapper>
+            <NostrLoginProvider storageKey="nostr:login">
+              <NostrProvider>
+                <OutboxEnhancer />
+                <NotificationProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Sonner />
+                    <PWAUpdateNotification />
+                    <BackgroundProfileManager />
+                    <Suspense>
+                      <AppRouter />
+                    </Suspense>
+                  </TooltipProvider>
+                </NotificationProvider>
+              </NostrProvider>
+            </NostrLoginProvider>
+          </MemoryMonitorWrapper>
         </QueryClientProvider>
       </AppProvider>
     </UnheadProvider>

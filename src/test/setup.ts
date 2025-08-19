@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
+import { vi, afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import { cleanupQueryClient } from './TestApp';
+import { resetNostrProviderState } from '@/components/NostrProvider';
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
@@ -38,3 +41,23 @@ global.ResizeObserver = vi.fn().mockImplementation((_callback) => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
+
+// Clean up after each test to prevent memory leaks
+afterEach(() => {
+  // Clean up DOM - this is crucial for preventing multiple elements with same test id
+  cleanup();
+  
+  // Clean up React Testing Library
+  vi.clearAllMocks();
+
+  // Clean up query client
+  cleanupQueryClient();
+
+  // Reset NostrProvider global state
+  resetNostrProviderState();
+
+  // Force garbage collection if available
+  if (typeof global.gc === 'function') {
+    global.gc();
+  }
+});

@@ -1,29 +1,31 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface VideoFeedContextType {
   currentlyPlayingId: string | null;
   setCurrentlyPlayingId: (id: string | null) => void;
   globalMuteState: boolean;
   setGlobalMuteState: (muted: boolean) => void;
-  isContextAvailable: boolean;
 }
 
-export const VideoFeedContext = createContext<VideoFeedContextType | undefined>(undefined);
+const VideoFeedContext = createContext<VideoFeedContextType | undefined>(undefined);
 
-export function VideoFeedProvider({ children }: { children: ReactNode }) {
+interface VideoFeedProviderProps {
+  children: ReactNode;
+}
+
+export function VideoFeedProvider({ children }: VideoFeedProviderProps) {
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(null);
-  const [globalMuteState, setGlobalMuteState] = useState(true); // Start muted by default
+  const [globalMuteState, setGlobalMuteState] = useState(true);
+
+  const value: VideoFeedContextType = {
+    currentlyPlayingId,
+    setCurrentlyPlayingId,
+    globalMuteState,
+    setGlobalMuteState,
+  };
 
   return (
-    <VideoFeedContext.Provider
-      value={{
-        currentlyPlayingId,
-        setCurrentlyPlayingId,
-        globalMuteState,
-        setGlobalMuteState,
-        isContextAvailable: true,
-      }}
-    >
+    <VideoFeedContext.Provider value={value}>
       {children}
     </VideoFeedContext.Provider>
   );
@@ -37,19 +39,5 @@ export function useVideoFeedContext() {
   return context;
 }
 
-export function useOptionalVideoFeedContext() {
-  const context = useContext(VideoFeedContext);
-  
-  // If no context is available, return default values with no-op functions
-  if (context === undefined) {
-    return {
-      currentlyPlayingId: null,
-      setCurrentlyPlayingId: () => {},
-      globalMuteState: true,
-      setGlobalMuteState: () => {},
-      isContextAvailable: false,
-    };
-  }
-  
-  return context;
-}
+// Also export the context for optional usage
+export { VideoFeedContext };
