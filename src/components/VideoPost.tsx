@@ -3,12 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useReactions } from '@/hooks/useReactions';
+import { useReactions, useReactToPost, useRemoveReaction } from '@/hooks/useReactions';
 import { useComments } from '@/hooks/useComments';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
+import { ZapButton } from '@/components/ZapButton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   MessageCircle, 
   Heart,
@@ -22,6 +28,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { VideoPostActions } from '@/components/VideoPostActions';
 import { genUserName } from '@/lib/genUserName';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -57,6 +64,8 @@ export function VideoPost({
   const author = useAuthor(event.pubkey);
   const reactions = useReactions(event.id);
   const comments = useComments(event.id, event.pubkey);
+  const { mutate: reactToPost } = useReactToPost();
+  const { mutate: removeReaction } = useRemoveReaction();
 
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
@@ -195,6 +204,13 @@ export function VideoPost({
     }
   }, [isActive]);
 
+  // Effect to sync muted state with video element
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
+
   const togglePlayPause = () => {
     if (videoRef.current) {
       if (isPlaying) {
@@ -219,7 +235,29 @@ export function VideoPost({
       return;
     }
 
-    // Toggle like logic here - you can implement this based on your existing useReactToPost hook
+    try {
+      if (hasLiked) {
+        // Unlike the post
+        removeReaction({
+          eventId: event.id,
+          reaction: '+',
+        });
+      } else {
+        // Like the post
+        reactToPost({
+          eventId: event.id,
+          authorPubkey: event.pubkey,
+          reaction: '+',
+          kind: event.kind.toString(),
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update reaction',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleProfileClick = (e: React.MouseEvent) => {
@@ -398,6 +436,13 @@ export function VideoPost({
               <span className="text-white text-xs font-semibold">{commentCount}</span>
             )}
             
+            <div className="hover:bg-white/20 rounded-md p-2 transition-colors">
+              <ZapButton 
+                target={event}
+                className="text-white text-xs"
+              />
+            </div>
+            
             <Button
               variant="ghost"
               size="icon"
@@ -431,14 +476,23 @@ export function VideoPost({
               {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
             </Button>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20"
-              onClick={() => setShowActions(!showActions)}
-            >
-              <MoreHorizontal className="h-6 w-6" />
-            </Button>
+            <DropdownMenu open={showActions} onOpenChange={setShowActions}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-white/20"
+                >
+                  <MoreHorizontal className="h-6 w-6" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <VideoPostActions
+                  event={event}
+                  onClose={() => setShowActions(false)}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { Zap, Wallet, Info } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useToast } from '@/hooks/useToast';
-import { useNWC } from '@/hooks/useNWC';
+import { useNWC } from '@/hooks/useNWCContext';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

@@ -40,7 +40,7 @@ export function VideoFeedSimple({
 
   const { ref, inView } = useInView({
     threshold: 0,
-    rootMargin: '100px',
+    rootMargin: '200px', // Start loading earlier
   });
 
   // Load more when scrolling near bottom
@@ -282,9 +282,18 @@ export function VideoFeedSimple({
         </div>
       )}
 
-      {/* Load more trigger - positioned off screen but still functional */}
-      {query.hasNextPage && currentIndex > uniqueEvents.length - 5 && (
-        <div ref={ref} className="absolute -bottom-10 left-0 w-1 h-1" />
+      {/* Load more trigger - improved visibility and reliability */}
+      {query.hasNextPage && currentIndex > uniqueEvents.length - 10 && (
+        <div ref={ref} className="flex justify-center py-8 absolute bottom-0 left-0 right-0">
+          {query.isFetchingNextPage ? (
+            <div className="flex items-center space-x-2 text-white">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span className="text-sm">Loading more videos...</span>
+            </div>
+          ) : (
+            <div className="h-1 w-1" /> // Invisible trigger
+          )}
+        </div>
       )}
 
       {/* Comment Modal */}

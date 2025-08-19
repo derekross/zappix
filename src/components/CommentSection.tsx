@@ -165,10 +165,8 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
             </Button>
 
             <ZapButton
-              eventId={comment.id}
-              authorPubkey={comment.pubkey}
-              zapTotal={zapTotal}
-              size="sm"
+              target={comment}
+              zapData={{ count: 0, totalSats: zapTotal || 0, isLoading: false }}
             />
           </div>
         </div>

@@ -836,9 +836,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <TabsContent value="global" className="space-y-6">
                       <div className="text-center space-y-2">
                         <h2 className="text-2xl font-bold">Global Feed</h2>
-                        <p className="text-muted-foreground">
-                          Latest image posts from all relays
-                        </p>
                       </div>
                       <ImageFeed
                         feedType="global"
@@ -850,9 +847,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <TabsContent value="following" className="space-y-6">
                       <div className="text-center space-y-2">
                         <h2 className="text-2xl font-bold">Following Feed</h2>
-                        <p className="text-muted-foreground">
-                          Latest image posts from people you follow
-                        </p>
                       </div>
                       <ImageFeed
                         feedType="following"
@@ -889,10 +883,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <TabsContent value="global" className="space-y-6">
                       <div className="text-center space-y-2">
                         <h2 className="text-2xl font-bold mb-2">Global Flix</h2>
-                        <p className="text-muted-foreground">
-                          Latest vertical videos from all relays - TikTok-style
-                          feed
-                        </p>
                       </div>
                       <VideoFeed
                         feedType="global"
@@ -906,9 +896,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                         <h2 className="text-2xl font-bold mb-2">
                           Following Flix
                         </h2>
-                        <p className="text-muted-foreground">
-                          Latest vertical videos from people you follow
-                        </p>
                       </div>
                       <VideoFeed
                         feedType="following"
