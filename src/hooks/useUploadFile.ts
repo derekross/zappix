@@ -3,10 +3,17 @@ import { NostrSigner } from '@nostrify/nostrify';
 
 import { useCurrentUser } from "./useCurrentUser";
 import { useBlossomServers } from "./useBlossomServers";
+import { 
+  compressVideo, 
+  shouldCompressVideo, 
+  isCompressionSupported,
+  type CompressionResult 
+} from "@/lib/videoCompression";
 
 interface UploadOptions {
   onProgress?: (progress: number) => void;
   timeout?: number;
+  skipCompression?: boolean; // Allow skipping compression if needed
 }
 
 interface BlobDescriptor {
@@ -143,6 +150,8 @@ async function uploadToBlossom(
           fileName: file.name,
           fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
           fileType: file.type || 'application/octet-stream',
+          fileTypeDetected: file.type,
+          contentTypeHeader: file.type || 'application/octet-stream',
           sha256: sha256,
           timeout: `${timeout / 1000} seconds`
         });
@@ -168,12 +177,74 @@ export function useUploadFile() {
 
   return useMutation({
     mutationFn: async ({ file, options = {} }: { file: File; options?: UploadOptions }) => {
-      // onProgress is passed to uploadToBlossom function
       if (!user) {
         throw new Error('Must be logged in to upload files');
       }
 
-      console.log(`Starting upload for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      let fileToUpload = file;
+      let compressionInfo: CompressionResult | null = null;
+
+      // Check if video compression should be applied
+      const isVideo = file.type.startsWith('video/');
+      const shouldCompress = isVideo && 
+        !options.skipCompression && 
+        isCompressionSupported() &&
+        await shouldCompressVideo(file);
+
+      if (shouldCompress) {
+        console.log(`Video compression required for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB) - compressing BEFORE upload for Blossom hash compatibility`);
+        
+        try {
+          // Create a wrapper for progress that allocates 70% to compression, 30% to upload
+          const compressionProgress = (progress: number) => {
+            if (options.onProgress) {
+              options.onProgress(progress * 0.7); // First 70% for compression
+            }
+          };
+
+          console.log('Starting video compression (must complete before upload)...');
+          compressionInfo = await compressVideo(file, {
+            onProgress: compressionProgress
+          });
+          
+          // IMPORTANT: Wait for compression to fully complete before proceeding
+          fileToUpload = compressionInfo.compressedFile;
+          
+          console.log('✅ Video compression completed BEFORE upload:', {
+            originalSize: `${(compressionInfo.originalSize / 1024 / 1024).toFixed(2)}MB`,
+            compressedSize: `${(compressionInfo.compressedSize / 1024 / 1024).toFixed(2)}MB`,
+            compressionRatio: `${(compressionInfo.compressionRatio * 100).toFixed(1)}%`,
+            sizeSaved: `${((compressionInfo.originalSize - compressionInfo.compressedSize) / 1024 / 1024).toFixed(2)}MB`,
+            newFileName: fileToUpload.name
+          });
+          
+          // Update progress to show compression is complete
+          if (options.onProgress) {
+            options.onProgress(70); // 70% complete after compression
+          }
+          
+        } catch (compressionError) {
+          console.warn('Video compression failed, uploading original:', compressionError);
+          
+          // Show user-friendly message for different failure types
+          if (compressionError instanceof Error) {
+            if (compressionError.message.includes('memory')) {
+              console.log('Compression skipped due to memory constraints - uploading original file');
+            } else if (compressionError.message.includes('format not supported') || compressionError.message.includes('MEDIA_ERR_DECODE')) {
+              console.log('Video format not supported for compression - uploading original file');
+            } else if (compressionError.message.includes('timeout') || compressionError.message.includes('stalled')) {
+              console.log('Video compression timeout - file may be too large, uploading original');
+            } else {
+              console.log('Video compression failed for unknown reason - uploading original file');
+            }
+          }
+          
+          // Fall back to original file if compression fails
+          fileToUpload = file;
+        }
+      }
+
+      console.log(`📤 Starting Blossom upload for ${compressionInfo ? 'COMPRESSED' : 'original'} file: ${fileToUpload.name} (${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB)`);
 
       // Use user's configured servers, fallback to default servers
       const servers = userServers && userServers.length > 0
@@ -185,35 +256,55 @@ export function useUploadFile() {
           ];
 
       console.log(`Using upload servers:`, servers);
-      console.log(`User signer available:`, !!user.signer);
-      console.log(`File details:`, {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified
+      console.log(`File details for Blossom hash:`, {
+        name: fileToUpload.name,
+        size: fileToUpload.size,
+        type: fileToUpload.type,
+        compressed: !!compressionInfo
       });
 
-      // Dynamic timeout based on file size: ~1MB per 3 seconds, min 2min, max 15min
-      const baseMB = file.size / (1024 * 1024);
+      // Dynamic timeout based on compressed file size: ~1MB per 3 seconds, min 2min, max 15min
+      const baseMB = fileToUpload.size / (1024 * 1024);
       const dynamicTimeoutMs = Math.max(120000, Math.min(900000, baseMB * 3000)); // 2min to 15min
-      console.log(`Upload timeout set to ${Math.round(dynamicTimeoutMs / 1000)} seconds for ${baseMB.toFixed(1)}MB file`);
+      console.log(`Upload timeout set to ${Math.round(dynamicTimeoutMs / 1000)} seconds for ${baseMB.toFixed(1)}MB compressed file`);
 
       try {
-        const tags = await uploadToBlossom(file, user.signer, servers, {
+        // Create a wrapper for upload progress that accounts for compression
+        const uploadProgress = (progress: number) => {
+          if (options.onProgress) {
+            const adjustedProgress = compressionInfo 
+              ? 70 + (progress * 0.3) // Last 30% for upload if compressed (70% was compression)
+              : progress; // Full 100% for upload if not compressed
+            options.onProgress(adjustedProgress);
+          }
+        };
+
+        const tags = await uploadToBlossom(fileToUpload, user.signer, servers, {
           ...options,
+          onProgress: uploadProgress,
           timeout: dynamicTimeoutMs
         });
-        console.log(`Upload successful for ${file.name}:`, tags);
+        
+        console.log(`✅ Upload successful for ${compressionInfo ? 'compressed' : 'original'} file ${fileToUpload.name}:`, tags);
+        
+        // Add compression metadata to tags if applicable
+        if (compressionInfo) {
+          tags.push(['compression', 'true']);
+          tags.push(['original_size', compressionInfo.originalSize.toString()]);
+          tags.push(['compression_ratio', compressionInfo.compressionRatio.toFixed(3)]);
+          tags.push(['original_filename', file.name]);
+        }
+        
         return tags;
       } catch (error) {
-        console.error(`Upload failed for ${file.name}:`, error);
+        console.error(`Upload failed for ${fileToUpload.name}:`, error);
 
         // Provide more specific error messages
         if (error instanceof Error) {
           if (error.message.includes('timeout')) {
             throw new Error(`Upload timed out after ${Math.round(dynamicTimeoutMs / 1000)} seconds. Please try with a smaller file or check your connection.`);
           } else if (error.message.includes('too large') || error.message.includes('413')) {
-            throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). The server doesn't support files this large. Try compressing the video or use a smaller file.`);
+            throw new Error(`File too large (${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB). The server doesn't support files this large. Try compressing the video or use a smaller file.`);
           } else if (error.message.includes('Authorization') || error.message.includes('401') || error.message.includes('403')) {
             throw new Error(`Authorization failed - please try logging in again.`);
           } else if (error.message.includes('network') || error.message.includes('fetch')) {

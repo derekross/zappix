@@ -282,17 +282,13 @@ export function CreatePostDialog({
             continue;
           }
 
-          // Warn about very large files
+          // Show compression info for files that will be compressed
           const fileSizeMB = file.size / (1024 * 1024);
-          if (fileSizeMB > 200) {
+          if (fileSizeMB > 5) {
+            const compressionLevel = fileSizeMB > 100 ? "maximum" : fileSizeMB > 50 ? "high" : "standard";
             toast({
-              title: "Large file warning",
-              description: `This ${fileSizeMB.toFixed(1)}MB video may take a long time to upload and might fail. Consider compressing it or try a smaller test video first.`,
-            });
-          } else if (fileSizeMB > 50) {
-            toast({
-              title: "Large file notice",
-              description: `Uploading ${fileSizeMB.toFixed(1)}MB video. This may take several minutes.`,
+              title: "Video compression",
+              description: `Large video detected (${fileSizeMB.toFixed(1)}MB). Applying ${compressionLevel} compression for mobile optimization.`,
             });
           }
         }
@@ -751,6 +747,10 @@ export function CreatePostDialog({
                   <div className="w-2 h-2 bg-primary rounded-full"></div>
                   <span>Supported formats: MP4, WebM, MOV</span>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Memory-safe compression for mobile optimization</span>
+                </div>
               </div>
             </div>
           )}
@@ -821,7 +821,7 @@ export function CreatePostDialog({
                   <p className="font-medium">
                     {isUploading
                       ? postType === "video"
-                        ? "Processing Videos..."
+                        ? "Compressing & Uploading..."
                         : "Uploading Images..."
                       : `Upload ${
                           postType === "image"
@@ -832,7 +832,7 @@ export function CreatePostDialog({
                   <p className="text-sm text-muted-foreground">
                     {isUploading
                       ? postType === "video"
-                        ? "Validating format, orientation, and uploading to server..."
+                        ? "Compressing for mobile optimization and uploading..."
                         : "Processing images and uploading to server..."
                       : postType === "image"
                       ? "Click to select multiple images"
@@ -860,15 +860,19 @@ export function CreatePostDialog({
                   <p className="text-xs text-muted-foreground text-center break-words">
                     {uploadProgress === 0
                       ? postType === "video"
-                        ? "Validating video format and orientation..."
+                        ? "Analyzing video for compression..."
                         : "Preparing files for upload..."
-                      : uploadProgress < 10
+                      : uploadProgress < 25
                       ? postType === "video"
-                        ? `Starting upload of "${currentFileName.length > 20 ? currentFileName.substring(0, 20) + '...' : currentFileName}"...`
+                        ? `Compressing video for mobile optimization...`
                         : `Starting upload of "${currentFileName.length > 20 ? currentFileName.substring(0, 20) + '...' : currentFileName}"...`
+                      : uploadProgress < 50
+                      ? postType === "video"
+                        ? `Compressing video... ${uploadProgress}% complete`
+                        : `Uploading "${currentFileName.length > 20 ? currentFileName.substring(0, 20) + '...' : currentFileName}"...`
                       : uploadProgress < 90
                       ? postType === "video"
-                        ? `Uploading large video file... This may take several minutes.`
+                        ? `Uploading compressed video... Faster on mobile!`
                         : `Uploading "${currentFileName.length > 20 ? currentFileName.substring(0, 20) + '...' : currentFileName}"...`
                       : uploadProgress < 100
                       ? "Processing metadata and finalizing upload..."
