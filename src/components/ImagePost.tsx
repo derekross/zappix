@@ -529,7 +529,7 @@ export function ImagePost({
                 <span className="text-xs">{commentCount}</span>
               </Button>
 
-              <ZapButton eventId={event.id} authorPubkey={event.pubkey} />
+              <ZapButton target={event} />
             </div>
           </div>
         </div>

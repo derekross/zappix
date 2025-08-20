@@ -4,6 +4,7 @@ import { nip19 } from "nostr-tools";
 import { useQuery } from "@tanstack/react-query";
 import { useNostr } from "@nostrify/react";
 import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImagePost } from "@/components/ImagePost";
@@ -11,18 +12,28 @@ import { VideoPost } from "@/components/VideoPost";
 import { ImagePostSkeleton } from "@/components/ImagePostSkeleton";
 import { MainLayout } from "@/components/MainLayout";
 import { PublicUserProfilePage } from "@/components/PublicUserProfilePage";
+import { CommentModal } from "@/components/CommentModal";
 import NotFound from "./NotFound";
+import type { NostrEvent } from '@nostrify/nostrify';
 
 const PostPage = () => {
   const params = useParams();
   const nip19Id = params.nip19;
   const navigate = useNavigate();
   const { nostr } = useNostr();
+  const [isMuted, setIsMuted] = useState(false);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
 
   const handleLocationClick = (location: string) => {
     navigate(`/location/${encodeURIComponent(location)}`, {
       state: { from: "home" },
     });
+  };
+
+  const handleCommentClick = (event: NostrEvent) => {
+    setSelectedEvent(event);
+    setCommentModalOpen(true);
   };
 
   // Default SEO meta - will be overridden for specific content types
@@ -177,10 +188,11 @@ const PostPage = () => {
           <VideoPost
             event={postQuery.data}
             isActive={false}
-            isMuted={true}
-            onMuteToggle={() => {}}
+            isMuted={isMuted}
+            onMuteToggle={() => setIsMuted(!isMuted)}
             onHashtagClick={(hashtag) => navigate(`/hashtag/${hashtag}`)}
             onLocationClick={handleLocationClick}
+            onCommentClick={handleCommentClick}
           />
         ) : (
           <ImagePost
@@ -193,7 +205,16 @@ const PostPage = () => {
     </div>
   );
 
-  return <MainLayout key="post-layout">{content}</MainLayout>;
+  return (
+    <>
+      <MainLayout key="post-layout">{content}</MainLayout>
+      <CommentModal
+        open={commentModalOpen}
+        onOpenChange={setCommentModalOpen}
+        event={selectedEvent}
+      />
+    </>
+  );
 };
 
 export default PostPage;

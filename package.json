@@ -11,7 +11,7 @@
     "deploy": "npm run build && npx -y nostr-deploy-cli deploy --skip-setup"
   },
   "dependencies": {
-    "@getalby/sdk": "^5.1.0",
+    "@getalby/sdk": "^5.1.2",
     "@hookform/resolvers": "^3.9.0",
     "@nostrify/nostrify": "npm:@jsr/nostrify__nostrify@^0.46.1",
     "@nostrify/react": "npm:@jsr/nostrify__react@^0.2.5",
@@ -57,6 +57,7 @@
     "next-themes": "^0.3.0",
     "ngeohash": "^0.6.3",
     "nostr-tools": "^2.15.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -69,6 +70,7 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.3",
+    "webln": "^0.3.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -80,6 +82,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.5.5",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react-swc": "^3.5.0",

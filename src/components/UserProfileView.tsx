@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { genUserName } from "@/lib/genUserName";
 import { UserImageGrid } from "./UserImageGrid";
+import { UserVideoGrid } from "./UserVideoGrid";
 
 interface UserProfileViewProps {
   onEditClick?: () => void;
@@ -161,8 +163,21 @@ export function UserProfileView({ onEditClick }: UserProfileViewProps) {
         </CardContent>
       </Card>
 
-      {/* User Images Grid */}
-      <UserImageGrid pubkey={user.pubkey} />
+      {/* Content Tabs */}
+      <Tabs defaultValue="pix" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="pix">Pix</TabsTrigger>
+          <TabsTrigger value="flix">Flix</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="pix" className="mt-6">
+          <UserImageGrid pubkey={user.pubkey} />
+        </TabsContent>
+        
+        <TabsContent value="flix" className="mt-6">
+          <UserVideoGrid pubkey={user.pubkey} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

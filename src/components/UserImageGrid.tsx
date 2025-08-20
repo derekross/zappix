@@ -126,10 +126,7 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
   if (posts.isLoading) {
     return (
       <div className={cn("space-y-4", className)}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Your Images</h3>
-          <Skeleton className="h-4 w-16" />
-        </div>
+        <h3 className="text-lg font-semibold">Your Images</h3>
         <ImageGridSkeleton />
       </div>
     );
@@ -167,12 +164,7 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
   
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Your Images</h3>
-        <span className="text-sm text-muted-foreground">
-          {uniquePosts.length} {uniquePosts.length === 1 ? 'image' : 'images'}
-        </span>
-      </div>
+      <h3 className="text-lg font-semibold">Your Images</h3>
       
       <div className="grid grid-cols-3 gap-1">
         {uniquePosts.map((post) => (

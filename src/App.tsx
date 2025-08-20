@@ -13,6 +13,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { AppProvider } from "@/components/AppProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { NWCProvider } from "@/contexts/NWCContext";
 import { PWAUpdateNotification } from "@/components/PWAUpdateNotification";
 import { BackgroundProfileManager } from "@/components/BackgroundProfileManager";
 import { useMemoryMonitor } from "@/hooks/useMemoryMonitor";
@@ -85,15 +86,17 @@ export function App() {
               <NostrProvider>
                 <OutboxEnhancer />
                 <NotificationProvider>
-                  <TooltipProvider>
-                    <Toaster />
-                    <Sonner />
-                    <PWAUpdateNotification />
-                    <BackgroundProfileManager />
-                    <Suspense>
-                      <AppRouter />
-                    </Suspense>
-                  </TooltipProvider>
+                  <NWCProvider>
+                    <TooltipProvider>
+                      <Toaster />
+                      <Sonner />
+                      <PWAUpdateNotification />
+                      <BackgroundProfileManager />
+                      <Suspense>
+                        <AppRouter />
+                      </Suspense>
+                    </TooltipProvider>
+                  </NWCProvider>
                 </NotificationProvider>
               </NostrProvider>
             </NostrLoginProvider>

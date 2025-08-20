@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { UserImageGrid } from '@/components/UserImageGrid';
+import { UserVideoGrid } from '@/components/UserVideoGrid';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useIsFollowing, useToggleFollow, useFollowing } from '@/hooks/useFollowing';
@@ -404,8 +406,21 @@ export function PublicUserProfilePage({ pubkey }: PublicUserProfilePageProps) {
               </CardContent>
             </Card>
 
-            {/* User Images Grid */}
-            <UserImageGrid pubkey={pubkey} />
+            {/* Content Tabs */}
+            <Tabs defaultValue="pix" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="pix">Pix</TabsTrigger>
+                <TabsTrigger value="flix">Flix</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="pix" className="mt-6">
+                <UserImageGrid pubkey={pubkey} />
+              </TabsContent>
+              
+              <TabsContent value="flix" className="mt-6">
+                <UserVideoGrid pubkey={pubkey} />
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </main>
