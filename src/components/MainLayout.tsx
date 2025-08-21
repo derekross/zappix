@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoginArea } from "@/components/auth/LoginArea";
 import { ImageFeed } from "./ImageFeed";
 import { VideoFeed } from "./VideoFeed";
+import { OptimizedImageFeed } from "./OptimizedImageFeed";
+import { OptimizedVideoFeed } from "./OptimizedVideoFeed";
 import { HashtagGrid } from "./HashtagGrid";
 import { CreatePostDialog } from "./CreatePostDialog";
 
@@ -541,7 +543,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsList>
 
                     <TabsContent value="global" className="space-y-6">
-                      <ImageFeed
+                      <OptimizedImageFeed
                         feedType="global"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}
@@ -549,7 +551,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
-                      <ImageFeed
+                      <OptimizedImageFeed
                         feedType="following"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}
@@ -881,10 +883,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsList>
 
                     <TabsContent value="global" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold mb-2">Global Flix</h2>
-                      </div>
-                      <VideoFeed
+                      <OptimizedVideoFeed
                         feedType="global"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}
@@ -892,12 +891,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold mb-2">
-                          Following Flix
-                        </h2>
-                      </div>
-                      <VideoFeed
+                      <OptimizedVideoFeed
                         feedType="following"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}

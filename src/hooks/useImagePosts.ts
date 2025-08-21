@@ -1,4 +1,5 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useOptimizedFeedLoader } from "./useOptimizedFeedLoader";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { getDiscoveryPool, getOutboxPool } from "@/lib/poolManager";
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
@@ -174,7 +175,7 @@ export function useHashtagImagePosts(hashtags: string[], limit = 3) {
       const discoveryPool = getDiscoveryPool();
 
       // Hashtag feeds use discovery relays only (no outbox model)
-      
+
 
       // Query for each hashtag
       const hashtagResults = await Promise.all(
