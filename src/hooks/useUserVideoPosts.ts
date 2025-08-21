@@ -12,16 +12,42 @@ function validateVideoEvent(event: NostrEvent): boolean {
 
     // Check if any imeta tag contains video content
     const hasVideoImeta = imetaTags.some(tag => {
+      // Handle multiple formats more flexibly
+      let hasUrl = false;
+      let hasVideoMime = false;
+      
+      // Join all tag elements after the first one to create content string
       const tagContent = tag.slice(1).join(" ");
-      return tagContent.includes("url ") &&
-             (tagContent.includes("m video/") ||
-              tagContent.includes("m application/x-mpegURL")); // Include HLS streams
+      
+      // Look for URL in any format
+      const urlMatch = tagContent.match(/(?:^|\s)url\s+(\S+)/);
+      hasUrl = !!urlMatch;
+      
+      // Look for video MIME type in any format
+      const mimeMatch = tagContent.match(/(?:^|\s)m\s+(video\/\S+|application\/x-mpegURL)/);
+      hasVideoMime = !!mimeMatch;
+      
+      // Also check for video file extensions as backup
+      if (hasUrl && !hasVideoMime) {
+        const url = urlMatch![1];
+        hasVideoMime = /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(url);
+      }
+      
+      return hasUrl && hasVideoMime;
     });
 
-    // Also check for title tag which is required for NIP-71
-    const hasTitle = event.tags.some(([name]) => name === "title");
+    // Check for simple URL tags as additional fallback
+    const hasVideoUrl = event.tags.some(([name, value]) => {
+      if (name !== 'url') return false;
+      if (!value) return false;
+      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) || 
+             value.includes('video') ||
+             value.includes('.webm') ||
+             value.includes('.mp4');
+    });
 
-    return hasVideoImeta && hasTitle;
+    // For kind 22, we're more permissive - just need video content
+    return hasVideoImeta || hasVideoUrl;
   }
 
   // Check for legacy vertical video events (kind 34236)
@@ -32,15 +58,24 @@ function validateVideoEvent(event: NostrEvent): boolean {
     // Check if any imeta tag contains video content
     const hasVideoImeta = imetaTags.some(tag => {
       const tagContent = tag.slice(1).join(" ");
-      return tagContent.includes("url ") &&
-             tagContent.includes("m video/");
+      const hasUrl = tagContent.includes("url ") || /url\s+\S+/.test(tagContent);
+      const hasVideoMime = tagContent.includes("m video/") || /m\s+video\//.test(tagContent);
+      return hasUrl && hasVideoMime;
     });
 
     // Also check for standalone m and x tags (legacy format)
     const hasMimeTag = event.tags.some(([name, value]) => name === "m" && value?.startsWith("video/"));
     const hasHashTag = event.tags.some(([name]) => name === "x");
 
-    return hasVideoImeta || (hasMimeTag && hasHashTag);
+    // Check for simple URL tags as additional fallback
+    const hasVideoUrl = event.tags.some(([name, value]) => {
+      if (name !== 'url') return false;
+      if (!value) return false;
+      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) || 
+             value.includes('video');
+    });
+
+    return hasVideoImeta || (hasMimeTag && hasHashTag) || hasVideoUrl;
   }
 
   return false;
@@ -75,8 +110,23 @@ export function useUserVideoPosts(pubkey: string) {
       try {
         const events = await discoveryPool.query([filter], { signal: querySignal });
 
+        // DEBUG: Look for the most recent events
+        const kind22Events = events.filter(e => e.kind === 22);
+        const sortedByTime = kind22Events.sort((a, b) => b.created_at - a.created_at);
+        
+        console.log(`PROFILE DEBUG: Query found ${events.length} total events, ${kind22Events.length} kind 22 events for pubkey ${pubkey.slice(0,8)}`);
+        console.log('PROFILE DEBUG: Most recent 3 kind 22 events:', sortedByTime.slice(0, 3).map(e => ({
+          id: e.id.slice(0, 8),
+          created_at: e.created_at,
+          timestamp: new Date(e.created_at * 1000).toISOString(),
+          content: e.content.slice(0, 40) + '...',
+          passesValidation: validateVideoEvent(e)
+        })));
+
         // Filter and validate video events
         const validEvents = events.filter(validateVideoEvent);
+        
+        console.log(`PROFILE DEBUG: ${validEvents.length} events passed validation`);
 
         // Deduplicate by ID first, then sort by created_at
         const uniqueEvents = validEvents.filter(
@@ -90,20 +140,18 @@ export function useUserVideoPosts(pubkey: string) {
           ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
           : sortedEvents;
 
+
         return {
           events: filteredEvents,
           nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
         };
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error querying discovery relays for user videos:', error);
-        }
         throw error;
       }
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    staleTime: 300000, // 5 minutes
+    staleTime: 30000, // 30 seconds for better development experience 
     enabled: !!pubkey,
   });
 }

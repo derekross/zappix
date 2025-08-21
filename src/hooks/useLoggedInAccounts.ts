@@ -31,26 +31,20 @@ export function useLoggedInAccounts() {
     queryFn: async ({ signal }) => {
       if (logins.length === 0) return [];
 
-      console.log(`Fetching profiles for ${logins.length} logged-in accounts`);
-
       try {
         // Use outbox model to route profile queries to users' write relays
         const pubkeys = logins.map(l => l.pubkey);
         const filter = { kinds: [0], authors: pubkeys };
         const relayMap = await routeRequest([filter], DISCOVERY_RELAYS);
-        
-        console.log(`Login profiles routed to ${relayMap.size} relays:`, [...relayMap.keys()]);
 
         // Query all routed relays in parallel
         const queryPromises = Array.from(relayMap.entries()).map(async ([relay, filters]) => {
           try {
-            console.log(`Querying login profiles from relay: ${relay}`);
             const events = await nostr.query(filters, { 
               signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) 
             });
             return events;
           } catch (error) {
-            console.warn(`Failed to query login profiles from relay ${relay}:`, error);
             return [];
           }
         });
@@ -65,8 +59,6 @@ export function useLoggedInAccounts() {
           }
         }
 
-        console.log(`Login profiles query found ${allEvents.length} events total`);
-
         // Create accounts with the most recent profile for each user
         return logins.map(({ id, pubkey }): Account => {
           const userEvents = allEvents
@@ -74,24 +66,15 @@ export function useLoggedInAccounts() {
             .sort((a, b) => b.created_at - a.created_at);
           
           const event = userEvents[0];
-          
-          if (event) {
-            console.log(`Using profile for ${pubkey} from ${new Date(event.created_at * 1000).toISOString()}`);
-          } else {
-            console.warn(`No profile found for logged-in user: ${pubkey}`);
-          }
 
           try {
             const metadata = event ? n.json().pipe(n.metadata()).parse(event.content) : {};
             return { id, pubkey, metadata, event };
           } catch (parseError) {
-            console.warn(`Failed to parse profile metadata for ${pubkey}:`, parseError);
             return { id, pubkey, metadata: {}, event };
           }
         });
       } catch (outboxError) {
-        console.warn('Outbox model failed for login profiles, falling back to discovery relays:', outboxError);
-        
         // Fallback to discovery relays only
         const events = await nostr.query(
           [{ kinds: [0], authors: logins.map((l) => l.pubkey) }],

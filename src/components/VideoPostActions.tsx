@@ -199,7 +199,7 @@ export function VideoPostActions({ event, onClose }: VideoPostActionsProps) {
         description: "Your post has been deleted and will be hidden from feeds",
       });
       onClose();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to delete post",

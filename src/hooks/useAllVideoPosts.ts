@@ -7,56 +7,61 @@ import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 
 // Validator function for vertical video events (NIP-71 kind 22 and legacy kind 34236)
 function validateVideoEvent(event: NostrEvent): boolean {
-  console.log('Validating video event:', {
-    id: event.id,
-    kind: event.kind,
-    tags: event.tags.slice(0, 5), // Show first 5 tags for debugging
-    content: event.content.slice(0, 100)
-  });
-
   // Check for NIP-71 short-form video events (kind 22)
   if (event.kind === 22) {
     // For NIP-71 video events, check for imeta tag with video content
     const imetaTags = event.tags.filter(([name]) => name === "imeta");
-    console.log('Kind 22 event - found imeta tags:', imetaTags.length);
 
     // Check if any imeta tag contains video content
     const hasVideoImeta = imetaTags.some(tag => {
+      // Handle multiple formats more flexibly
+      let hasUrl = false;
+      let hasVideoMime = false;
+      
+      // Join all tag elements after the first one to create content string
       const tagContent = tag.slice(1).join(" ");
-      console.log('Checking imeta tag content:', tagContent);
-      const hasUrl = tagContent.includes("url ");
-      const hasVideoMime = tagContent.includes("m video/") || tagContent.includes("m application/x-mpegURL");
-      console.log('Has URL:', hasUrl, 'Has video MIME:', hasVideoMime);
+      
+      // Look for URL in any format
+      const urlMatch = tagContent.match(/(?:^|\s)url\s+(\S+)/);
+      hasUrl = !!urlMatch;
+      
+      // Look for video MIME type in any format
+      const mimeMatch = tagContent.match(/(?:^|\s)m\s+(video\/\S+|application\/x-mpegURL)/);
+      hasVideoMime = !!mimeMatch;
+      
+      // Also check for video file extensions as backup
+      if (hasUrl && !hasVideoMime) {
+        const url = urlMatch![1];
+        hasVideoMime = /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(url);
+      }
+      
       return hasUrl && hasVideoMime;
     });
 
-    // Also check for common video file extensions in URL as fallback
-    const hasVideoExtension = imetaTags.some(tag => {
-      const tagContent = tag.slice(1).join(" ");
-      const urlMatch = tagContent.match(/url\s+(\S+)/);
-      if (!urlMatch) return false;
-      const url = urlMatch[1];
-      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(url);
+    // Check for simple URL tags as additional fallback
+    const hasVideoUrl = event.tags.some(([name, value]) => {
+      if (name !== 'url') return false;
+      if (!value) return false;
+      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) || 
+             value.includes('video') ||
+             value.includes('.webm') ||
+             value.includes('.mp4');
     });
 
-    // Also check for title tag which is required for NIP-71
-    const hasTitle = event.tags.some(([name]) => name === "title");
-    console.log('Kind 22 validation:', { hasVideoImeta, hasVideoExtension, hasTitle, isValid: (hasVideoImeta || hasVideoExtension) && hasTitle });
-
-    return (hasVideoImeta || hasVideoExtension) && hasTitle;
+    // For kind 22, we're more permissive - just need video content
+    return hasVideoImeta || hasVideoUrl;
   }
 
   // Check for legacy vertical video events (kind 34236)
   if (event.kind === 34236) {
     // For legacy kind 34236, check for imeta tag with video content
     const imetaTags = event.tags.filter(([name]) => name === "imeta");
-    console.log('Kind 34236 event - found imeta tags:', imetaTags.length);
 
     // Check if any imeta tag contains video content
     const hasVideoImeta = imetaTags.some(tag => {
       const tagContent = tag.slice(1).join(" ");
-      const hasUrl = tagContent.includes("url ");
-      const hasVideoMime = tagContent.includes("m video/");
+      const hasUrl = tagContent.includes("url ") || /url\s+\S+/.test(tagContent);
+      const hasVideoMime = tagContent.includes("m video/") || /m\s+video\//.test(tagContent);
       return hasUrl && hasVideoMime;
     });
 
@@ -64,12 +69,17 @@ function validateVideoEvent(event: NostrEvent): boolean {
     const hasMimeTag = event.tags.some(([name, value]) => name === "m" && value?.startsWith("video/"));
     const hasHashTag = event.tags.some(([name]) => name === "x");
 
-    console.log('Kind 34236 validation:', { hasVideoImeta, hasMimeTag, hasHashTag, isValid: hasVideoImeta || (hasMimeTag && hasHashTag) });
+    // Check for simple URL tags as additional fallback
+    const hasVideoUrl = event.tags.some(([name, value]) => {
+      if (name !== 'url') return false;
+      if (!value) return false;
+      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) || 
+             value.includes('video');
+    });
 
-    return hasVideoImeta || (hasMimeTag && hasHashTag);
+    return hasVideoImeta || (hasMimeTag && hasHashTag) || hasVideoUrl;
   }
 
-  console.log('Event kind', event.kind, 'is not a valid video event kind');
   return false;
 }
 
@@ -106,7 +116,28 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
 
       try {
         const events = await discoveryPool.query([filter], { signal: querySignal });
+        
+        // DEBUG: Check global feed for our specific events
+        console.log(`GLOBAL FEED DEBUG: Found ${events.length} total events`);
+        const kind22Events = events.filter(e => e.kind === 22);
+        console.log(`GLOBAL FEED DEBUG: Found ${kind22Events.length} kind 22 events`);
+        
+        // Look for our specific user's events
+        const userEvents = kind22Events.filter(e => e.pubkey === '3f770d65ad708627520e038003e2acdb865a6a5c73061b49eb8a4c41fb2d8d4b');
+        console.log(`GLOBAL FEED DEBUG: Found ${userEvents.length} events from user 3f770d65`);
+        
+        if (userEvents.length > 0) {
+          console.log('GLOBAL FEED DEBUG: User events found:', userEvents.map(e => ({
+            id: e.id.slice(0, 8),
+            content: e.content.slice(0, 30) + '...',
+            created_at: e.created_at,
+            timestamp: new Date(e.created_at * 1000).toISOString(),
+            passesValidation: validateVideoEvent(e)
+          })));
+        }
+        
         let validEvents = events.filter(validateVideoEvent);
+        console.log(`GLOBAL FEED DEBUG: ${validEvents.length} events passed validation out of ${events.length} total`);
 
         // Filter by location if specified
         if (location) {
@@ -136,9 +167,6 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
           nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
         };
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error("Error querying discovery relays for videos:", error);
-        }
         throw error;
       }
     },
@@ -205,9 +233,6 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
         try {
           relayMap = await routeRequest([filter], fallbackRelays);
         } catch (outboxError) {
-          if (import.meta.env.DEV) {
-            console.warn('Outbox model routing failed, falling back to discovery relays:', outboxError);
-          }
           // Fallback to discovery pool if outbox model fails
           const discoveryPool = getDiscoveryPool();
           const events = await discoveryPool.query([filter], { signal: querySignal });
@@ -234,9 +259,6 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
             const events = await nostr.query(filters, { signal: querySignal });
             return events;
           } catch (error) {
-            if (import.meta.env.DEV) {
-              console.warn(`Failed to query relay ${relay}:`, error);
-            }
             return []; // Return empty array on failure
           }
         });
@@ -246,17 +268,12 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
 
         // If outbox model returned no results, try fallback to discovery relays
         if (events.length === 0) {
-          if (import.meta.env.DEV) {
-            console.log('Outbox model returned no results, trying discovery relays as fallback');
-          }
           try {
             const discoveryPool = getDiscoveryPool();
             const fallbackEvents = await discoveryPool.query([filter], { signal: querySignal });
             events.push(...fallbackEvents);
           } catch (fallbackError) {
-            if (import.meta.env.DEV) {
-              console.warn('Discovery fallback also failed:', fallbackError);
-            }
+            // Fallback failed, continue with empty results
           }
         }
 
@@ -274,9 +291,6 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
           ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
           : sortedEvents;
 
-        if (import.meta.env.DEV) {
-          console.log(`Following video feed: Found ${filteredEvents.length} events (${sortedEvents.length} before deletion filtering) from ${relayMap.size} relays`);
-        }
 
         return {
           events: filteredEvents,
@@ -286,9 +300,6 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
               : undefined,
         };
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error("Error in following video feed query:", error);
-        }
         throw error;
       }
     },

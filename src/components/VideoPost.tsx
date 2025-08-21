@@ -53,6 +53,16 @@ export function VideoPost({
   onCommentClick,
   className
 }: VideoPostProps) {
+  // DEBUG: Log when VideoPost is rendering
+  console.log('VideoPost DEBUG: Rendering event:', {
+    id: event.id.slice(0, 8),
+    kind: event.kind,
+    created_at: event.created_at,
+    timestamp: new Date(event.created_at * 1000).toISOString(),
+    content: event.content.slice(0, 50) + '...',
+    tagCount: event.tags.length,
+    imetaTagCount: event.tags.filter(([name]) => name === "imeta").length
+  });
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -85,27 +95,90 @@ export function VideoPost({
 
   // Check for simple URL tags as fallback
   const urlTags = event.tags.filter(([name]) => name === 'url');
-  console.log('URL tags found:', urlTags);
+
+  console.log('VideoPost DEBUG: Tag parsing for event', event.id.slice(0, 8), {
+    imetaTags: imetaTags.length,
+    urlTags: urlTags.length,
+    kind: event.kind,
+    allTags: event.tags,
+    imetaTagsRaw: imetaTags
+  });
 
   if (event.kind === 22) {
     // NIP-71 short-form video format with imeta tags
     videos = imetaTags
       .map((tag) => {
-        // Parse the imeta tag which contains space-separated key-value pairs
-        const tagContent = tag.slice(1).join(' ');
+        let url: string | undefined;
+        let mimeType: string | undefined;
+        let thumbnail: string | undefined;
 
-        // Extract URL
-        const urlMatch = tagContent.match(/url\s+(\S+)/);
-        const url = urlMatch?.[1];
+        // The new format should be a single string with space-separated key-value pairs
+        // But handle backward compatibility with incorrect format as well
+        
+        // First try the correct NIP-94 format: space-separated key-value pairs in single string
+        if (tag.length === 2) {
+          const tagContent = tag[1]; // Just the second element which should be the full content string
 
-        // Extract MIME type
-        const mimeMatch = tagContent.match(/m\s+(\S+)/);
-        const mimeType = mimeMatch?.[1];
+          const urlMatch = tagContent.match(/url\s+(\S+)/);
+          url = urlMatch?.[1];
 
-        // Extract thumbnail (can be 'thumb' or 'image')
-        const thumbMatch = tagContent.match(/thumb\s+(\S+)/);
-        const imageMatch = tagContent.match(/image\s+(\S+)/);
-        const thumbnail = thumbMatch?.[1] || imageMatch?.[1];
+          const mimeMatch = tagContent.match(/\bm\s+([^\s]+)/);
+          mimeType = mimeMatch?.[1];
+
+          const thumbMatch = tagContent.match(/thumb\s+(\S+)/);
+          const imageMatch = tagContent.match(/image\s+(\S+)/);
+          thumbnail = thumbMatch?.[1] || imageMatch?.[1];
+        }
+        
+        // Handle the current incorrect format that's being generated
+        // Format: ['imeta', 'url <URL>', 'm <MIME>', 'dim ...', 'alt ...', ...]
+        if ((!url || !mimeType) && tag.length > 2) {
+          // Look for URL element
+          const urlElement = tag.find(element => typeof element === 'string' && element.startsWith('url '));
+          if (urlElement && !url) {
+            url = urlElement.replace('url ', '');
+          }
+
+          // Look for MIME type element
+          const mimeElement = tag.find(element => typeof element === 'string' && element.startsWith('m '));
+          if (mimeElement && !mimeType) {
+            const extractedType = mimeElement.replace('m ', '');
+            // Only use if it looks like a valid MIME type (contains '/')
+            if (extractedType.includes('/')) {
+              mimeType = extractedType;
+            }
+          }
+
+          // Look for thumbnail elements
+          const thumbElement = tag.find(element => typeof element === 'string' && element.startsWith('thumb '));
+          const imageElement = tag.find(element => typeof element === 'string' && element.startsWith('image '));
+          if (thumbElement && !thumbnail) {
+            thumbnail = thumbElement.replace('thumb ', '');
+          } else if (imageElement && !thumbnail) {
+            thumbnail = imageElement.replace('image ', '');
+          }
+        }
+
+        // Final fallback: join all elements and parse (for any edge cases)
+        if (!url || !mimeType) {
+          const tagContent = tag.slice(1).join(' ');
+
+          if (!url) {
+            const urlMatch = tagContent.match(/url\s+(\S+)/);
+            url = urlMatch?.[1];
+          }
+
+          if (!mimeType) {
+            const mimeMatch = tagContent.match(/\bm\s+([^\s]+)/);
+            mimeType = mimeMatch?.[1];
+          }
+
+          if (!thumbnail) {
+            const thumbMatch = tagContent.match(/thumb\s+(\S+)/);
+            const imageMatch = tagContent.match(/image\s+(\S+)/);
+            thumbnail = thumbMatch?.[1] || imageMatch?.[1];
+          }
+        }
 
         return { url, mimeType, thumbnail };
       })
@@ -114,25 +187,82 @@ export function VideoPost({
     // Legacy vertical video format (kind 34236)
     videos = imetaTags
       .map((tag) => {
-        // Parse the imeta tag which contains space-separated key-value pairs
-        const tagContent = tag.slice(1).join(' ');
+        let url: string | undefined;
+        let mimeType: string | undefined;
+        let thumbnail: string | undefined;
 
-        // Extract URL
-        const urlMatch = tagContent.match(/url\s+(\S+)/);
-        const url = urlMatch?.[1];
+        // First try the correct NIP-94 format: space-separated key-value pairs in single string
+        if (tag.length === 2) {
+          const tagContent = tag[1]; // Just the second element which should be the full content string
 
-        // Extract MIME type
-        const mimeMatch = tagContent.match(/m\s+(\S+)/);
-        const mimeType = mimeMatch?.[1];
+          const urlMatch = tagContent.match(/url\s+(\S+)/);
+          url = urlMatch?.[1];
 
-        return { url, mimeType, thumbnail: undefined };
+          const mimeMatch = tagContent.match(/\bm\s+([^\s]+)/);
+          mimeType = mimeMatch?.[1];
+
+          const thumbMatch = tagContent.match(/thumb\s+(\S+)/);
+          const imageMatch = tagContent.match(/image\s+(\S+)/);
+          thumbnail = thumbMatch?.[1] || imageMatch?.[1];
+        }
+        
+        // Handle the current incorrect format that's being generated
+        // Format: ['imeta', 'url <URL>', 'm <MIME>', 'dim ...', 'alt ...', ...]
+        if ((!url || !mimeType) && tag.length > 2) {
+          // Look for URL element
+          const urlElement = tag.find(element => typeof element === 'string' && element.startsWith('url '));
+          if (urlElement && !url) {
+            url = urlElement.replace('url ', '');
+          }
+
+          // Look for MIME type element
+          const mimeElement = tag.find(element => typeof element === 'string' && element.startsWith('m '));
+          if (mimeElement && !mimeType) {
+            const extractedType = mimeElement.replace('m ', '');
+            // Only use if it looks like a valid MIME type (contains '/')
+            if (extractedType.includes('/')) {
+              mimeType = extractedType;
+            }
+          }
+
+          // Look for thumbnail elements
+          const thumbElement = tag.find(element => typeof element === 'string' && element.startsWith('thumb '));
+          const imageElement = tag.find(element => typeof element === 'string' && element.startsWith('image '));
+          if (thumbElement && !thumbnail) {
+            thumbnail = thumbElement.replace('thumb ', '');
+          } else if (imageElement && !thumbnail) {
+            thumbnail = imageElement.replace('image ', '');
+          }
+        }
+
+        // Final fallback: join all elements and parse (for any edge cases)
+        if (!url || !mimeType) {
+          const tagContent = tag.slice(1).join(' ');
+
+          if (!url) {
+            const urlMatch = tagContent.match(/url\s+(\S+)/);
+            url = urlMatch?.[1];
+          }
+
+          if (!mimeType) {
+            const mimeMatch = tagContent.match(/\bm\s+([^\s]+)/);
+            mimeType = mimeMatch?.[1];
+          }
+
+          if (!thumbnail) {
+            const thumbMatch = tagContent.match(/thumb\s+(\S+)/);
+            const imageMatch = tagContent.match(/image\s+(\S+)/);
+            thumbnail = thumbMatch?.[1] || imageMatch?.[1];
+          }
+        }
+
+        return { url, mimeType, thumbnail };
       })
       .filter((video) => video.url && video.mimeType?.startsWith('video/'));
   }
 
   // Fallback: If no videos found from imeta tags, try to parse from direct URL tags
   if (videos.length === 0 && urlTags.length > 0) {
-    console.log('No videos from imeta tags, trying URL tags as fallback');
     videos = urlTags
       .map(([, url]) => {
         // Try to determine MIME type from URL extension
@@ -148,8 +278,6 @@ export function VideoPost({
         return { url, mimeType, thumbnail: undefined };
       })
       .filter((video) => video.url && (video.url.includes('video') || video.url.match(/\.(mp4|webm|mov|avi)$/i)));
-    
-    console.log('Videos from URL tags fallback:', videos);
   }
 
   const likeCount = reactions.data?.['+']?.count || 0;
@@ -180,8 +308,7 @@ export function VideoPost({
             .then(() => {
               setIsPlaying(true);
             })
-            .catch((error) => {
-              console.log('Video play failed:', error);
+            .catch(() => {
               setIsPlaying(false);
             });
         }
@@ -197,17 +324,14 @@ export function VideoPost({
     const video = videoRef.current;
     if (video) {
       const handleLoadedData = () => {
-        console.log('Video loaded data successfully:', video.src);
         if (isActive) {
           const playPromise = video.play();
           if (playPromise !== undefined) {
             playPromise
               .then(() => {
-                console.log('Video playing successfully');
                 setIsPlaying(true);
               })
-              .catch((error) => {
-                console.error('Video play failed:', error);
+              .catch(() => {
                 setIsPlaying(false);
               });
           }
@@ -215,50 +339,31 @@ export function VideoPost({
       };
 
       const handlePlay = () => {
-        console.log('Video play event');
         setIsPlaying(true);
       };
       
       const handlePause = () => {
-        console.log('Video pause event');
         setIsPlaying(false);
       };
       
       const handleCanPlay = () => {
-        console.log('Video can play event');
         if (isActive) {
-          video.play().catch((error) => {
-            console.error('Video play failed on canplay:', error);
+          video.play().catch(() => {
             setIsPlaying(false);
           });
         }
       };
 
-      const handleError = (e: Event) => {
-        console.error('Video error event:', e, video.error);
-        if (video.error) {
-          console.error('Video error details:', {
-            code: video.error.code,
-            message: video.error.message,
-            MEDIA_ERR_ABORTED: video.error.MEDIA_ERR_ABORTED,
-            MEDIA_ERR_NETWORK: video.error.MEDIA_ERR_NETWORK,
-            MEDIA_ERR_DECODE: video.error.MEDIA_ERR_DECODE,
-            MEDIA_ERR_SRC_NOT_SUPPORTED: video.error.MEDIA_ERR_SRC_NOT_SUPPORTED
-          });
-        }
+      const handleError = () => {
+        // Video error handling (logging removed)
       };
 
       const handleLoadStart = () => {
-        console.log('Video load start:', video.src);
+        // Video load start (logging removed)
       };
 
       const handleLoadedMetadata = () => {
-        console.log('Video metadata loaded:', {
-          duration: video.duration,
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          readyState: video.readyState
-        });
+        // Video metadata loaded (logging removed)
       };
 
       video.addEventListener('loadeddata', handleLoadedData);
@@ -304,8 +409,7 @@ export function VideoPost({
           .then(() => {
             setIsPlaying(true);
           })
-          .catch((error) => {
-            console.log('Manual play failed:', error);
+          .catch(() => {
             setIsPlaying(false);
           });
       }
@@ -369,58 +473,10 @@ export function VideoPost({
     onLocationClick?.(locationName);
   };
 
-  // Debug logging for video parsing
-  console.log('Video parsing debug:', {
-    eventKind: event.kind,
-    allTags: event.tags,
-    imetaTags: imetaTags,
-    parsedVideos: videos,
-    videosLength: videos.length
-  });
-
-  // Debug each imeta tag parsing
-  if (event.kind === 22) {
-    console.log('Parsing kind 22 imeta tags:');
-    imetaTags.forEach((tag, index) => {
-      console.log(`imeta tag ${index}:`, tag);
-      const tagContent = tag.slice(1).join(' ');
-      console.log(`Tag content: "${tagContent}"`);
-      
-      // Extract URL
-      const urlMatch = tagContent.match(/url\s+(\S+)/);
-      const url = urlMatch?.[1];
-      console.log(`Extracted URL: "${url}"`);
-
-      // Extract MIME type
-      const mimeMatch = tagContent.match(/m\s+(\S+)/);
-      const mimeType = mimeMatch?.[1];
-      console.log(`Extracted MIME type: "${mimeType}"`);
-
-      // Extract thumbnail
-      const thumbMatch = tagContent.match(/thumb\s+(\S+)/);
-      const imageMatch = tagContent.match(/image\s+(\S+)/);
-      const thumbnail = thumbMatch?.[1] || imageMatch?.[1];
-      console.log(`Extracted thumbnail: "${thumbnail}"`);
-
-      const videoObj = { url, mimeType, thumbnail };
-      console.log(`Video object:`, videoObj);
-      
-      const passesFilter = videoObj.url && (videoObj.mimeType?.startsWith('video/') || videoObj.mimeType === 'application/x-mpegURL');
-      console.log(`Passes filter: ${passesFilter}`);
-    });
-  }
-
-  if (videos.length === 0) {
-    console.log('No videos found in event:', event);
-    return null;
-  }
-
-  const primaryVideo = videos[0];
-  console.log('Primary video selected:', primaryVideo);
 
   // Helper function to get corrected MIME type based on URL extension
-  const getCorrectedVideo = (video: typeof primaryVideo) => {
-    if (!video.url || !video.mimeType) return video;
+  const getCorrectedVideo = (video: typeof videos[0] | undefined) => {
+    if (!video || !video.url || !video.mimeType) return video;
 
     const url = video.url.toLowerCase();
     let correctedMimeType = video.mimeType;
@@ -428,13 +484,10 @@ export function VideoPost({
     // Check URL extension and override MIME type if mismatched
     if (url.endsWith('.webm') && !correctedMimeType.includes('webm')) {
       correctedMimeType = 'video/webm';
-      console.log('Corrected MIME type from', video.mimeType, 'to', correctedMimeType, 'based on URL extension');
     } else if (url.endsWith('.mp4') && !correctedMimeType.includes('mp4')) {
       correctedMimeType = 'video/mp4';
-      console.log('Corrected MIME type from', video.mimeType, 'to', correctedMimeType, 'based on URL extension');
     } else if (url.endsWith('.mov') && !correctedMimeType.includes('quicktime')) {
       correctedMimeType = 'video/quicktime';
-      console.log('Corrected MIME type from', video.mimeType, 'to', correctedMimeType, 'based on URL extension');
     }
 
     return {
@@ -443,13 +496,12 @@ export function VideoPost({
     };
   };
 
-  // Get corrected video object
+  const primaryVideo = videos.length > 0 ? videos[0] : undefined;
   const correctedVideo = getCorrectedVideo(primaryVideo);
-  console.log('Corrected video:', correctedVideo);
 
   // Check codec support for WebM files
   useEffect(() => {
-    if (correctedVideo.url && correctedVideo.url.endsWith('.webm')) {
+    if (correctedVideo?.url && correctedVideo.url.endsWith('.webm')) {
       const video = document.createElement('video');
       const supportedFormats = [
         'video/webm; codecs="vp9"',
@@ -461,13 +513,29 @@ export function VideoPost({
         'video/webm',
       ];
       
-      console.log('WebM codec support check:');
+      // Check codec support (logging removed)
       supportedFormats.forEach(format => {
-        const canPlay = video.canPlayType(format);
-        console.log(`${format}: ${canPlay}`);
+        video.canPlayType(format);
       });
     }
-  }, [correctedVideo.url]);
+  }, [correctedVideo?.url]);
+
+  console.log('VideoPost DEBUG: Video parsing results:', {
+    id: event.id.slice(0, 8),
+    videosFound: videos.length,
+    videos: videos.map(v => ({ url: v.url?.slice(0, 50) + '...', mimeType: v.mimeType })),
+    correctedVideoExists: !!correctedVideo
+  });
+
+  if (videos.length === 0) {
+    console.log('VideoPost DEBUG: No videos found, returning null for event:', event.id.slice(0, 8));
+    return null;
+  }
+
+  if (!correctedVideo) {
+    console.log('VideoPost DEBUG: No corrected video, returning null for event:', event.id.slice(0, 8));
+    return null;
+  }
 
   // Calculate container height based on layout
   const getContainerHeight = () => {

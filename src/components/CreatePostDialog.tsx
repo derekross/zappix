@@ -430,8 +430,8 @@ export function CreatePostDialog({
         // Get the actual filename from the URL for the alt tag
         const urlFileName = url.split('/').pop() || file.name;
         
-        const imetaTag: string[] = [
-          "imeta",
+        // Create a proper NIP-94 imeta tag with space-separated key-value pairs
+        const imetaContent = [
           `url ${url}`,
           `m ${mimeType}`,
           `dim ${dimensions.width}x${dimensions.height}`,
@@ -440,17 +440,27 @@ export function CreatePostDialog({
 
         // Add blurhash for images
         if (blurhash) {
-          imetaTag.push(`blurhash ${blurhash}`);
+          imetaContent.push(`blurhash ${blurhash}`);
         }
 
         // Add thumbnail for videos (if available)
         if (thumbnail) {
-          imetaTag.push(`image ${thumbnail}`);
+          imetaContent.push(`image ${thumbnail}`);
         }
 
         // Include any additional tags from uploadFile, but skip 'm' (MIME type) since we already added it
         const additionalTags = tags.slice(1).filter(([name]) => name !== 'm');
-        imetaTag.push(...additionalTags.map((tag) => tag[1]));
+        additionalTags.forEach(([name, value]) => {
+          // Don't duplicate existing keys
+          if (!imetaContent.some(content => content.startsWith(`${name} `))) {
+            imetaContent.push(`${name} ${value}`);
+          }
+        });
+
+        const imetaTag: string[] = [
+          "imeta",
+          imetaContent.join(' '), // Join all key-value pairs with spaces
+        ];
 
         newMedia.push({
           file,

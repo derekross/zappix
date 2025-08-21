@@ -43,7 +43,6 @@ export function useDeletedEvents() {
           });
         });
 
-        console.log(`Found ${deletionEvents.length} deletion events, tracking ${deletedEventIds.size} deleted regular events and ${deletedEventCoordinates.size} deleted addressable events`);
 
         return {
           deletedEventIds,
