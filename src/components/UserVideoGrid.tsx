@@ -114,6 +114,8 @@ export function UserVideoGrid({ pubkey, className }: UserVideoGridProps) {
     (video, index, self) => index === self.findIndex(v => v.id === video.id)
   );
 
+  
+
   if (query.isLoading) {
     return (
       <div className={cn('space-y-4', className)}>

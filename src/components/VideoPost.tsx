@@ -53,16 +53,6 @@ export function VideoPost({
   onCommentClick,
   className
 }: VideoPostProps) {
-  // DEBUG: Log when VideoPost is rendering
-  console.log('VideoPost DEBUG: Rendering event:', {
-    id: event.id.slice(0, 8),
-    kind: event.kind,
-    created_at: event.created_at,
-    timestamp: new Date(event.created_at * 1000).toISOString(),
-    content: event.content.slice(0, 50) + '...',
-    tagCount: event.tags.length,
-    imetaTagCount: event.tags.filter(([name]) => name === "imeta").length
-  });
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -96,13 +86,8 @@ export function VideoPost({
   // Check for simple URL tags as fallback
   const urlTags = event.tags.filter(([name]) => name === 'url');
 
-  console.log('VideoPost DEBUG: Tag parsing for event', event.id.slice(0, 8), {
-    imetaTags: imetaTags.length,
-    urlTags: urlTags.length,
-    kind: event.kind,
-    allTags: event.tags,
-    imetaTagsRaw: imetaTags
-  });
+
+
 
   if (event.kind === 22) {
     // NIP-71 short-form video format with imeta tags
@@ -114,7 +99,7 @@ export function VideoPost({
 
         // The new format should be a single string with space-separated key-value pairs
         // But handle backward compatibility with incorrect format as well
-        
+
         // First try the correct NIP-94 format: space-separated key-value pairs in single string
         if (tag.length === 2) {
           const tagContent = tag[1]; // Just the second element which should be the full content string
@@ -129,7 +114,7 @@ export function VideoPost({
           const imageMatch = tagContent.match(/image\s+(\S+)/);
           thumbnail = thumbMatch?.[1] || imageMatch?.[1];
         }
-        
+
         // Handle the current incorrect format that's being generated
         // Format: ['imeta', 'url <URL>', 'm <MIME>', 'dim ...', 'alt ...', ...]
         if ((!url || !mimeType) && tag.length > 2) {
@@ -205,7 +190,7 @@ export function VideoPost({
           const imageMatch = tagContent.match(/image\s+(\S+)/);
           thumbnail = thumbMatch?.[1] || imageMatch?.[1];
         }
-        
+
         // Handle the current incorrect format that's being generated
         // Format: ['imeta', 'url <URL>', 'm <MIME>', 'dim ...', 'alt ...', ...]
         if ((!url || !mimeType) && tag.length > 2) {
@@ -274,7 +259,7 @@ export function VideoPost({
         } else if (url.toLowerCase().endsWith('.avi')) {
           mimeType = 'video/x-msvideo';
         }
-        
+
         return { url, mimeType, thumbnail: undefined };
       })
       .filter((video) => video.url && (video.url.includes('video') || video.url.match(/\.(mp4|webm|mov|avi)$/i)));
@@ -341,11 +326,11 @@ export function VideoPost({
       const handlePlay = () => {
         setIsPlaying(true);
       };
-      
+
       const handlePause = () => {
         setIsPlaying(false);
       };
-      
+
       const handleCanPlay = () => {
         if (isActive) {
           video.play().catch(() => {
@@ -512,7 +497,7 @@ export function VideoPost({
         'video/webm; codecs="vp8,opus"',
         'video/webm',
       ];
-      
+
       // Check codec support (logging removed)
       supportedFormats.forEach(format => {
         video.canPlayType(format);
@@ -520,20 +505,16 @@ export function VideoPost({
     }
   }, [correctedVideo?.url]);
 
-  console.log('VideoPost DEBUG: Video parsing results:', {
-    id: event.id.slice(0, 8),
-    videosFound: videos.length,
-    videos: videos.map(v => ({ url: v.url?.slice(0, 50) + '...', mimeType: v.mimeType })),
-    correctedVideoExists: !!correctedVideo
-  });
+
+    
 
   if (videos.length === 0) {
-    console.log('VideoPost DEBUG: No videos found, returning null for event:', event.id.slice(0, 8));
+
     return null;
   }
 
   if (!correctedVideo) {
-    console.log('VideoPost DEBUG: No corrected video, returning null for event:', event.id.slice(0, 8));
+
     return null;
   }
 

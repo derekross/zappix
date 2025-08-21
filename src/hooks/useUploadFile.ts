@@ -238,7 +238,7 @@ export function useUploadFile() {
           // Show user-friendly message for different failure types
           if (compressionError instanceof Error) {
             if (compressionError.message.includes('memory')) {
-              console.log('Compression skipped due to memory constraints - uploading original file');
+              
             } else if (compressionError.message.includes('format not supported') || compressionError.message.includes('MEDIA_ERR_DECODE')) {
               console.log('Video format not supported for compression - uploading original file');
             } else if (compressionError.message.includes('timeout') || compressionError.message.includes('stalled')) {

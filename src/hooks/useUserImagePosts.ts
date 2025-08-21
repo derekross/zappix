@@ -30,7 +30,7 @@ function validateImageEvent(event: NostrEvent): boolean {
 
 export function useUserImagePosts(pubkey: string | undefined) {
   const { data: deletionData } = useDeletedEvents();
-  
+
   return useInfiniteQuery({
     queryKey: ['user-image-posts', pubkey],
     queryFn: async ({ pageParam, signal }) => {
@@ -42,7 +42,7 @@ export function useUserImagePosts(pubkey: string | undefined) {
 
       const discoveryPool = getDiscoveryPool();
 
-      console.log('Querying user image posts for pubkey:', pubkey.slice(0, 8), pageParam ? `until ${pageParam}` : 'initial');
+
 
       try {
         const filter: { kinds: number[]; authors: string[]; limit: number; until?: number } = {
@@ -76,7 +76,7 @@ export function useUserImagePosts(pubkey: string | undefined) {
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
         // Filter out deleted events if deletion data is available
-        const filteredEvents = deletionData 
+        const filteredEvents = deletionData
           ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
           : sortedEvents;
 
@@ -86,7 +86,7 @@ export function useUserImagePosts(pubkey: string | undefined) {
           nextCursor: events.length < filter.limit ? undefined : filteredEvents[filteredEvents.length - 1]?.created_at,
         };
       } catch (error) {
-        console.error('Error querying user image posts:', error);
+        
         throw error;
       }
     },

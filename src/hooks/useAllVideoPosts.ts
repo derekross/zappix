@@ -17,24 +17,24 @@ function validateVideoEvent(event: NostrEvent): boolean {
       // Handle multiple formats more flexibly
       let hasUrl = false;
       let hasVideoMime = false;
-      
+
       // Join all tag elements after the first one to create content string
       const tagContent = tag.slice(1).join(" ");
-      
+
       // Look for URL in any format
       const urlMatch = tagContent.match(/(?:^|\s)url\s+(\S+)/);
       hasUrl = !!urlMatch;
-      
+
       // Look for video MIME type in any format
       const mimeMatch = tagContent.match(/(?:^|\s)m\s+(video\/\S+|application\/x-mpegURL)/);
       hasVideoMime = !!mimeMatch;
-      
+
       // Also check for video file extensions as backup
       if (hasUrl && !hasVideoMime) {
         const url = urlMatch![1];
         hasVideoMime = /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(url);
       }
-      
+
       return hasUrl && hasVideoMime;
     });
 
@@ -42,14 +42,28 @@ function validateVideoEvent(event: NostrEvent): boolean {
     const hasVideoUrl = event.tags.some(([name, value]) => {
       if (name !== 'url') return false;
       if (!value) return false;
-      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) || 
+      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) ||
              value.includes('video') ||
              value.includes('.webm') ||
              value.includes('.mp4');
     });
 
+    // Also check for single-string imeta format (like user's event)
+    const hasSingleStringImeta = event.tags.some(([name, value]) => {
+      if (name !== 'imeta' || !value) return false;
+
+      // Check if single string contains both url and video mime type
+      const hasUrl = value.includes('url https://') || value.includes('url http://');
+      const hasVideoMime = value.includes('m video/') || value.includes('m application/x-mpegURL');
+
+      // Also check for video file extensions
+      const hasVideoExtension = /\.(mp4|webm|mov|avi|mkv|3gp|m4v)/i.test(value);
+
+      return hasUrl && (hasVideoMime || hasVideoExtension);
+    });
+
     // For kind 22, we're more permissive - just need video content
-    return hasVideoImeta || hasVideoUrl;
+    return hasVideoImeta || hasSingleStringImeta || hasVideoUrl;
   }
 
   // Check for legacy vertical video events (kind 34236)
@@ -73,7 +87,7 @@ function validateVideoEvent(event: NostrEvent): boolean {
     const hasVideoUrl = event.tags.some(([name, value]) => {
       if (name !== 'url') return false;
       if (!value) return false;
-      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) || 
+      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) ||
              value.includes('video');
     });
 
@@ -89,7 +103,7 @@ function validateVideoEvent(event: NostrEvent): boolean {
 
 export function useAllVideoPosts(hashtag?: string, location?: string, orientation?: 'vertical' | 'horizontal' | 'all') {
   const { data: deletionData } = useDeletedEvents();
-  
+
   return useInfiniteQuery({
     queryKey: ["all-video-posts", hashtag, location, orientation],
     queryFn: async ({ pageParam, signal }) => {
@@ -114,61 +128,37 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
         filter.until = pageParam;
       }
 
-      try {
-        const events = await discoveryPool.query([filter], { signal: querySignal });
-        
-        // DEBUG: Check global feed for our specific events
-        console.log(`GLOBAL FEED DEBUG: Found ${events.length} total events`);
-        const kind22Events = events.filter(e => e.kind === 22);
-        console.log(`GLOBAL FEED DEBUG: Found ${kind22Events.length} kind 22 events`);
-        
-        // Look for our specific user's events
-        const userEvents = kind22Events.filter(e => e.pubkey === '3f770d65ad708627520e038003e2acdb865a6a5c73061b49eb8a4c41fb2d8d4b');
-        console.log(`GLOBAL FEED DEBUG: Found ${userEvents.length} events from user 3f770d65`);
-        
-        if (userEvents.length > 0) {
-          console.log('GLOBAL FEED DEBUG: User events found:', userEvents.map(e => ({
-            id: e.id.slice(0, 8),
-            content: e.content.slice(0, 30) + '...',
-            created_at: e.created_at,
-            timestamp: new Date(e.created_at * 1000).toISOString(),
-            passesValidation: validateVideoEvent(e)
-          })));
-        }
-        
-        let validEvents = events.filter(validateVideoEvent);
-        console.log(`GLOBAL FEED DEBUG: ${validEvents.length} events passed validation out of ${events.length} total`);
+      const events = await discoveryPool.query([filter], { signal: querySignal });
 
-        // Filter by location if specified
-        if (location) {
-          validEvents = validEvents.filter(event =>
-            event.tags.some(tag =>
-              tag[0] === "location" &&
-              tag[1] &&
-              tag[1].toLowerCase().includes(location.toLowerCase())
-            )
-          );
-        }
+      let validEvents = events.filter(validateVideoEvent);
 
-        // Deduplicate by ID first, then sort by created_at
-        const uniqueEvents = validEvents.filter(
-          (event, index, self) => index === self.findIndex(e => e.id === event.id)
+      // Filter by location if specified
+      if (location) {
+        validEvents = validEvents.filter(event =>
+          event.tags.some(tag =>
+            tag[0] === "location" &&
+            tag[1] &&
+            tag[1].toLowerCase().includes(location.toLowerCase())
+          )
         );
-
-        const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
-
-        // Filter out deleted events if deletion data is available
-        const filteredEvents = deletionData 
-          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
-          : sortedEvents;
-
-        return {
-          events: filteredEvents,
-          nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
-        };
-      } catch (error) {
-        throw error;
       }
+
+      // Deduplicate by ID first, then sort by created_at
+      const uniqueEvents = validEvents.filter(
+        (event, index, self) => index === self.findIndex(e => e.id === event.id)
+      );
+
+      const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+
+      // Filter out deleted events if deletion data is available
+      const filteredEvents = deletionData
+        ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+        : sortedEvents;
+
+      return {
+        events: filteredEvents,
+        nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
+      };
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -211,97 +201,93 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
         "wss://relay.snort.social",
       ];
 
+      const filter: {
+        kinds: number[];
+        authors: string[];
+        limit: number;
+        until?: number;
+      } = {
+        kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
+        authors: followingPubkeys.slice(), // Create a copy to avoid reference issues
+        limit: 15, // Slightly larger limit for outbox model
+      };
+
+      // Add pagination using 'until' timestamp
+      if (pageParam) {
+        filter.until = pageParam;
+      }
+
+      // Use outbox model to route requests to followed users' write relays
+      let relayMap: Map<string, NostrFilter[]>;
       try {
-        const filter: {
-          kinds: number[];
-          authors: string[];
-          limit: number;
-          until?: number;
-        } = {
-          kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
-          authors: followingPubkeys.slice(), // Create a copy to avoid reference issues
-          limit: 15, // Slightly larger limit for outbox model
-        };
-
-        // Add pagination using 'until' timestamp
-        if (pageParam) {
-          filter.until = pageParam;
-        }
-
-        // Use outbox model to route requests to followed users' write relays
-        let relayMap: Map<string, NostrFilter[]>;
-        try {
-          relayMap = await routeRequest([filter], fallbackRelays);
-        } catch (outboxError) {
-          // Fallback to discovery pool if outbox model fails
-          const discoveryPool = getDiscoveryPool();
-          const events = await discoveryPool.query([filter], { signal: querySignal });
-          const validEvents = events.filter(validateVideoEvent);
-          const uniqueEvents = validEvents.filter(
-            (event, index, self) => index === self.findIndex((e) => e.id === event.id)
-          );
-          const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
-
-          // Filter out deleted events if deletion data is available
-          const filteredEvents = deletionData 
-            ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
-            : sortedEvents;
-
-          return {
-            events: filteredEvents,
-            nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
-          };
-        }
-
-        // Query all routed relays
-        const relayPromises = Array.from(relayMap.entries()).map(async ([relay, filters]) => {
-          try {
-            const events = await nostr.query(filters, { signal: querySignal });
-            return events;
-          } catch (error) {
-            return []; // Return empty array on failure
-          }
-        });
-
-        const allEvents = await Promise.all(relayPromises);
-        const events = allEvents.flat();
-
-        // If outbox model returned no results, try fallback to discovery relays
-        if (events.length === 0) {
-          try {
-            const discoveryPool = getDiscoveryPool();
-            const fallbackEvents = await discoveryPool.query([filter], { signal: querySignal });
-            events.push(...fallbackEvents);
-          } catch (fallbackError) {
-            // Fallback failed, continue with empty results
-          }
-        }
-
+        relayMap = await routeRequest([filter], fallbackRelays);
+      } catch {
+        // Fallback to discovery pool if outbox model fails
+        const discoveryPool = getDiscoveryPool();
+        const events = await discoveryPool.query([filter], { signal: querySignal });
         const validEvents = events.filter(validateVideoEvent);
-
-        // Deduplicate by ID first, then sort by created_at
         const uniqueEvents = validEvents.filter(
           (event, index, self) => index === self.findIndex((e) => e.id === event.id)
         );
-
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
         // Filter out deleted events if deletion data is available
-        const filteredEvents = deletionData 
+        const filteredEvents = deletionData
           ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
           : sortedEvents;
 
-
         return {
           events: filteredEvents,
-          nextCursor:
-            filteredEvents.length > 0
-              ? filteredEvents[filteredEvents.length - 1].created_at
-              : undefined,
+          nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
         };
-      } catch (error) {
-        throw error;
       }
+
+      // Query all routed relays
+      const relayPromises = Array.from(relayMap.entries()).map(async ([, filters]) => {
+        try {
+          const events = await nostr.query(filters, { signal: querySignal });
+          return events;
+        } catch {
+          return []; // Return empty array on failure
+        }
+      });
+
+      const allEvents = await Promise.all(relayPromises);
+      const events = allEvents.flat();
+
+      // If outbox model returned no results, try fallback to discovery relays
+      if (events.length === 0) {
+        try {
+          const discoveryPool = getDiscoveryPool();
+          const fallbackEvents = await discoveryPool.query([filter], { signal: querySignal });
+          events.push(...fallbackEvents);
+        } catch {
+          // Fallback failed, continue with empty results
+        }
+      }
+
+      const validEvents = events.filter(validateVideoEvent);
+
+      // Deduplicate by ID first, then sort by created_at
+      const uniqueEvents = validEvents.filter(
+        (event, index, self) => index === self.findIndex((e) => e.id === event.id)
+      );
+
+      const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+
+      // Filter out deleted events if deletion data is available
+      const filteredEvents = deletionData
+        ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+        : sortedEvents;
+
+
+      return {
+        events: filteredEvents,
+        nextCursor:
+          filteredEvents.length > 0
+            ? filteredEvents[filteredEvents.length - 1].created_at
+            : undefined,
+      };
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -317,7 +303,7 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
 
 export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientation?: 'vertical' | 'horizontal' | 'all') {
   const { data: deletionData } = useDeletedEvents();
-  
+
   return useQuery({
     queryKey: ["hashtag-all-video-posts", hashtags, limit, orientation],
     queryFn: async (c) => {
@@ -344,11 +330,11 @@ export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientati
           const validEvents = events.filter(validateVideoEvent);
 
           // All videos are vertical by design (kind 22 and 34236 are vertical-only)
-          
+
           const sortedEvents = validEvents.sort((a, b) => b.created_at - a.created_at);
-          
+
           // Filter out deleted events if deletion data is available
-          const filteredEvents = deletionData 
+          const filteredEvents = deletionData
             ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
             : sortedEvents;
 

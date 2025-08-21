@@ -30,7 +30,7 @@ function validateImageEvent(event: NostrEvent): boolean {
 
 export function useImagePosts(hashtag?: string, location?: string) {
   const { data: deletionData } = useDeletedEvents();
-  
+
   return useInfiniteQuery({
     queryKey: ["image-posts", hashtag, location],
     queryFn: async ({ pageParam, signal }) => {
@@ -75,7 +75,7 @@ export function useImagePosts(hashtag?: string, location?: string) {
           .filter((event, index, self) => index === self.findIndex(e => e.id === event.id));
 
         // Filter out deleted events if deletion data is available
-        const filteredEvents = deletionData 
+        const filteredEvents = deletionData
           ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
           : sortedEvents;
 
@@ -84,7 +84,7 @@ export function useImagePosts(hashtag?: string, location?: string) {
           nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
         };
       } catch (error) {
-        console.error("Error querying discovery relays:", error);
+
         throw error;
       }
     },
@@ -153,7 +153,7 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
               : undefined,
         };
       } catch (error) {
-        console.error("Error in following feed query:", error);
+
         throw error;
       }
     },
@@ -174,7 +174,7 @@ export function useHashtagImagePosts(hashtags: string[], limit = 3) {
       const discoveryPool = getDiscoveryPool();
 
       // Hashtag feeds use discovery relays only (no outbox model)
-      console.log("Querying hashtag feeds using shared discovery pool...");
+      
 
       // Query for each hashtag
       const hashtagResults = await Promise.all(

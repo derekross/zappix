@@ -38,13 +38,13 @@ export function useLoggedInAccounts() {
         const relayMap = await routeRequest([filter], DISCOVERY_RELAYS);
 
         // Query all routed relays in parallel
-        const queryPromises = Array.from(relayMap.entries()).map(async ([relay, filters]) => {
+        const queryPromises = Array.from(relayMap.entries()).map(async ([, filters]) => {
           try {
-            const events = await nostr.query(filters, { 
-              signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) 
+            const events = await nostr.query(filters, {
+              signal: AbortSignal.any([signal, AbortSignal.timeout(3000)])
             });
             return events;
-          } catch (error) {
+          } catch {
             return [];
           }
         });
@@ -64,17 +64,17 @@ export function useLoggedInAccounts() {
           const userEvents = allEvents
             .filter(e => e.kind === 0 && e.pubkey === pubkey)
             .sort((a, b) => b.created_at - a.created_at);
-          
+
           const event = userEvents[0];
 
           try {
             const metadata = event ? n.json().pipe(n.metadata()).parse(event.content) : {};
             return { id, pubkey, metadata, event };
-          } catch (parseError) {
+          } catch {
             return { id, pubkey, metadata: {}, event };
           }
         });
-      } catch (outboxError) {
+      } catch {
         // Fallback to discovery relays only
         const events = await nostr.query(
           [{ kinds: [0], authors: logins.map((l) => l.pubkey) }],

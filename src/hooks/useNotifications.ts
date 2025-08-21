@@ -30,12 +30,12 @@ export function useNotifications() {
 
       // Use a shorter timeout to prevent hanging
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(8000)]);
-      
+
       try {
         if (import.meta.env.DEV) {
           console.log('Fetching notifications for user:', user.pubkey);
         }
-        
+
         // Simplified approach: Get user's posts and notifications in parallel
         const [userPosts, reactions, comments, zaps] = await Promise.all([
           // Get user's image and video posts
@@ -44,21 +44,21 @@ export function useNotifications() {
             authors: [user.pubkey],
             limit: 50, // Reduced limit for better performance
           }], { signal }),
-          
+
           // Get reactions mentioning the user
           nostr.query([{
             kinds: [7],
             '#p': [user.pubkey],
             limit: 30,
           }], { signal }),
-          
+
           // Get comments mentioning the user
           nostr.query([{
             kinds: [1111],
             '#p': [user.pubkey],
             limit: 30,
           }], { signal }),
-          
+
           // Get zaps mentioning the user
           nostr.query([{
             kinds: [9735],
@@ -67,14 +67,7 @@ export function useNotifications() {
           }], { signal }),
         ]);
 
-        if (import.meta.env.DEV) {
-          console.log('Notification query results:', {
-            userPosts: userPosts.length,
-            reactions: reactions.length,
-            comments: comments.length,
-            zaps: zaps.length
-          });
-        }
+        
 
         // If we have user posts, also get notifications for those posts
         let postReactions: NostrEvent[] = [];
@@ -83,7 +76,7 @@ export function useNotifications() {
 
         if (userPosts.length > 0) {
           const userPostIds = userPosts.map(post => post.id);
-          
+
           try {
             [postReactions, postComments, postZaps] = await Promise.all([
               nostr.query([{ kinds: [7], '#e': userPostIds, limit: 30 }], { signal }),
@@ -118,7 +111,7 @@ export function useNotifications() {
           const referencedEventIds = event.tags
             .filter(tag => tag[0] === 'e')
             .map(tag => tag[1]);
-            
+
           // Find the target post in our user posts
           for (const eventId of referencedEventIds) {
             const targetPost = userPosts.find(post => post.id === eventId);
@@ -126,7 +119,7 @@ export function useNotifications() {
               return targetPost;
             }
           }
-          
+
           return undefined;
         };
 
@@ -178,7 +171,7 @@ export function useNotifications() {
         // Sort by created_at (newest first) and deduplicate
         const sortedNotifications = notifications
           .sort((a, b) => b.created_at - a.created_at)
-          .filter((notification, index, self) => 
+          .filter((notification, index, self) =>
             index === self.findIndex(n => n.id === notification.id)
           );
 

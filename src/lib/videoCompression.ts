@@ -97,14 +97,14 @@ function getAvailableMemory(): number {
     const totalMB = memory.totalJSHeapSize / (1024 * 1024);
     const usedMB = memory.usedJSHeapSize / (1024 * 1024);
     const available = Math.max(50, totalMB - usedMB); // At least 50MB available
-    console.log(`Memory status: ${usedMB.toFixed(1)}MB used, ${available.toFixed(1)}MB available`);
+
     return available;
   }
 
   // Fallback: more generous estimate to allow compression
   const deviceMemory = (navigator as any).deviceMemory || 4; // GB
   const available = Math.max(100, deviceMemory * 1024 * 0.2); // Use 20% of device memory, min 100MB
-  console.log(`Memory fallback: ${available.toFixed(1)}MB estimated available`);
+  
   return available;
 }
 
@@ -697,7 +697,7 @@ async function createLightweightCompression(
       // Mute video for user playback (after audio stream capture)
       video.muted = true;
       video.volume = 0;
-      
+
       // For large files, start playback more carefully
       const playPromise = video.play();
       if (playPromise !== undefined) {

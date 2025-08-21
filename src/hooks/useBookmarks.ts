@@ -13,7 +13,7 @@ export function useBookmarks() {
   return useQuery({
     queryKey: ["bookmarks", user?.pubkey],
     queryFn: async (c) => {
-      console.log("useBookmarks queryFn - Starting for user:", user?.pubkey);
+
 
       if (!user?.pubkey) {
         console.log("useBookmarks - No user pubkey");
@@ -23,15 +23,14 @@ export function useBookmarks() {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
 
       // Get user's bookmark set (kind 30003 - NIP-51 bookmark sets with d tag "nip-68-posts")
-      console.log(
-        'useBookmarks - Querying for kind 30003 events with d tag "nip-68-posts"'
-      );
-      console.log("useBookmarks - Query filter:", {
-        kinds: [30003],
-        authors: [user.pubkey],
-        "#d": ["nip-68-posts"],
-        limit: 1,
-      });
+      const bookmarkSetEvents = await nostr.query([
+        {
+          kinds: [30003],
+          authors: [user.pubkey],
+          "#d": ["nip-68-posts"],
+          limit: 1,
+        }
+      ]);
 
       const bookmarkEvents = await nostr.query(
         [
@@ -45,7 +44,7 @@ export function useBookmarks() {
         { signal }
       );
 
-      console.log("useBookmarks - Raw query response:", bookmarkEvents);
+
 
       // Debug: Try to query for any events by this user to see if the issue is with the query itself
       try {

@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { getDiscoveryPool } from "@/lib/poolManager";
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 import { useOutboxModel } from './useOutboxModel';
@@ -17,39 +17,53 @@ function validateVideoEvent(event: NostrEvent): boolean {
       // Handle multiple formats more flexibly
       let hasUrl = false;
       let hasVideoMime = false;
-      
+
       // Join all tag elements after the first one to create content string
       const tagContent = tag.slice(1).join(" ");
-      
+
       // Look for URL in any format
       const urlMatch = tagContent.match(/(?:^|\s)url\s+(\S+)/);
       hasUrl = !!urlMatch;
-      
+
       // Look for video MIME type in any format
       const mimeMatch = tagContent.match(/\bm\s+(video\/[^\s]+|application\/x-mpegURL)/);
       hasVideoMime = !!mimeMatch;
-      
+
       // Also check for video file extensions as backup
       if (hasUrl && !hasVideoMime) {
         const url = urlMatch![1];
         hasVideoMime = /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(url);
       }
-      
+
       return hasUrl && hasVideoMime;
+    });
+
+    // Also check for single-string imeta format (like user's event)
+    const hasSingleStringImeta = event.tags.some(([name, value]) => {
+      if (name !== 'imeta' || !value) return false;
+
+      // Check if single string contains both url and video mime type
+      const hasUrl = value.includes('url https://') || value.includes('url http://');
+      const hasVideoMime = value.includes('m video/') || value.includes('m application/x-mpegURL');
+
+      // Also check for video file extensions
+      const hasVideoExtension = /\.(mp4|webm|mov|avi|mkv|3gp|m4v)/i.test(value);
+
+      return hasUrl && (hasVideoMime || hasVideoExtension);
     });
 
     // Check for simple URL tags as additional fallback
     const hasVideoUrl = event.tags.some(([name, value]) => {
       if (name !== 'url') return false;
       if (!value) return false;
-      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) || 
+      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) ||
              value.includes('video') ||
              value.includes('.webm') ||
              value.includes('.mp4');
     });
 
     // For kind 22, we're more permissive - just need video content
-    return hasVideoImeta || hasVideoUrl;
+    return hasVideoImeta || hasSingleStringImeta || hasVideoUrl;
   }
 
   // Check for legacy vertical video events (kind 34236)
@@ -73,7 +87,7 @@ function validateVideoEvent(event: NostrEvent): boolean {
     const hasVideoUrl = event.tags.some(([name, value]) => {
       if (name !== 'url') return false;
       if (!value) return false;
-      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) || 
+      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) ||
              value.includes('video');
     });
 
@@ -89,102 +103,78 @@ export function useUserVideoPosts(pubkey: string) {
   const { data: deletionData } = useDeletedEvents();
   const { routeRequest } = useOutboxModel();
   const { nostr } = useNostr();
-  
+
   return useInfiniteQuery({
     queryKey: ['user-video-posts', pubkey],
     queryFn: async ({ pageParam, signal }) => {
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
-      
-      // Fallback relays in case outbox model fails
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(15000)]);
+
+      // Use the same comprehensive approach as global/following feeds
+      // First try outbox model, then fallback to discovery pool, then combine results
       const fallbackRelays = [
         "wss://relay.nostr.band",
-        "wss://relay.damus.io", 
+        "wss://relay.damus.io",
         "wss://relay.primal.net",
+        "wss://relay.olas.app",
         "wss://nos.lol",
         "wss://relay.snort.social",
+        "wss://purplepag.es",
+        "wss://ditto.pub/relay",
       ];
 
       const filter: {
         kinds: number[];
         authors: string[];
         limit: number;
-        until?: number;
+        since?: number; // Use since instead of until for better pagination
       } = {
         kinds: [22, 34236], // Video event kinds
         authors: [pubkey],
-        limit: 20,
+        limit: 25, // Increased limit to get more results
       };
 
       if (pageParam) {
-        filter.until = pageParam;
+        filter.since = pageParam;
       }
 
-      // Use outbox model to route requests to user's write relays
-      let relayMap: Map<string, NostrFilter[]>;
+      const allEvents: NostrEvent[] = [];
+
+      // Strategy 1: Try outbox model first
       try {
-        relayMap = await routeRequest([filter], fallbackRelays);
-      } catch (outboxError) {
-        // Fallback to discovery pool if outbox model fails
+        const relayMap = await routeRequest([filter], fallbackRelays);
+
+        const relayPromises = Array.from(relayMap.entries()).map(async ([relay, filters]) => {
+          try {
+            const events = await nostr.query(filters, { signal: querySignal });
+            return events;
+          } catch (error) {
+            console.warn(`Outbox relay ${relay} failed:`, error);
+            return [];
+          }
+        });
+
+        const outboxEvents = await Promise.all(relayPromises);
+        allEvents.push(...outboxEvents.flat());
+
+        } catch {
+      }
+
+      // Strategy 2: Always try discovery pool as well (like global feed)
+      // This ensures we get events that might not be on the user's write relays
+      try {
         const discoveryPool = getDiscoveryPool();
-        const events = await discoveryPool.query([filter], { signal: querySignal });
-        const validEvents = events.filter(validateVideoEvent);
-        const uniqueEvents = validEvents.filter(
-          (event, index, self) => index === self.findIndex(e => e.id === event.id)
-        );
-        const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+        const discoveryEvents = await discoveryPool.query([filter], { signal: querySignal });
+        allEvents.push(...discoveryEvents);
 
-        // Filter out deleted events if deletion data is available
-        const filteredEvents = deletionData 
-          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
-          : sortedEvents;
-
-        return {
-          events: filteredEvents,
-          nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
-        };
+        } catch {
       }
 
-      // Query all routed relays
-      const relayPromises = Array.from(relayMap.entries()).map(async ([relay, filters]) => {
-        try {
-          const events = await nostr.query(filters, { signal: querySignal });
-          return events;
-        } catch (error) {
-          return []; // Return empty array on failure
-        }
-      });
 
-      const allEvents = await Promise.all(relayPromises);
-      const events = allEvents.flat();
-
-      // If outbox model returned no results, try fallback to discovery relays  
-      if (events.length === 0) {
-        try {
-          const discoveryPool = getDiscoveryPool();
-          const fallbackEvents = await discoveryPool.query([filter], { signal: querySignal });
-          events.push(...fallbackEvents);
-        } catch (fallbackError) {
-          // Fallback failed, continue with empty results
-        }
-      }
-
-      // DEBUG: Look for the most recent events
-      const kind22Events = events.filter(e => e.kind === 22);
-      const sortedByTime = kind22Events.sort((a, b) => b.created_at - a.created_at);
-      
-      console.log(`PROFILE DEBUG: Query found ${events.length} total events, ${kind22Events.length} kind 22 events for pubkey ${pubkey.slice(0,8)}`);
-      console.log('PROFILE DEBUG: Most recent 3 kind 22 events:', sortedByTime.slice(0, 3).map(e => ({
-        id: e.id.slice(0, 8),
-        created_at: e.created_at,
-        timestamp: new Date(e.created_at * 1000).toISOString(),
-        content: e.content.slice(0, 40) + '...',
-        passesValidation: validateVideoEvent(e)
-      })));
 
       // Filter and validate video events
-      const validEvents = events.filter(validateVideoEvent);
-      
-      console.log(`PROFILE DEBUG: ${validEvents.length} events passed validation`);
+      const validEvents = allEvents.filter(validateVideoEvent);
+
+
 
       // Deduplicate by ID first, then sort by created_at
       const uniqueEvents = validEvents.filter(
@@ -194,9 +184,12 @@ export function useUserVideoPosts(pubkey: string) {
       const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
       // Filter out deleted events if deletion data is available
-      const filteredEvents = deletionData 
-        ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
-        : sortedEvents;
+      let filteredEvents = sortedEvents;
+      if (deletionData) {
+        filteredEvents = filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates);
+
+
+      }
 
       return {
         events: filteredEvents,
@@ -204,8 +197,15 @@ export function useUserVideoPosts(pubkey: string) {
       };
     },
     initialPageParam: undefined as number | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-    staleTime: 30000, // 30 seconds for better development experience 
+    getNextPageParam: (lastPage) => {
+        // Find the oldest event timestamp and use it as since parameter
+        if (lastPage.events.length === 0) return undefined;
+        const oldestTimestamp = Math.min(...lastPage.events.map(e => e.created_at));
+        return oldestTimestamp - 1; // Subtract 1 to avoid overlap
+      },
+    staleTime: 30000, // 30 seconds for better development experience
     enabled: !!pubkey,
+    retry: 2, // Add retry logic for better reliability
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 }

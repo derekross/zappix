@@ -30,9 +30,9 @@ export function useBackgroundProfileManager() {
         if (isLoading && timeSinceLastUpdate > 15000) {
           queryClient.cancelQueries({ queryKey: query.queryKey });
           cancelledCount++;
-          
+
           if (import.meta.env.DEV) {
-            console.log(`Cancelled stuck profile query: ${query.queryKey.join('-')}`);
+
           }
         }
 
@@ -40,22 +40,22 @@ export function useBackgroundProfileManager() {
         if (isError && timeSinceLastUpdate > 300000) {
           queryClient.invalidateQueries({ queryKey: query.queryKey });
           retriedCount++;
-          
+
           if (import.meta.env.DEV) {
-            console.log(`Retrying failed profile query: ${query.queryKey.join('-')}`);
+            
           }
         }
       });
 
       // Log summary only in development
       if (import.meta.env.DEV && (cancelledCount > 0 || retriedCount > 0)) {
-        console.log(`Profile management: cancelled ${cancelledCount}, retried ${retriedCount} queries`);
+
       }
     };
 
     // Check every 30 seconds (less aggressive than the old system)
     const interval = setInterval(manageProfileQueries, 30000);
-    
+
     // Initial check after 10 seconds to let the app settle
     const initialTimeout = setTimeout(manageProfileQueries, 10000);
 

@@ -46,57 +46,57 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
         // The NostrProvider with outbox model will automatically route this event
         // to the user's write relays and any mentioned users' read relays
         await nostr.event(event, { signal: AbortSignal.timeout(15000) });
-        
+
         console.log('PUBLISH DEBUG: Event published successfully to relays');
         return event;
       } else {
         throw new Error("User is not logged in");
       }
     },
-    onError: (error) => {
+    onError: () => {
       // Error handled by mutation
     },
     onSuccess: (data) => {
-      
+
       // Invalidate relevant queries when publishing content
       if ([20, 22, 34236].includes(data.kind) && user) {
         // Invalidate user video posts query
         if ([22, 34236].includes(data.kind)) {
           console.log('PUBLISH DEBUG: Invalidating video queries after publishing kind', data.kind);
-          
-          queryClient.invalidateQueries({ 
-            queryKey: ['user-video-posts', user.pubkey] 
+
+          queryClient.invalidateQueries({
+            queryKey: ['user-video-posts', user.pubkey]
           });
-          
+
           // Also invalidate global and following video feeds
-          queryClient.invalidateQueries({ 
+          queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === 'all-video-posts'
           });
-          queryClient.invalidateQueries({ 
+          queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === 'following-all-video-posts'
           });
-          queryClient.invalidateQueries({ 
+          queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === 'hashtag-all-video-posts'
           });
-          
+
           console.log('PUBLISH DEBUG: Queries invalidated, waiting for refetch...');
         }
-        
+
         // Invalidate user image posts query
         if (data.kind === 20) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['user-image-posts', user.pubkey] 
+          queryClient.invalidateQueries({
+            queryKey: ['user-image-posts', user.pubkey]
           });
-          
+
           // Also invalidate global and following image feeds if they exist
-          queryClient.invalidateQueries({ 
-            queryKey: ['all-image-posts'] 
+          queryClient.invalidateQueries({
+            queryKey: ['all-image-posts']
           });
-          queryClient.invalidateQueries({ 
-            queryKey: ['following-all-image-posts'] 
+          queryClient.invalidateQueries({
+            queryKey: ['following-all-image-posts']
           });
         }
-        
+
         // Wait a moment for the event to propagate, then refresh notifications
         setTimeout(() => {
           refreshNotifications();
