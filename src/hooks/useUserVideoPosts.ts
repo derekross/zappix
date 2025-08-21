@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { NPool, NRelay1 } from '@nostrify/nostrify';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { getDiscoveryPool } from "@/lib/poolManager";
+import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 
 // Validator function for vertical video events (NIP-71 kind 22 and legacy kind 34236)
 function validateVideoEvent(event: NostrEvent): boolean {
@@ -8,76 +9,48 @@ function validateVideoEvent(event: NostrEvent): boolean {
   if (event.kind === 22) {
     // For NIP-71 video events, check for imeta tag with video content
     const imetaTags = event.tags.filter(([name]) => name === "imeta");
-    
+
     // Check if any imeta tag contains video content
     const hasVideoImeta = imetaTags.some(tag => {
       const tagContent = tag.slice(1).join(" ");
-      return tagContent.includes("url ") && 
-             (tagContent.includes("m video/") || 
+      return tagContent.includes("url ") &&
+             (tagContent.includes("m video/") ||
               tagContent.includes("m application/x-mpegURL")); // Include HLS streams
     });
-    
+
     // Also check for title tag which is required for NIP-71
     const hasTitle = event.tags.some(([name]) => name === "title");
-    
+
     return hasVideoImeta && hasTitle;
   }
-  
+
   // Check for legacy vertical video events (kind 34236)
   if (event.kind === 34236) {
     // For legacy kind 34236, check for imeta tag with video content
     const imetaTags = event.tags.filter(([name]) => name === "imeta");
-    
+
     // Check if any imeta tag contains video content
     const hasVideoImeta = imetaTags.some(tag => {
       const tagContent = tag.slice(1).join(" ");
-      return tagContent.includes("url ") && 
+      return tagContent.includes("url ") &&
              tagContent.includes("m video/");
     });
-    
+
     // Also check for standalone m and x tags (legacy format)
     const hasMimeTag = event.tags.some(([name, value]) => name === "m" && value?.startsWith("video/"));
     const hasHashTag = event.tags.some(([name]) => name === "x");
-    
+
     return hasVideoImeta || (hasMimeTag && hasHashTag);
   }
 
   return false;
 }
 
-// Shared discovery pool to avoid creating multiple connections
-let sharedDiscoveryPool: NPool | null = null;
-
-function getDiscoveryPool(): NPool {
-  if (!sharedDiscoveryPool) {
-    const discoveryRelays = [
-      'wss://relay.nostr.band',
-      'wss://relay.primal.net', 
-      'wss://relay.olas.app',
-      'wss://nos.lol',
-      'wss://relay.snort.social',
-      'wss://purplepag.es'
-    ];
-    
-    sharedDiscoveryPool = new NPool({
-      open(url: string) {
-        console.log('Discovery pool connecting to relay:', url);
-        return new NRelay1(url);
-      },
-      reqRouter: (filters) => {
-        const relayMap = new Map<string, typeof filters>();
-        // Use fewer relays to reduce connection load
-        for (const url of discoveryRelays) {
-          relayMap.set(url, filters);
-        }
-        return relayMap;
-      },
-    });
-  }
-  return sharedDiscoveryPool;
-}
+// Pool management is now centralized in poolManager.ts
 
 export function useUserVideoPosts(pubkey: string) {
+  const { data: deletionData } = useDeletedEvents();
+  
   return useInfiniteQuery({
     queryKey: ['user-video-posts', pubkey],
     queryFn: async ({ pageParam, signal }) => {
@@ -101,20 +74,25 @@ export function useUserVideoPosts(pubkey: string) {
 
       try {
         const events = await discoveryPool.query([filter], { signal: querySignal });
-        
+
         // Filter and validate video events
         const validEvents = events.filter(validateVideoEvent);
-        
+
         // Deduplicate by ID first, then sort by created_at
         const uniqueEvents = validEvents.filter(
           (event, index, self) => index === self.findIndex(e => e.id === event.id)
         );
-        
+
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
+        // Filter out deleted events if deletion data is available
+        const filteredEvents = deletionData 
+          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+          : sortedEvents;
+
         return {
-          events: sortedEvents,
-          nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
+          events: filteredEvents,
+          nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
         };
       } catch (error) {
         if (import.meta.env.DEV) {

@@ -27,7 +27,7 @@ function VideoGridSkeleton() {
 
 function VideoGridItem({ event }: { event: NostrEvent }) {
   const navigate = useNavigate();
-  
+
   // Parse video URLs from imeta tags
   const imetaTags = event.tags.filter(([name]) => name === 'imeta');
   const videos = imetaTags.map(tag => {
@@ -37,7 +37,7 @@ function VideoGridItem({ event }: { event: NostrEvent }) {
     const mimeType = mPart?.replace('m ', '');
     const thumbPart = tag.find(part => part.startsWith('thumb '));
     const thumbnail = thumbPart?.replace('thumb ', '');
-    
+
     return { url, mimeType, thumbnail };
   }).filter(video => video.url && video.mimeType?.startsWith('video/'));
 
@@ -54,7 +54,7 @@ function VideoGridItem({ event }: { event: NostrEvent }) {
   };
 
   return (
-    <div 
+    <div
       className="relative aspect-square bg-muted cursor-pointer group overflow-hidden rounded-sm"
       onClick={handleClick}
     >
@@ -74,14 +74,14 @@ function VideoGridItem({ event }: { event: NostrEvent }) {
           preload="metadata"
         />
       )}
-      
+
       {/* Play button overlay */}
       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
         <div className="bg-black/50 rounded-full p-2">
           <Play className="h-6 w-6 text-white fill-white" />
         </div>
       </div>
-      
+
       {/* Video indicator */}
       <div className="absolute top-2 right-2">
         <div className="bg-black/50 rounded px-1.5 py-0.5">
@@ -94,7 +94,6 @@ function VideoGridItem({ event }: { event: NostrEvent }) {
 
 export function UserVideoGrid({ pubkey, className }: UserVideoGridProps) {
   const query = useUserVideoPosts(pubkey);
-  const navigate = useNavigate();
 
   // Intersection observer for infinite scrolling
   const { ref: loadMoreRef, inView } = useInView({
@@ -168,7 +167,7 @@ export function UserVideoGrid({ pubkey, className }: UserVideoGridProps) {
           <VideoGridItem key={video.id} event={video} />
         ))}
       </div>
-      
+
       {/* Load more trigger */}
       {query.hasNextPage && (
         <div ref={loadMoreRef} className="flex justify-center py-4">

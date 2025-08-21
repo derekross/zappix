@@ -20,7 +20,7 @@ export function useZaps(
   const { nostr } = useNostr();
   const { toast } = useToast();
   const { user } = useCurrentUser();
-  const { config } = useAppContext();
+  const { defaultRelays } = useAppContext();
   const queryClient = useQueryClient();
 
   // Handle the case where an empty array is passed (from ZapButton when external data is provided)
@@ -204,7 +204,7 @@ export function useZaps(
         profile: actualTarget.pubkey,
         event: event,
         amount: zapAmount,
-        relays: [config.relayUrl],
+        relays: [defaultRelays[0]?.url || 'wss://relay.nostr.band'],
         comment
       });
 
@@ -262,7 +262,7 @@ export function useZaps(
                 });
               }
             }
-            
+
             if (webln) {  // Try WebLN next
               try {
                 await webln.sendPayment(newInvoice);

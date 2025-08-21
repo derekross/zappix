@@ -8,12 +8,14 @@ import {
   VolumeX,
   Volume2,
   Flag,
+  Trash2,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useIsBookmarked, useToggleBookmark } from "@/hooks/useBookmarks";
 import { useIsFollowing, useToggleFollow } from "@/hooks/useFollowing";
+import { useNostrPublish } from "@/hooks/useNostrPublish";
 
 import { useToast } from "@/hooks/useToast";
 import {
@@ -35,6 +37,7 @@ export function VideoPostActions({ event, onClose }: VideoPostActionsProps) {
   const toggleBookmark = useToggleBookmark();
   const isFollowing = useIsFollowing(event.pubkey);
   const toggleFollow = useToggleFollow();
+  const { mutate: publishEvent } = useNostrPublish();
 
   const isOwnPost = user?.pubkey === event.pubkey;
 
@@ -177,6 +180,34 @@ export function VideoPostActions({ event, onClose }: VideoPostActionsProps) {
     onClose();
   };
 
+  const handleDelete = async () => {
+    if (!user || !isOwnPost) return;
+
+    try {
+      // Create a NIP-09 deletion request event
+      publishEvent({
+        kind: 5, // Deletion request
+        content: "Deleted from Zappix",
+        tags: [
+          ['e', event.id], // Reference the event to delete
+          ['k', event.kind.toString()], // Kind of the event being deleted
+        ],
+      });
+
+      toast({
+        title: "Post deleted",
+        description: "Your post has been deleted and will be hidden from feeds",
+      });
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete post",
+        variant: "destructive",
+      });
+    }
+  };
+
   const isBookmarkDisabled = !user || toggleBookmark.isPending || isBookmarked.isLoading;
 
   return (
@@ -214,6 +245,19 @@ export function VideoPostActions({ event, onClose }: VideoPostActionsProps) {
                 ? "Remove bookmark" 
                 : "Add bookmark"}
           </DropdownMenuItem>
+
+          {isOwnPost && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleDelete}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete post
+              </DropdownMenuItem>
+            </>
+          )}
 
           {!isOwnPost && (
             <>

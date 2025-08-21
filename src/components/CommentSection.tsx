@@ -38,7 +38,7 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
 
   const author = useAuthor(comment.pubkey);
   const reactions = useReactions(comment.id);
-  const zaps = useZaps(comment.id);
+  const zaps = useZaps(comment, null, null);
   const replies = useCommentReplies(comment.id);
   const createComment = useCreateComment();
   const reactToPost = useReactToPost();
@@ -53,7 +53,7 @@ function Comment({ comment, rootEventId, rootAuthorPubkey }: CommentProps) {
 
   const likeCount = reactions.data?.["+"]?.count || 0;
   const hasLiked = reactions.data?.["+"]?.hasReacted || false;
-  const zapTotal = zaps.data?.totalSats || 0;
+  const zapTotal = zaps.totalSats || 0;
 
   const handleReply = async () => {
     if (!replyContent.trim() || !user) return;
