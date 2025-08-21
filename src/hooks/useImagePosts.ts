@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { NPool, NRelay1 } from "@nostrify/nostrify";
 import type { NostrEvent } from "@nostrify/nostrify";
+import { getDiscoveryPool, getOutboxPool } from "@/lib/poolManager";
 
 // Validator function for NIP-68 image events (more lenient)
 function validateImageEvent(event: NostrEvent): boolean {
@@ -25,57 +25,7 @@ function validateImageEvent(event: NostrEvent): boolean {
   return true;
 }
 
-// Get a shared discovery pool to avoid creating too many connections
-let discoveryPool: NPool | null = null;
-function getDiscoveryPool() {
-  if (!discoveryPool) {
-    const relayUrls = [
-      "wss://relay.nostr.band",
-      "wss://relay.damus.io",
-      "wss://relay.primal.net",
-    ];
-    discoveryPool = new NPool({
-      open(url: string) {
-        return new NRelay1(url);
-      },
-      reqRouter: (filters) => {
-        const relayMap = new Map<string, typeof filters>();
-        for (const url of relayUrls) {
-          relayMap.set(url, filters);
-        }
-        return relayMap;
-      },
-      eventRouter: () => relayUrls.slice(0, 2),
-    });
-  }
-  return discoveryPool;
-}
-
-// Get a shared outbox pool for following feed
-let outboxPool: NPool | null = null;
-function getOutboxPool() {
-  if (!outboxPool) {
-    const relayUrls = [
-      "wss://relay.nostr.band",
-      "wss://relay.damus.io",
-      "wss://relay.primal.net",
-    ];
-    outboxPool = new NPool({
-      open(url: string) {
-        return new NRelay1(url);
-      },
-      reqRouter: (filters) => {
-        const relayMap = new Map<string, typeof filters>();
-        for (const url of relayUrls) {
-          relayMap.set(url, filters);
-        }
-        return relayMap;
-      },
-      eventRouter: () => relayUrls.slice(0, 2),
-    });
-  }
-  return outboxPool;
-}
+// Pool management is now centralized in poolManager.ts
 
 export function useImagePosts(hashtag?: string, location?: string) {
   return useInfiniteQuery({
@@ -108,10 +58,10 @@ export function useImagePosts(hashtag?: string, location?: string) {
 
         // Filter by location if specified
         if (location) {
-          validEvents = validEvents.filter(event => 
-            event.tags.some(tag => 
-              tag[0] === "location" && 
-              tag[1] && 
+          validEvents = validEvents.filter(event =>
+            event.tags.some(tag =>
+              tag[0] === "location" &&
+              tag[1] &&
               tag[1].toLowerCase().includes(location.toLowerCase())
             )
           );

@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { NPool, NRelay1 } from "@nostrify/nostrify";
 import type { NostrEvent } from "@nostrify/nostrify";
+import { getDiscoveryPool } from "@/lib/poolManager";
 
 // Validator function for vertical video events (kind 22 and legacy 34236)
 function validateVideoEvent(event: NostrEvent): boolean {
@@ -10,33 +10,33 @@ function validateVideoEvent(event: NostrEvent): boolean {
   // For NIP-71 kind 22, check for imeta tag with video content
   if (event.kind === 22) {
     const imetaTags = event.tags.filter(([name]) => name === "imeta");
-    
+
     // Check if any imeta tag contains video content
     const hasVideoImeta = imetaTags.some(tag => {
       const tagContent = tag.slice(1).join(" ");
-      return tagContent.includes("url ") && 
-             (tagContent.includes("m video/") || 
-              tagContent.includes(".mp4") || 
-              tagContent.includes(".webm") || 
+      return tagContent.includes("url ") &&
+             (tagContent.includes("m video/") ||
+              tagContent.includes(".mp4") ||
+              tagContent.includes(".webm") ||
               tagContent.includes(".mov"));
     });
-    
+
     // Also check content field for video URLs as fallback
-    const hasVideoInContent = event.content.includes('.mp4') || 
-                             event.content.includes('.webm') || 
+    const hasVideoInContent = event.content.includes('.mp4') ||
+                             event.content.includes('.webm') ||
                              event.content.includes('.mov');
-    
+
     if (!hasVideoImeta && !hasVideoInContent) return false;
   }
 
   // For legacy kind 34236, check for basic video content in event.content or tags
   if (event.kind === 34236) {
     // Legacy format may have video URL in content or url tags
-    const hasVideoUrl = event.content.includes('.mp4') || 
-                       event.content.includes('.webm') || 
+    const hasVideoUrl = event.content.includes('.mp4') ||
+                       event.content.includes('.webm') ||
                        event.content.includes('.mov') ||
-                       event.tags.some(([name, value]) => 
-                         name === 'url' && value && 
+                       event.tags.some(([name, value]) =>
+                         name === 'url' && value &&
                          (value.includes('.mp4') || value.includes('.webm') || value.includes('.mov'))
                        );
     if (!hasVideoUrl) return false;
@@ -45,33 +45,7 @@ function validateVideoEvent(event: NostrEvent): boolean {
   return true;
 }
 
-// Get a shared discovery pool to avoid creating too many connections
-let discoveryPool: NPool | null = null;
-function getDiscoveryPool() {
-  if (!discoveryPool) {
-    const relayUrls = [
-      "wss://relay.nostr.band",
-      "wss://relay.damus.io", 
-      "wss://relay.primal.net",
-      "wss://nos.lol",
-      "wss://relay.snort.social",
-    ];
-    discoveryPool = new NPool({
-      open(url: string) {
-        return new NRelay1(url);
-      },
-      reqRouter: (filters) => {
-        const relayMap = new Map<string, typeof filters>();
-        for (const url of relayUrls) {
-          relayMap.set(url, filters);
-        }
-        return relayMap;
-      },
-      eventRouter: () => relayUrls.slice(0, 3),
-    });
-  }
-  return discoveryPool;
-}
+// Pool management is now centralized in poolManager.ts
 
 
 
@@ -108,10 +82,10 @@ export function useVideoPosts(hashtag?: string, location?: string) {
 
         // Filter by location if specified
         if (location) {
-          validEvents = validEvents.filter(event => 
-            event.tags.some(tag => 
-              tag[0] === "location" && 
-              tag[1] && 
+          validEvents = validEvents.filter(event =>
+            event.tags.some(tag =>
+              tag[0] === "location" &&
+              tag[1] &&
               tag[1].toLowerCase().includes(location.toLowerCase())
             )
           );
@@ -121,7 +95,7 @@ export function useVideoPosts(hashtag?: string, location?: string) {
         const uniqueEvents = validEvents.filter(
           (event, index, self) => index === self.findIndex(e => e.id === event.id)
         );
-        
+
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
         return {
@@ -187,7 +161,7 @@ export function useFollowingVideoPosts(followingPubkeys: string[]) {
         const uniqueEvents = validEvents.filter(
           (event, index, self) => index === self.findIndex((e) => e.id === event.id)
         );
-        
+
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
         return {

@@ -27,9 +27,9 @@ interface CommentProps {
   level?: number;
 }
 
-export function Comment({ 
-  event: comment, 
-  parentEventId: rootEventId, 
+export function Comment({
+  event: comment,
+  parentEventId: rootEventId,
   parentEventPubkey: rootAuthorPubkey,
   parentEventKind,
   level = 0
@@ -39,7 +39,7 @@ export function Comment({
 
   const author = useAuthor(comment.pubkey);
   const reactions = useReactions(comment.id);
-  const zaps = useZaps(comment.id);
+  const zaps = useZaps(comment, null, null);
   const createComment = useCreateComment();
   const reactToPost = useReactToPost();
   const removeReaction = useRemoveReaction();
@@ -53,7 +53,7 @@ export function Comment({
 
   const likeCount = reactions.data?.["+"]?.count || 0;
   const hasLiked = reactions.data?.["+"]?.hasReacted || false;
-  const zapTotal = zaps.data?.totalSats || 0;
+  const zapTotal = zaps.totalSats || 0;
 
   // Limit nesting depth to prevent UI issues
   const maxNestingLevel = 3;
@@ -81,7 +81,7 @@ export function Comment({
     } catch (error) {
       console.error('Reply submission failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to post reply';
-      
+
       toast({
         title: "Error",
         description: errorMessage,

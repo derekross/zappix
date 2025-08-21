@@ -72,7 +72,7 @@
     --border: 270 30% 18%;
     --input: 270 30% 18%;
     --ring: 24 100% 60%; /* Bright orange ring */
-    
+
     --sidebar-background: 270 50% 6%;
     --sidebar-foreground: 0 0% 90%;
     --sidebar-primary: 24 100% 60%; /* Bright orange */
@@ -92,4 +92,28 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Hide scrollbar for TikTok-style feed */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Ensure smooth snap scrolling */
+.snap-y {
+  scroll-snap-type: y mandatory;
+}
+
+.snap-start {
+  scroll-snap-align: start;
+}
+
+/* Smooth scrolling behavior */
+.smooth-scroll {
+  scroll-behavior: smooth;
 }

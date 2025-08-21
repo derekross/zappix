@@ -3,6 +3,7 @@ import { NostrEvent, NPool, NRelay1, NostrFilter } from "@nostrify/nostrify";
 import { NostrContext } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/hooks/useAppContext";
+import { poolManager } from "@/lib/poolManager";
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -346,11 +347,11 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
   // Initialize NPool only once, but update when config changes
   useEffect(() => {
-    pool.current = new NPool(poolConfig);
+    pool.current = poolManager.getMainPool();
   }, [poolConfig]);
 
   if (!pool.current) {
-    pool.current = new NPool(poolConfig);
+    pool.current = poolManager.getMainPool();
   }
 
   return (

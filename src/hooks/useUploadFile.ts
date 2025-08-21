@@ -3,11 +3,11 @@ import { NostrSigner } from '@nostrify/nostrify';
 
 import { useCurrentUser } from "./useCurrentUser";
 import { useBlossomServers } from "./useBlossomServers";
-import { 
-  compressVideo, 
-  shouldCompressVideo, 
+import {
+  compressVideo,
+  shouldCompressVideo,
   isCompressionSupported,
-  type CompressionResult 
+  type CompressionResult
 } from "@/lib/videoCompression";
 
 interface UploadOptions {
@@ -97,8 +97,13 @@ async function uploadToBlossom(
                   ['url', descriptor.url],
                   ['x', descriptor.sha256],
                   ['size', descriptor.size.toString()],
-                  ['m', descriptor.type || file.type || 'application/octet-stream'],
+                  ['m', file.type || descriptor.type || 'application/octet-stream'],
                 ];
+                console.log('Generated upload tags:', {
+                  fileType: file.type,
+                  descriptorType: descriptor.type,
+                  finalMimeTag: file.type || descriptor.type || 'application/octet-stream',
+                });
 
                 // Add service tag for Blossom
                 tags.push(['service', 'blossom']);
@@ -186,14 +191,14 @@ export function useUploadFile() {
 
       // Check if video compression should be applied
       const isVideo = file.type.startsWith('video/');
-      const shouldCompress = isVideo && 
-        !options.skipCompression && 
+      const shouldCompress = isVideo &&
+        !options.skipCompression &&
         isCompressionSupported() &&
         await shouldCompressVideo(file);
 
       if (shouldCompress) {
         console.log(`Video compression required for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB) - compressing BEFORE upload for Blossom hash compatibility`);
-        
+
         try {
           // Create a wrapper for progress that allocates 70% to compression, 30% to upload
           const compressionProgress = (progress: number) => {
@@ -206,10 +211,10 @@ export function useUploadFile() {
           compressionInfo = await compressVideo(file, {
             onProgress: compressionProgress
           });
-          
+
           // IMPORTANT: Wait for compression to fully complete before proceeding
           fileToUpload = compressionInfo.compressedFile;
-          
+
           console.log('✅ Video compression completed BEFORE upload:', {
             originalSize: `${(compressionInfo.originalSize / 1024 / 1024).toFixed(2)}MB`,
             compressedSize: `${(compressionInfo.compressedSize / 1024 / 1024).toFixed(2)}MB`,
@@ -217,15 +222,15 @@ export function useUploadFile() {
             sizeSaved: `${((compressionInfo.originalSize - compressionInfo.compressedSize) / 1024 / 1024).toFixed(2)}MB`,
             newFileName: fileToUpload.name
           });
-          
+
           // Update progress to show compression is complete
           if (options.onProgress) {
             options.onProgress(70); // 70% complete after compression
           }
-          
+
         } catch (compressionError) {
           console.warn('Video compression failed, uploading original:', compressionError);
-          
+
           // Show user-friendly message for different failure types
           if (compressionError instanceof Error) {
             if (compressionError.message.includes('memory')) {
@@ -238,7 +243,7 @@ export function useUploadFile() {
               console.log('Video compression failed for unknown reason - uploading original file');
             }
           }
-          
+
           // Fall back to original file if compression fails
           fileToUpload = file;
         }
@@ -272,7 +277,7 @@ export function useUploadFile() {
         // Create a wrapper for upload progress that accounts for compression
         const uploadProgress = (progress: number) => {
           if (options.onProgress) {
-            const adjustedProgress = compressionInfo 
+            const adjustedProgress = compressionInfo
               ? 70 + (progress * 0.3) // Last 30% for upload if compressed (70% was compression)
               : progress; // Full 100% for upload if not compressed
             options.onProgress(adjustedProgress);
@@ -284,9 +289,9 @@ export function useUploadFile() {
           onProgress: uploadProgress,
           timeout: dynamicTimeoutMs
         });
-        
+
         console.log(`✅ Upload successful for ${compressionInfo ? 'compressed' : 'original'} file ${fileToUpload.name}:`, tags);
-        
+
         // Add compression metadata to tags if applicable
         if (compressionInfo) {
           tags.push(['compression', 'true']);
@@ -294,7 +299,7 @@ export function useUploadFile() {
           tags.push(['compression_ratio', compressionInfo.compressionRatio.toFixed(3)]);
           tags.push(['original_filename', file.name]);
         }
-        
+
         return tags;
       } catch (error) {
         console.error(`Upload failed for ${fileToUpload.name}:`, error);

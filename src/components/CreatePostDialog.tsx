@@ -413,10 +413,20 @@ export function CreatePostDialog({
         }
 
         // Create imeta tag with all required fields
+        const mimeType = file.type;
+        console.log('Creating imeta tag with MIME type:', {
+          fileName: file.name,
+          fileType: file.type,
+          finalMimeType: mimeType,
+          isVideo: file.type.startsWith('video/'),
+          isWebM: file.type === 'video/webm',
+          isMP4: file.type === 'video/mp4',
+        });
+
         const imetaTag: string[] = [
           "imeta",
           `url ${url}`,
-          `m ${file.type}`,
+          `m ${mimeType}`,
           `dim ${dimensions.width}x${dimensions.height}`,
           `alt ${file.name}`,
         ];

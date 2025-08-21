@@ -19,7 +19,7 @@ export function ZapConfiguration() {
   const { toast } = useToast();
   const nwc = useNWC();
   const isMobile = useIsMobile();
-  
+
   const [nwcString, setNwcString] = useLocalStorage('nwc-string', '');
   const [defaultZapAmount, setDefaultZapAmount] = useLocalStorage('default-zap-amount', '21');
   const [tempNwcString, setTempNwcString] = useState(nwcString);
@@ -93,16 +93,15 @@ export function ZapConfiguration() {
         </CardHeader>
         <CardContent className={cn("space-y-4", isMobile && "px-2")}>
           {/* Wallet Status */}
-          {nwc.isConnected && (
+          {nwc.activeConnection && (
             <Alert>
               <Wallet className="h-4 w-4" />
               <AlertDescription>
-                <strong>Wallet Connected:</strong> {nwc.walletType === 'nwc' ? 'Nostr Wallet Connect (NWC)' : 'WebLN Browser Extension'}
-                {nwc.walletType === 'nwc' && ' - NWC takes priority over WebLN'}
+                <strong>Wallet Connected:</strong> Nostr Wallet Connect (NWC)
               </AlertDescription>
             </Alert>
           )}
-          
+
           <div className="space-y-2">
             <Label htmlFor="nwc">Nostr Wallet Connect String</Label>
             <Input
@@ -116,11 +115,11 @@ export function ZapConfiguration() {
               Connect your lightning wallet to enable seamless zapping. NWC takes priority over WebLN.
             </p>
           </div>
-          
+
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              Get your NWC string from compatible wallets like Alby, coinos.io, or Cashu.me. 
+              Get your NWC string from compatible wallets like Alby, coinos.io, or Cashu.me.
               This enables automatic zap payments without manual approval.
             </AlertDescription>
           </Alert>
@@ -149,7 +148,7 @@ export function ZapConfiguration() {
               This amount will be pre-filled when zapping posts
             </p>
           </div>
-          
+
           <div className="text-xs text-muted-foreground space-y-1">
             <p><strong>Popular amounts:</strong></p>
             <div className="flex flex-wrap gap-2">
@@ -170,16 +169,16 @@ export function ZapConfiguration() {
       </Card>
 
       <div className="flex space-x-2">
-        <Button 
-          onClick={handleSaveZapSettings} 
+        <Button
+          onClick={handleSaveZapSettings}
           disabled={!hasChanges}
           className="flex-1"
         >
           Save Zap Settings
         </Button>
         {hasChanges && (
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleReset}
           >
             Reset
