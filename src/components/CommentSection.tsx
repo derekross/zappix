@@ -9,7 +9,7 @@ import {
 import { useZaps } from "@/hooks/useZaps";
 import { ZapButton } from "./ZapButton";
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useComments, useCreateComment, useCommentReplies } from "@/hooks/useComments";
+import { useComments, useCommentReplies, useCreateComment } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuthor } from "@/hooks/useAuthor";
 import { Button } from "@/components/ui/button";

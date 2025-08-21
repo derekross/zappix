@@ -41,8 +41,20 @@ export function useComments(eventId: string, _authorPubkey: string) {
 
       const validComments = events.filter(validateCommentEvent);
 
+      // Filter out replies from main comment list
+      // A comment is a reply if it has an 'e' tag that's not the root event
+      const topLevelComments = validComments.filter(comment => {
+        const hasParentTag = comment.tags.some(([name, value, marker, pubkey]) =>
+          name === 'e' &&
+          value !== eventId && // Not pointing to root event
+          marker === '' && // Empty marker indicates reply
+          pubkey // Has pubkey
+        );
+        return !hasParentTag; // Only include top-level comments
+      });
+
       // Sort by creation time (newest first for this page)
-      const sortedComments = validComments.sort((a, b) => b.created_at - a.created_at);
+      const sortedComments = topLevelComments.sort((a, b) => b.created_at - a.created_at);
 
       return {
         comments: sortedComments,
