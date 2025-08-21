@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { getDiscoveryPool } from "@/lib/poolManager";
+import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 
 // Validator function for vertical video events (NIP-71 kind 22 and legacy kind 34236)
 function validateVideoEvent(event: NostrEvent): boolean {
@@ -48,6 +49,8 @@ function validateVideoEvent(event: NostrEvent): boolean {
 // Pool management is now centralized in poolManager.ts
 
 export function useUserVideoPosts(pubkey: string) {
+  const { data: deletionData } = useDeletedEvents();
+  
   return useInfiniteQuery({
     queryKey: ['user-video-posts', pubkey],
     queryFn: async ({ pageParam, signal }) => {
@@ -82,9 +85,14 @@ export function useUserVideoPosts(pubkey: string) {
 
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
+        // Filter out deleted events if deletion data is available
+        const filteredEvents = deletionData 
+          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+          : sortedEvents;
+
         return {
-          events: sortedEvents,
-          nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
+          events: filteredEvents,
+          nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
         };
       } catch (error) {
         if (import.meta.env.DEV) {

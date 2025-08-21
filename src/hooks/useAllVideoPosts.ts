@@ -3,6 +3,7 @@ import type { NostrEvent, NostrFilter } from "@nostrify/nostrify";
 import { useNostr } from '@nostrify/react';
 import { useOutboxModel } from './useOutboxModel';
 import { getDiscoveryPool } from "@/lib/poolManager";
+import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 
 // Validator function for vertical video events (NIP-71 kind 22 and legacy kind 34236)
 function validateVideoEvent(event: NostrEvent): boolean {
@@ -77,6 +78,8 @@ function validateVideoEvent(event: NostrEvent): boolean {
 
 
 export function useAllVideoPosts(hashtag?: string, location?: string, orientation?: 'vertical' | 'horizontal' | 'all') {
+  const { data: deletionData } = useDeletedEvents();
+  
   return useInfiniteQuery({
     queryKey: ["all-video-posts", hashtag, location, orientation],
     queryFn: async ({ pageParam, signal }) => {
@@ -123,9 +126,14 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
 
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
+        // Filter out deleted events if deletion data is available
+        const filteredEvents = deletionData 
+          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+          : sortedEvents;
+
         return {
-          events: sortedEvents,
-          nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
+          events: filteredEvents,
+          nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
         };
       } catch (error) {
         if (import.meta.env.DEV) {
@@ -148,6 +156,7 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
 export function useFollowingAllVideoPosts(followingPubkeys: string[], orientation?: 'vertical' | 'horizontal' | 'all') {
   const { nostr } = useNostr();
   const { routeRequest } = useOutboxModel();
+  const { data: deletionData } = useDeletedEvents();
 
   // Create a stable query key by sorting and stringifying the pubkeys array
   const stableFollowingKey = followingPubkeys.length > 0 ? followingPubkeys.slice().sort().join(',') : 'empty';
@@ -208,9 +217,14 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
           );
           const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
+          // Filter out deleted events if deletion data is available
+          const filteredEvents = deletionData 
+            ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+            : sortedEvents;
+
           return {
-            events: sortedEvents,
-            nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
+            events: filteredEvents,
+            nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
           };
         }
 
@@ -255,15 +269,20 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
 
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
+        // Filter out deleted events if deletion data is available
+        const filteredEvents = deletionData 
+          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+          : sortedEvents;
+
         if (import.meta.env.DEV) {
-          console.log(`Following video feed: Found ${sortedEvents.length} events from ${relayMap.size} relays`);
+          console.log(`Following video feed: Found ${filteredEvents.length} events (${sortedEvents.length} before deletion filtering) from ${relayMap.size} relays`);
         }
 
         return {
-          events: sortedEvents,
+          events: filteredEvents,
           nextCursor:
-            sortedEvents.length > 0
-              ? sortedEvents[sortedEvents.length - 1].created_at
+            filteredEvents.length > 0
+              ? filteredEvents[filteredEvents.length - 1].created_at
               : undefined,
         };
       } catch (error) {
@@ -286,6 +305,8 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
 }
 
 export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientation?: 'vertical' | 'horizontal' | 'all') {
+  const { data: deletionData } = useDeletedEvents();
+  
   return useQuery({
     queryKey: ["hashtag-all-video-posts", hashtags, limit, orientation],
     queryFn: async (c) => {
@@ -312,10 +333,17 @@ export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientati
           const validEvents = events.filter(validateVideoEvent);
 
           // All videos are vertical by design (kind 22 and 34236 are vertical-only)
+          
+          const sortedEvents = validEvents.sort((a, b) => b.created_at - a.created_at);
+          
+          // Filter out deleted events if deletion data is available
+          const filteredEvents = deletionData 
+            ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+            : sortedEvents;
 
           return {
             hashtag,
-            posts: validEvents.sort((a, b) => b.created_at - a.created_at),
+            posts: filteredEvents,
           };
         })
       );

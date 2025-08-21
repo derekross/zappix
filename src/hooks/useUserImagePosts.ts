@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { getDiscoveryPool } from "@/lib/poolManager";
+import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 
 // Validator function for NIP-68 image events (more lenient)
 function validateImageEvent(event: NostrEvent): boolean {
@@ -28,6 +29,8 @@ function validateImageEvent(event: NostrEvent): boolean {
 // Pool management is now centralized in poolManager.ts
 
 export function useUserImagePosts(pubkey: string | undefined) {
+  const { data: deletionData } = useDeletedEvents();
+  
   return useInfiniteQuery({
     queryKey: ['user-image-posts', pubkey],
     queryFn: async ({ pageParam, signal }) => {
@@ -72,10 +75,15 @@ export function useUserImagePosts(pubkey: string | undefined) {
 
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
+        // Filter out deleted events if deletion data is available
+        const filteredEvents = deletionData 
+          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+          : sortedEvents;
+
         return {
-          events: sortedEvents,
+          events: filteredEvents,
           // Stop only when we get fewer raw events than the limit we requested
-          nextCursor: events.length < filter.limit ? undefined : sortedEvents[sortedEvents.length - 1]?.created_at,
+          nextCursor: events.length < filter.limit ? undefined : filteredEvents[filteredEvents.length - 1]?.created_at,
         };
       } catch (error) {
         console.error('Error querying user image posts:', error);

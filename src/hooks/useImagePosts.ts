@@ -1,6 +1,7 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { getDiscoveryPool, getOutboxPool } from "@/lib/poolManager";
+import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 
 // Validator function for NIP-68 image events (more lenient)
 function validateImageEvent(event: NostrEvent): boolean {
@@ -28,6 +29,8 @@ function validateImageEvent(event: NostrEvent): boolean {
 // Pool management is now centralized in poolManager.ts
 
 export function useImagePosts(hashtag?: string, location?: string) {
+  const { data: deletionData } = useDeletedEvents();
+  
   return useInfiniteQuery({
     queryKey: ["image-posts", hashtag, location],
     queryFn: async ({ pageParam, signal }) => {
@@ -71,9 +74,14 @@ export function useImagePosts(hashtag?: string, location?: string) {
           .sort((a, b) => b.created_at - a.created_at)
           .filter((event, index, self) => index === self.findIndex(e => e.id === event.id));
 
+        // Filter out deleted events if deletion data is available
+        const filteredEvents = deletionData 
+          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+          : sortedEvents;
+
         return {
-          events: sortedEvents,
-          nextCursor: sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1].created_at : undefined,
+          events: filteredEvents,
+          nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
         };
       } catch (error) {
         console.error("Error querying discovery relays:", error);

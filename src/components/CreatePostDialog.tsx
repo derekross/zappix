@@ -413,22 +413,29 @@ export function CreatePostDialog({
         }
 
         // Create imeta tag with all required fields
-        const mimeType = file.type;
+        // Use the MIME type from the upload response, not the original file
+        const uploadMimeTag = tags.find(([name]) => name === 'm');
+        const mimeType = uploadMimeTag ? uploadMimeTag[1] : file.type;
+        
         console.log('Creating imeta tag with MIME type:', {
           fileName: file.name,
-          fileType: file.type,
+          originalFileType: file.type,
+          uploadedFileType: uploadMimeTag?.[1],
           finalMimeType: mimeType,
-          isVideo: file.type.startsWith('video/'),
-          isWebM: file.type === 'video/webm',
-          isMP4: file.type === 'video/mp4',
+          isVideo: mimeType.startsWith('video/'),
+          isWebM: mimeType === 'video/webm',
+          isMP4: mimeType === 'video/mp4',
         });
 
+        // Get the actual filename from the URL for the alt tag
+        const urlFileName = url.split('/').pop() || file.name;
+        
         const imetaTag: string[] = [
           "imeta",
           `url ${url}`,
           `m ${mimeType}`,
           `dim ${dimensions.width}x${dimensions.height}`,
-          `alt ${file.name}`,
+          `alt ${urlFileName}`,
         ];
 
         // Add blurhash for images
@@ -441,8 +448,9 @@ export function CreatePostDialog({
           imetaTag.push(`image ${thumbnail}`);
         }
 
-        // Include any additional tags from uploadFile
-        imetaTag.push(...tags.slice(1).map((tag) => tag[1]));
+        // Include any additional tags from uploadFile, but skip 'm' (MIME type) since we already added it
+        const additionalTags = tags.slice(1).filter(([name]) => name !== 'm');
+        imetaTag.push(...additionalTags.map((tag) => tag[1]));
 
         newMedia.push({
           file,

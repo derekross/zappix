@@ -36,7 +36,8 @@ async function uploadToBlossom(
   file: File,
   signer: NostrSigner,
   servers: string[],
-  options?: UploadOptions
+  options?: UploadOptions,
+  originalFile?: File
 ): Promise<string[][]> {
   const timeout = options?.timeout || 300000; // 5 minutes default
 
@@ -93,16 +94,19 @@ async function uploadToBlossom(
                 }
 
                 // Generate NIP-94 compatible tags
+                // Use the actual uploaded file's MIME type, not the original file's type
+                const finalMimeType = file.type || descriptor.type || 'application/octet-stream';
                 const tags: string[][] = [
                   ['url', descriptor.url],
                   ['x', descriptor.sha256],
                   ['size', descriptor.size.toString()],
-                  ['m', file.type || descriptor.type || 'application/octet-stream'],
+                  ['m', finalMimeType],
                 ];
                 console.log('Generated upload tags:', {
-                  fileType: file.type,
+                  uploadedFileType: file.type,
+                  originalFileType: originalFile?.type,
                   descriptorType: descriptor.type,
-                  finalMimeTag: file.type || descriptor.type || 'application/octet-stream',
+                  finalMimeTag: finalMimeType,
                 });
 
                 // Add service tag for Blossom
@@ -288,7 +292,7 @@ export function useUploadFile() {
           ...options,
           onProgress: uploadProgress,
           timeout: dynamicTimeoutMs
-        });
+        }, file);
 
         console.log(`✅ Upload successful for ${compressionInfo ? 'compressed' : 'original'} file ${fileToUpload.name}:`, tags);
 

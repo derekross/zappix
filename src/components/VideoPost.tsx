@@ -83,6 +83,10 @@ export function VideoPost({
   // Parse video URLs from vertical video events
   let videos: Array<{ url?: string; mimeType?: string; thumbnail?: string }> = [];
 
+  // Check for simple URL tags as fallback
+  const urlTags = event.tags.filter(([name]) => name === 'url');
+  console.log('URL tags found:', urlTags);
+
   if (event.kind === 22) {
     // NIP-71 short-form video format with imeta tags
     videos = imetaTags
@@ -124,6 +128,28 @@ export function VideoPost({
         return { url, mimeType, thumbnail: undefined };
       })
       .filter((video) => video.url && video.mimeType?.startsWith('video/'));
+  }
+
+  // Fallback: If no videos found from imeta tags, try to parse from direct URL tags
+  if (videos.length === 0 && urlTags.length > 0) {
+    console.log('No videos from imeta tags, trying URL tags as fallback');
+    videos = urlTags
+      .map(([, url]) => {
+        // Try to determine MIME type from URL extension
+        let mimeType = 'video/mp4'; // default
+        if (url.toLowerCase().endsWith('.webm')) {
+          mimeType = 'video/webm';
+        } else if (url.toLowerCase().endsWith('.mov')) {
+          mimeType = 'video/quicktime';
+        } else if (url.toLowerCase().endsWith('.avi')) {
+          mimeType = 'video/x-msvideo';
+        }
+        
+        return { url, mimeType, thumbnail: undefined };
+      })
+      .filter((video) => video.url && (video.url.includes('video') || video.url.match(/\.(mp4|webm|mov|avi)$/i)));
+    
+    console.log('Videos from URL tags fallback:', videos);
   }
 
   const likeCount = reactions.data?.['+']?.count || 0;
@@ -171,38 +197,86 @@ export function VideoPost({
     const video = videoRef.current;
     if (video) {
       const handleLoadedData = () => {
+        console.log('Video loaded data successfully:', video.src);
         if (isActive) {
           const playPromise = video.play();
           if (playPromise !== undefined) {
             playPromise
               .then(() => {
+                console.log('Video playing successfully');
                 setIsPlaying(true);
               })
-              .catch(() => {
+              .catch((error) => {
+                console.error('Video play failed:', error);
                 setIsPlaying(false);
               });
           }
         }
       };
 
-      const handlePlay = () => setIsPlaying(true);
-      const handlePause = () => setIsPlaying(false);
+      const handlePlay = () => {
+        console.log('Video play event');
+        setIsPlaying(true);
+      };
+      
+      const handlePause = () => {
+        console.log('Video pause event');
+        setIsPlaying(false);
+      };
+      
       const handleCanPlay = () => {
+        console.log('Video can play event');
         if (isActive) {
-          video.play().catch(() => setIsPlaying(false));
+          video.play().catch((error) => {
+            console.error('Video play failed on canplay:', error);
+            setIsPlaying(false);
+          });
         }
+      };
+
+      const handleError = (e: Event) => {
+        console.error('Video error event:', e, video.error);
+        if (video.error) {
+          console.error('Video error details:', {
+            code: video.error.code,
+            message: video.error.message,
+            MEDIA_ERR_ABORTED: video.error.MEDIA_ERR_ABORTED,
+            MEDIA_ERR_NETWORK: video.error.MEDIA_ERR_NETWORK,
+            MEDIA_ERR_DECODE: video.error.MEDIA_ERR_DECODE,
+            MEDIA_ERR_SRC_NOT_SUPPORTED: video.error.MEDIA_ERR_SRC_NOT_SUPPORTED
+          });
+        }
+      };
+
+      const handleLoadStart = () => {
+        console.log('Video load start:', video.src);
+      };
+
+      const handleLoadedMetadata = () => {
+        console.log('Video metadata loaded:', {
+          duration: video.duration,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          readyState: video.readyState
+        });
       };
 
       video.addEventListener('loadeddata', handleLoadedData);
       video.addEventListener('play', handlePlay);
       video.addEventListener('pause', handlePause);
       video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('error', handleError);
+      video.addEventListener('loadstart', handleLoadStart);
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
 
       return () => {
         video.removeEventListener('loadeddata', handleLoadedData);
         video.removeEventListener('play', handlePlay);
         video.removeEventListener('pause', handlePause);
         video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('error', handleError);
+        video.removeEventListener('loadstart', handleLoadStart);
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       };
     }
   }, [isActive]);
@@ -295,9 +369,54 @@ export function VideoPost({
     onLocationClick?.(locationName);
   };
 
-  if (videos.length === 0) return null;
+  // Debug logging for video parsing
+  console.log('Video parsing debug:', {
+    eventKind: event.kind,
+    allTags: event.tags,
+    imetaTags: imetaTags,
+    parsedVideos: videos,
+    videosLength: videos.length
+  });
+
+  // Debug each imeta tag parsing
+  if (event.kind === 22) {
+    console.log('Parsing kind 22 imeta tags:');
+    imetaTags.forEach((tag, index) => {
+      console.log(`imeta tag ${index}:`, tag);
+      const tagContent = tag.slice(1).join(' ');
+      console.log(`Tag content: "${tagContent}"`);
+      
+      // Extract URL
+      const urlMatch = tagContent.match(/url\s+(\S+)/);
+      const url = urlMatch?.[1];
+      console.log(`Extracted URL: "${url}"`);
+
+      // Extract MIME type
+      const mimeMatch = tagContent.match(/m\s+(\S+)/);
+      const mimeType = mimeMatch?.[1];
+      console.log(`Extracted MIME type: "${mimeType}"`);
+
+      // Extract thumbnail
+      const thumbMatch = tagContent.match(/thumb\s+(\S+)/);
+      const imageMatch = tagContent.match(/image\s+(\S+)/);
+      const thumbnail = thumbMatch?.[1] || imageMatch?.[1];
+      console.log(`Extracted thumbnail: "${thumbnail}"`);
+
+      const videoObj = { url, mimeType, thumbnail };
+      console.log(`Video object:`, videoObj);
+      
+      const passesFilter = videoObj.url && (videoObj.mimeType?.startsWith('video/') || videoObj.mimeType === 'application/x-mpegURL');
+      console.log(`Passes filter: ${passesFilter}`);
+    });
+  }
+
+  if (videos.length === 0) {
+    console.log('No videos found in event:', event);
+    return null;
+  }
 
   const primaryVideo = videos[0];
+  console.log('Primary video selected:', primaryVideo);
 
   // Helper function to get corrected MIME type based on URL extension
   const getCorrectedVideo = (video: typeof primaryVideo) => {
@@ -326,6 +445,29 @@ export function VideoPost({
 
   // Get corrected video object
   const correctedVideo = getCorrectedVideo(primaryVideo);
+  console.log('Corrected video:', correctedVideo);
+
+  // Check codec support for WebM files
+  useEffect(() => {
+    if (correctedVideo.url && correctedVideo.url.endsWith('.webm')) {
+      const video = document.createElement('video');
+      const supportedFormats = [
+        'video/webm; codecs="vp9"',
+        'video/webm; codecs="vp8"',
+        'video/webm; codecs="vp9,vorbis"',
+        'video/webm; codecs="vp8,vorbis"',
+        'video/webm; codecs="vp9,opus"',
+        'video/webm; codecs="vp8,opus"',
+        'video/webm',
+      ];
+      
+      console.log('WebM codec support check:');
+      supportedFormats.forEach(format => {
+        const canPlay = video.canPlayType(format);
+        console.log(`${format}: ${canPlay}`);
+      });
+    }
+  }, [correctedVideo.url]);
 
   // Calculate container height based on layout
   const getContainerHeight = () => {

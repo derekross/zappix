@@ -392,9 +392,8 @@ export async function compressVideo(
     try {
       objectUrl = URL.createObjectURL(file);
       video.src = objectUrl;
-      video.muted = true; // Mute for user, but we'll capture audio via stream
       video.crossOrigin = 'anonymous';
-      video.volume = 0; // Ensure no audio plays to user
+      // Keep video unmuted initially to capture audio stream, will mute for playback if needed
 
       // Special settings for large files
       if (fileSizeMB > 100) {
@@ -461,7 +460,7 @@ async function createLightweightCompression(
     let finalStream = videoStream;
     try {
       // Use the video element's captureStream to get both video and audio
-      if ('captureStream' in video && !video.muted) {
+      if ('captureStream' in video) {
         const originalVideoStream = (video as any).captureStream();
         const audioTracks = originalVideoStream.getAudioTracks();
 
@@ -477,7 +476,7 @@ async function createLightweightCompression(
           console.log('No audio tracks found in original video stream');
         }
       } else {
-        console.log('Video.captureStream not available or video is muted - video only');
+        console.log('Video.captureStream not available - video only');
       }
     } catch (audioError) {
       console.warn('Could not capture audio from video:', audioError);
@@ -695,21 +694,23 @@ async function createLightweightCompression(
       console.log('Video ready, starting compression...');
       video.currentTime = 0;
 
+      // Mute video for user playback (after audio stream capture)
+      video.muted = true;
+      video.volume = 0;
+      
       // For large files, start playback more carefully
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
-          console.log('Video playback started successfully with audio');
+          console.log('Video playback started successfully (muted for user, audio captured in stream)');
           drawFrame();
         }).catch((error) => {
-          console.warn('Video play failed with audio, trying muted:', error);
-          // Try again with muted video if unmuted fails
-          video.muted = true;
+          console.warn('Video play failed, retrying:', error);
           video.play().then(() => {
-            console.log('Video playback started (muted fallback)');
+            console.log('Video playback started (retry successful)');
             drawFrame();
           }).catch((mutedError) => {
-            console.error('Video play failed even when muted:', mutedError);
+            console.error('Video play failed on retry:', mutedError);
             removeAllEventListeners();
             reject(new Error(`Video playback failed: ${mutedError.message}`));
           });
