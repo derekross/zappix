@@ -416,7 +416,7 @@ export function CreatePostDialog({
         // Use the MIME type from the upload response, not the original file
         const uploadMimeTag = tags.find(([name]) => name === 'm');
         const mimeType = uploadMimeTag ? uploadMimeTag[1] : file.type;
-        
+
         console.log('Creating imeta tag with MIME type:', {
           fileName: file.name,
           originalFileType: file.type,
@@ -429,7 +429,7 @@ export function CreatePostDialog({
 
         // Get the actual filename from the URL for the alt tag
         const urlFileName = url.split('/').pop() || file.name;
-        
+
         // Create a proper NIP-94 imeta tag with space-separated key-value pairs
         const imetaContent = [
           `url ${url}`,
@@ -610,7 +610,7 @@ export function CreatePostDialog({
         title: "Post created!",
         description:
           postType === "video"
-            ? "Your Flix post has been published"
+            ? "Flix post has been published"
             : `Your ${postType} post has been published`,
       });
     } catch (error) {

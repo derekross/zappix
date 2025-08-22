@@ -45,7 +45,7 @@ function ImageGridItem({ event }: { event: NostrEvent }) {
         aspectRatio = w / h;
       }
     }
-    
+
     return { url, alt, aspectRatio };
   }).filter(img => img.url);
 
@@ -70,7 +70,7 @@ function ImageGridItem({ event }: { event: NostrEvent }) {
   const objectFit = isVeryNonSquare ? 'object-contain' : 'object-cover';
 
   return (
-    <div 
+    <div
       className="relative aspect-square overflow-hidden rounded-md cursor-pointer group bg-muted"
       onClick={handleClick}
     >
@@ -85,7 +85,7 @@ function ImageGridItem({ event }: { event: NostrEvent }) {
       />
       {/* Overlay on hover */}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
-      
+
       {/* Multiple images indicator */}
       {images.length > 1 && (
         <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
@@ -98,7 +98,7 @@ function ImageGridItem({ event }: { event: NostrEvent }) {
 
 export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
   const posts = useUserImagePosts(pubkey);
-  
+
   // Intersection observer for infinite scrolling
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0,
@@ -114,7 +114,7 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
 
   // Flatten all pages into a single array of posts and deduplicate by event ID
   const allPosts = posts.data?.pages?.flatMap(page => page.events) || [];
-  
+
   // Deduplicate events by ID to prevent duplicate keys
   const uniquePosts = allPosts.reduce((acc, post) => {
     if (!acc.find(p => p.id === post.id)) {
@@ -122,20 +122,20 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
     }
     return acc;
   }, [] as typeof allPosts);
-  
+
   if (posts.isLoading) {
     return (
       <div className={cn("space-y-4", className)}>
-        <h3 className="text-lg font-semibold">Your Images</h3>
+        <h3 className="text-lg font-semibold">Images</h3>
         <ImageGridSkeleton />
       </div>
     );
   }
-  
+
   if (posts.error) {
     return (
       <div className={cn("space-y-4", className)}>
-        <h3 className="text-lg font-semibold">Your Images</h3>
+        <h3 className="text-lg font-semibold">Images</h3>
         <Card className="border-dashed">
           <CardContent className="py-8 px-6 text-center">
             <p className="text-muted-foreground text-sm">
@@ -146,11 +146,11 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
       </div>
     );
   }
-  
+
   if (!posts.data || uniquePosts.length === 0) {
     return (
       <div className={cn("space-y-4", className)}>
-        <h3 className="text-lg font-semibold">Your Images</h3>
+        <h3 className="text-lg font-semibold">Images</h3>
         <Card className="border-dashed">
           <CardContent className="py-8 px-6 text-center">
             <p className="text-muted-foreground text-sm">
@@ -161,11 +161,11 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
       </div>
     );
   }
-  
+
   return (
     <div className={cn("space-y-4", className)}>
-      <h3 className="text-lg font-semibold">Your Images</h3>
-      
+      <h3 className="text-lg font-semibold">Images</h3>
+
       <div className="grid grid-cols-3 gap-1">
         {uniquePosts.map((post) => (
           <ImageGridItem key={post.id} event={post} />
@@ -181,8 +181,8 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
               <span>Loading more images...</span>
             </div>
           ) : (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => posts.fetchNextPage()}
               disabled={!posts.hasNextPage}
@@ -192,7 +192,7 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
           )}
         </div>
       )}
-      
+
       {/* End of feed indicator */}
       {!posts.hasNextPage && allPosts.length > 0 && (
         <div className="text-center py-4">
