@@ -16,24 +16,29 @@ class PoolManager {
     return PoolManager.instance;
   }
 
-  // Default relays for all pools
-  private getDefaultRelays() {
+  // Optimized relays - fewer, faster relays for better performance
+  private getFastRelays() {
     return [
-      'wss://relay.nostr.band',
-      'wss://relay.primal.net',
-      'wss://relay.olas.app',
-      'wss://nos.lol',
-      'wss://relay.snort.social',
-      'wss://purplepag.es',
-      'wss://relay.damus.io',
-      'wss://ditto.pub/relay',
+      'wss://relay.nostr.band', // Fast indexing relay
+      'wss://relay.primal.net',  // Fast caching relay
+      'wss://nos.lol',          // Fast relay
     ];
   }
 
-  // Get the main pool (used by NostrProvider)
+  // Discovery relays for global feeds - slightly more coverage
+  private getDiscoveryRelays() {
+    return [
+      'wss://relay.nostr.band',
+      'wss://relay.primal.net',
+      'wss://nos.lol',
+      'wss://relay.damus.io',
+    ];
+  }
+
+  // Get the main pool (used by NostrProvider) - optimized for speed
   getMainPool(): NPool {
     if (!this.mainPool) {
-      const relayUrls = this.getDefaultRelays();
+      const relayUrls = this.getFastRelays();
       this.mainPool = new NPool({
         open(url: string) {
           return new NRelay1(url);
@@ -45,7 +50,7 @@ class PoolManager {
           }
           return relayMap;
         },
-        eventRouter: () => relayUrls.slice(0, 3),
+        eventRouter: () => relayUrls.slice(0, 2), // Reduced to 2 for faster publishing
       });
     }
     return this.mainPool;
@@ -54,34 +59,36 @@ class PoolManager {
   // Get discovery pool for global feeds and hashtag queries
   getDiscoveryPool(): NPool {
     if (!this.discoveryPool) {
-      const relayUrls = this.getDefaultRelays();
+      const relayUrls = this.getDiscoveryRelays();
       this.discoveryPool = new NPool({
         open(url: string) {
           return new NRelay1(url);
         },
         reqRouter: (filters) => {
           const relayMap = new Map<string, typeof filters>();
-          for (const url of relayUrls) {
+          // Only use top 3 relays for faster response
+          for (const url of relayUrls.slice(0, 3)) {
             relayMap.set(url, filters);
           }
           return relayMap;
         },
-        eventRouter: () => relayUrls.slice(0, 3),
+        eventRouter: () => relayUrls.slice(0, 2),
       });
     }
     return this.discoveryPool;
   }
 
-  // Get outbox pool for following feeds
+  // Get outbox pool for following feeds - optimized for fast profile/following queries
   getOutboxPool(): NPool {
     if (!this.outboxPool) {
-      const relayUrls = this.getDefaultRelays();
+      const relayUrls = this.getFastRelays();
       this.outboxPool = new NPool({
         open(url: string) {
           return new NRelay1(url);
         },
         reqRouter: (filters) => {
           const relayMap = new Map<string, typeof filters>();
+          // Use only the fastest relays for following feeds
           for (const url of relayUrls) {
             relayMap.set(url, filters);
           }

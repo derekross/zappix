@@ -107,7 +107,7 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
   return useInfiniteQuery({
     queryKey: ["all-video-posts", hashtag, location, orientation],
     queryFn: async ({ pageParam, signal }) => {
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]); // Faster timeout
       const discoveryPool = getDiscoveryPool();
 
       const filter: {
@@ -117,7 +117,7 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
         until?: number;
       } = {
         kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
-        limit: 20,
+        limit: 10, // Smaller page size for faster video loading
       };
 
       if (hashtag) {
@@ -162,12 +162,12 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    staleTime: 30000,
+    staleTime: 60000, // 1 minute
     refetchInterval: false, // Disable automatic refetching to prevent constant refreshing
-    retry: 2, // Reduce retry attempts
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
-    maxPages: 20, // Limit to 20 pages (400 posts) to prevent memory issues
-    gcTime: 2 * 60 * 1000, // Clean up after 2 minutes instead of default
+    retry: 1, // Single retry for faster response
+    retryDelay: 1000, // Fixed 1 second retry delay
+    maxPages: 15, // Limit to 15 pages (150 posts) to prevent memory issues
+    gcTime: 3 * 60 * 1000, // Clean up after 3 minutes
   });
 }
 
@@ -182,91 +182,72 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
   return useInfiniteQuery({
     queryKey: ["following-all-video-posts", stableFollowingKey, orientation],
     queryFn: async ({ pageParam, signal }) => {
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(15000)]); // Increased timeout for outbox routing
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(6000)]); // Faster timeout for following feed
 
       // If no following pubkeys, return empty result
       if (followingPubkeys.length === 0) {
+        console.log('❌ No following pubkeys, returning empty result');
         return {
           events: [],
           nextCursor: undefined,
         };
       }
 
-      // Fallback relays in case outbox model fails
+      console.log(`🔍 Following video query - ${followingPubkeys.length} authors, pageParam: ${pageParam}`);
+
+      // Fallback relays - using fewer, faster relays
       const fallbackRelays = [
         "wss://relay.nostr.band",
-        "wss://relay.damus.io",
         "wss://relay.primal.net",
         "wss://nos.lol",
-        "wss://relay.snort.social",
       ];
 
-      const filter: {
-        kinds: number[];
-        authors: string[];
-        limit: number;
-        until?: number;
-      } = {
-        kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
-        authors: followingPubkeys.slice(), // Create a copy to avoid reference issues
-        limit: 15, // Slightly larger limit for outbox model
-      };
-
-      // Add pagination using 'until' timestamp
-      if (pageParam) {
-        filter.until = pageParam;
+      // Chunk authors to avoid relay limits (max 500 authors per query)
+      const maxAuthorsPerQuery = 500;
+      const authorChunks = [];
+      for (let i = 0; i < followingPubkeys.length; i += maxAuthorsPerQuery) {
+        authorChunks.push(followingPubkeys.slice(i, i + maxAuthorsPerQuery));
       }
 
-      // Use outbox model to route requests to followed users' write relays
-      let relayMap: Map<string, NostrFilter[]>;
-      try {
-        relayMap = await routeRequest([filter], fallbackRelays);
-      } catch {
-        // Fallback to discovery pool if outbox model fails
-        const discoveryPool = getDiscoveryPool();
-        const events = await discoveryPool.query([filter], { signal: querySignal });
-        const validEvents = events.filter(validateVideoEvent);
-        const uniqueEvents = validEvents.filter(
-          (event, index, self) => index === self.findIndex((e) => e.id === event.id)
-        );
-        const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+      console.log(`📦 Split ${followingPubkeys.length} authors into ${authorChunks.length} chunks`);
 
-        // Filter out deleted events if deletion data is available
-        const filteredEvents = deletionData
-          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
-          : sortedEvents;
+      // Query each chunk and combine results
+      const allEvents: NostrEvent[] = [];
+      
+      for (const [chunkIndex, authorChunk] of authorChunks.entries()) {
+        console.log(`🔄 Querying chunk ${chunkIndex + 1}/${authorChunks.length} with ${authorChunk.length} authors`);
 
-        return {
-          events: filteredEvents,
-          nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
+        const filter: {
+          kinds: number[];
+          authors: string[];
+          limit: number;
+          until?: number;
+        } = {
+          kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
+          authors: authorChunk,
+          limit: Math.ceil(10 / authorChunks.length), // Distribute limit across chunks
         };
-      }
 
-      // Query all routed relays
-      const relayPromises = Array.from(relayMap.entries()).map(async ([, filters]) => {
-        try {
-          const events = await nostr.query(filters, { signal: querySignal });
-          return events;
-        } catch {
-          return []; // Return empty array on failure
+        // Add pagination using 'until' timestamp
+        if (pageParam) {
+          filter.until = pageParam;
         }
-      });
 
-      const allEvents = await Promise.all(relayPromises);
-      const events = allEvents.flat();
-
-      // If outbox model returned no results, try fallback to discovery relays
-      if (events.length === 0) {
         try {
+          // Use discovery pool directly for better reliability with large author lists
           const discoveryPool = getDiscoveryPool();
-          const fallbackEvents = await discoveryPool.query([filter], { signal: querySignal });
-          events.push(...fallbackEvents);
-        } catch {
-          // Fallback failed, continue with empty results
+          const chunkEvents = await discoveryPool.query([filter], { signal: querySignal });
+          console.log(`📥 Chunk ${chunkIndex + 1} returned ${chunkEvents.length} raw events`);
+          allEvents.push(...chunkEvents);
+        } catch (error) {
+          console.error(`❌ Error querying chunk ${chunkIndex + 1}:`, error);
         }
       }
 
-      const validEvents = events.filter(validateVideoEvent);
+      console.log(`📊 Total raw events from all chunks: ${allEvents.length}`);
+
+      const validEvents = allEvents.filter(validateVideoEvent);
+      console.log(`✅ Valid video events after filtering: ${validEvents.length}`);
 
       // Deduplicate by ID first, then sort by created_at
       const uniqueEvents = validEvents.filter(
@@ -292,12 +273,12 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: followingPubkeys.length > 0, // Only run query if we have pubkeys to follow
-    staleTime: 30000, // 30 seconds
+    staleTime: 60000, // 1 minute
     refetchInterval: false, // Disable automatic refetching to prevent constant refreshing
-    retry: 3, // Increased retry attempts for outbox model
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
-    maxPages: 20, // Limit to 20 pages for following feed
-    gcTime: 3 * 60 * 1000, // Clean up after 3 minutes
+    retry: 1, // Single retry for faster response
+    retryDelay: 1000, // Fixed 1 second retry delay
+    maxPages: 15, // Limit to 15 pages for following feed
+    gcTime: 5 * 60 * 1000, // Clean up after 5 minutes for following feed
   });
 }
 

@@ -17,7 +17,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoginArea } from "@/components/auth/LoginArea";
 import { ImageFeed } from "./ImageFeed";
 import { VideoFeed } from "./VideoFeed";
-import { OptimizedImageFeed } from "./OptimizedImageFeed";
 import { HashtagGrid } from "./HashtagGrid";
 import { CreatePostDialog } from "./CreatePostDialog";
 
@@ -542,7 +541,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsList>
 
                     <TabsContent value="global" className="space-y-6">
-                      <OptimizedImageFeed
+                      <ImageFeed
                         feedType="global"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}
@@ -550,7 +549,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
-                      <OptimizedImageFeed
+                      <ImageFeed
                         feedType="following"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}

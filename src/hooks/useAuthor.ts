@@ -12,8 +12,8 @@ export function useAuthor(pubkey: string | undefined) {
         return {};
       }
 
-      // Use a longer timeout for better reliability across different relay speeds
-      const timeoutSignal = AbortSignal.timeout(8000);
+      // Shorter timeout for faster loading - profiles should load quickly
+      const timeoutSignal = AbortSignal.timeout(3000);
       const combinedSignal = AbortSignal.any([signal, timeoutSignal]);
 
       try {

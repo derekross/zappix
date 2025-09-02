@@ -35,7 +35,7 @@ export function useImagePosts(hashtag?: string, location?: string) {
   return useInfiniteQuery({
     queryKey: ["image-posts", hashtag, location],
     queryFn: async ({ pageParam, signal }) => {
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]); // Faster timeout
       const discoveryPool = getDiscoveryPool();
 
       const filter: {
@@ -45,7 +45,7 @@ export function useImagePosts(hashtag?: string, location?: string) {
         until?: number;
       } = {
         kinds: [20],
-        limit: 20,
+        limit: 15, // Smaller page size for faster loading
       };
 
       if (hashtag) {
@@ -91,8 +91,10 @@ export function useImagePosts(hashtag?: string, location?: string) {
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 60000, // 1 minute - keep data fresh longer
+    refetchInterval: false, // Disable automatic refetching
+    retry: 1, // Reduce retries for faster response
+    retryDelay: 1000, // Shorter retry delay
   });
 }
 
@@ -100,7 +102,7 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
   return useInfiniteQuery({
     queryKey: ["following-image-posts", followingPubkeys],
     queryFn: async ({ pageParam, signal }) => {
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(6000)]); // Faster timeout
 
       // Use outbox model for following feed
       const outboxPool = getOutboxPool();
@@ -114,7 +116,7 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
         } = {
           kinds: [20],
           authors: followingPubkeys,
-          limit: 10, // Smaller initial page size for faster loading
+          limit: 12, // Slightly larger for following feed since it's more targeted
         };
 
         // Add pagination using 'until' timestamp
@@ -160,8 +162,11 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // 1 minute
+    enabled: followingPubkeys.length > 0, // Only run query if we have pubkeys to follow
+    staleTime: 60000, // 1 minute
+    refetchInterval: false, // Disable automatic refetching
+    retry: 1, // Reduce retries for faster response
+    retryDelay: 1000, // Shorter retry delay
   });
 }
 
