@@ -18,7 +18,6 @@ import { LoginArea } from "@/components/auth/LoginArea";
 import { ImageFeed } from "./ImageFeed";
 import { VideoFeed } from "./VideoFeed";
 import { OptimizedImageFeed } from "./OptimizedImageFeed";
-import { OptimizedVideoFeed } from "./OptimizedVideoFeed";
 import { HashtagGrid } from "./HashtagGrid";
 import { CreatePostDialog } from "./CreatePostDialog";
 
@@ -836,9 +835,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsList>
 
                     <TabsContent value="global" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Global Feed</h2>
-                      </div>
                       <ImageFeed
                         feedType="global"
                         onHashtagClick={handleHashtagClick}
@@ -847,9 +843,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
-                      <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Following Feed</h2>
-                      </div>
                       <ImageFeed
                         feedType="following"
                         onHashtagClick={handleHashtagClick}
@@ -883,7 +876,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsList>
 
                     <TabsContent value="global" className="space-y-6">
-                      <OptimizedVideoFeed
+                      <VideoFeed
                         feedType="global"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}
@@ -891,7 +884,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </TabsContent>
 
                     <TabsContent value="following" className="space-y-6">
-                      <OptimizedVideoFeed
+                      <VideoFeed
                         feedType="following"
                         onHashtagClick={handleHashtagClick}
                         onLocationClick={handleLocationClick}

@@ -5,8 +5,7 @@ import { useOptimizedImagePosts, useOptimizedFollowingImagePosts } from '@/hooks
 import { useFollowing } from '@/hooks/useFollowing';
 import { ImagePost } from './ImagePost';
 import { ImagePostSkeleton } from './ImagePostSkeleton';
-import { Button } from './ui/button';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface OptimizedImageFeedProps {
   feedType: 'global' | 'following';
@@ -86,10 +85,6 @@ export function OptimizedImageFeed({
     }
   }, [inView, query.hasNextPage, query.isFetchingNextPage, query.isFetching, query.fetchNextPage]);
 
-  // Refresh feed
-  const handleRefresh = useCallback(() => {
-    query.refresh();
-  }, [query.refresh]);
 
   // Combine actual events and skeletons for smooth loading
   const displayItems = useCallback(() => {
@@ -120,37 +115,6 @@ export function OptimizedImageFeed({
 
   return (
     <div className="space-y-4">
-      {/* Header with refresh button */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">
-          {feedType === 'global' ? 'Global Feed' : 'Following Feed'}
-          {hashtag && (
-            <span className="ml-2 text-sm text-muted-foreground">
-              #{hashtag}
-            </span>
-          )}
-          {location && (
-            <span className="ml-2 text-sm text-muted-foreground">
-              📍 {location}
-            </span>
-          )}
-        </h2>
-        <Button
-          onClick={handleRefresh}
-          variant="outline"
-          size="sm"
-          disabled={query.isLoading || query.isFetching}
-          className="flex items-center space-x-2"
-        >
-          {query.isLoading || query.isFetching ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-          <span>Refresh</span>
-        </Button>
-      </div>
-
       {/* Feed content */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {displayItems().map((item, index) => {
