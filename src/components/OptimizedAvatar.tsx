@@ -77,27 +77,23 @@ export function OptimizedAvatar({
 
   // Get the best available image URL
   const getAvatarUrl = () => {
-    if (!author) return null;
-    
+    if (!author?.metadata) return null;
+
     // Try picture URL first (highest quality)
-    if (author.picture) {
-      // Add size parameter for optimization
-      const url = new URL(author.picture);
-      url.searchParams.set('width', '80');
-      url.searchParams.set('height', '80');
-      url.searchParams.set('quality', '80');
-      return url.toString();
+    if (author.metadata.picture) {
+      try {
+        // Try to add size parameters for optimization, but fallback gracefully
+        const url = new URL(author.metadata.picture);
+        url.searchParams.set('width', '80');
+        url.searchParams.set('height', '80');
+        url.searchParams.set('quality', '80');
+        return url.toString();
+      } catch {
+        // If URL parsing fails, return the original URL
+        return author.metadata.picture;
+      }
     }
-    
-    // Fallback to image URL
-    if (author.image) {
-      const url = new URL(author.image);
-      url.searchParams.set('width', '80');
-      url.searchParams.set('height', '80');
-      url.searchParams.set('quality', '80');
-      return url.toString();
-    }
-    
+
     return null;
   };
 
@@ -107,8 +103,8 @@ export function OptimizedAvatar({
 
   // Generate initials from name or pubkey
   const getInitials = () => {
-    if (author?.name) {
-      return author.name
+    if (author?.metadata?.name) {
+      return author.metadata.name
         .split(' ')
         .map(word => word[0])
         .join('')
@@ -142,7 +138,7 @@ export function OptimizedAvatar({
       {shouldShowImage && (
         <img
           src={avatarUrl}
-          alt={author?.name || pubkey}
+          alt={author?.metadata?.name || pubkey}
           className={cn(
             "aspect-square h-full w-full object-cover",
             "transition-opacity duration-300",
@@ -152,7 +148,7 @@ export function OptimizedAvatar({
           onError={handleError}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          fetchPriority={priority ? "high" : "auto"}
+          fetchpriority={priority ? "high" : "auto"}
         />
       )}
 

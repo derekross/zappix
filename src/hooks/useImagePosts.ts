@@ -3,6 +3,7 @@ import { useOptimizedFeedLoader } from "./useOptimizedFeedLoader";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { getDiscoveryPool, getOutboxPool } from "@/lib/poolManager";
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
+import { useMutedUsers } from './useMutedUsers';
 
 // Validator function for NIP-68 image events (more lenient)
 function validateImageEvent(event: NostrEvent): boolean {
@@ -31,9 +32,10 @@ function validateImageEvent(event: NostrEvent): boolean {
 
 export function useImagePosts(hashtag?: string, location?: string) {
   const { data: deletionData } = useDeletedEvents();
+  const { data: mutedUsers = [] } = useMutedUsers();
 
   return useInfiniteQuery({
-    queryKey: ["image-posts", hashtag, location],
+    queryKey: ["image-posts", hashtag, location, mutedUsers],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]); // Faster timeout
       const discoveryPool = getDiscoveryPool();
@@ -75,10 +77,13 @@ export function useImagePosts(hashtag?: string, location?: string) {
           .sort((a, b) => b.created_at - a.created_at)
           .filter((event, index, self) => index === self.findIndex(e => e.id === event.id));
 
+        // Filter out muted users
+        const unmutedEvents = sortedEvents.filter(event => !mutedUsers.includes(event.pubkey));
+
         // Filter out deleted events if deletion data is available
         const filteredEvents = deletionData
-          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
-          : sortedEvents;
+          ? filterDeletedEvents(unmutedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+          : unmutedEvents;
 
         return {
           events: filteredEvents,
@@ -171,8 +176,10 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
 }
 
 export function useHashtagImagePosts(hashtags: string[], limit = 3) {
+  const { data: mutedUsers = [] } = useMutedUsers();
+
   return useQuery({
-    queryKey: ["hashtag-image-posts", hashtags, limit],
+    queryKey: ["hashtag-image-posts", hashtags, limit, mutedUsers],
     queryFn: async (c) => {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
 
@@ -190,7 +197,7 @@ export function useHashtagImagePosts(hashtags: string[], limit = 3) {
               {
                 kinds: [20],
                 "#t": [hashtag],
-                limit,
+                limit: limit * 2, // Query more to account for filtered posts
               },
             ],
             { signal }
@@ -200,7 +207,10 @@ export function useHashtagImagePosts(hashtags: string[], limit = 3) {
             hashtag,
             posts: events
               .filter(validateImageEvent)
-              .sort((a, b) => b.created_at - a.created_at),
+              // Filter out muted users
+              .filter(event => !mutedUsers.includes(event.pubkey))
+              .sort((a, b) => b.created_at - a.created_at)
+              .slice(0, limit), // Limit after filtering
           };
         })
       );

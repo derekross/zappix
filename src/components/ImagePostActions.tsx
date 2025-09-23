@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Copy,
   Share,
@@ -14,6 +13,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useIsBookmarked, useToggleBookmark } from "@/hooks/useBookmarks";
 import { useIsFollowing, useToggleFollow } from "@/hooks/useFollowing";
+import { useIsMuted, useToggleMute } from "@/hooks/useToggleMute";
 
 import { useToast } from "@/hooks/useToast";
 import {
@@ -29,12 +29,13 @@ interface ImagePostActionsProps {
 export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  const [isMuted, setIsMuted] = useState(false); // TODO: Implement mute functionality
 
   const isBookmarked = useIsBookmarked(event.id);
   const toggleBookmark = useToggleBookmark();
   const isFollowing = useIsFollowing(event.pubkey);
   const toggleFollow = useToggleFollow();
+  const isMuted = useIsMuted(event.pubkey);
+  const toggleMute = useToggleMute();
 
   const isOwnPost = user?.pubkey === event.pubkey;
 
@@ -156,16 +157,40 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
     }
   };
 
-  const handleToggleMute = () => {
-    // TODO: Implement mute functionality
-    setIsMuted(!isMuted);
-    toast({
-      title: isMuted ? "Unmuted" : "Muted",
-      description: isMuted
-        ? "You will see posts from this user again"
-        : "You will no longer see posts from this user",
-    });
-    onClose();
+  const handleToggleMute = async () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to mute users",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (toggleMute.isPending) {
+      return;
+    }
+
+    try {
+      await toggleMute.mutateAsync({
+        pubkey: event.pubkey,
+        isMuted,
+      });
+
+      toast({
+        title: isMuted ? "Unmuted" : "Muted",
+        description: isMuted
+          ? "You will see posts from this user again"
+          : "You will no longer see posts from this user",
+      });
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update mute status",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleReport = () => {
@@ -229,13 +254,20 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
                 {isFollowing.data ? "Unfollow" : "Follow"} user
               </DropdownMenuItem>
 
-              <DropdownMenuItem onClick={handleToggleMute}>
+              <DropdownMenuItem
+                onClick={handleToggleMute}
+                disabled={toggleMute.isPending}
+              >
                 {isMuted ? (
                   <Volume2 className="h-4 w-4 mr-2" />
                 ) : (
                   <VolumeX className="h-4 w-4 mr-2" />
                 )}
-                {isMuted ? "Unmute" : "Mute"} user
+                {toggleMute.isPending
+                  ? "Loading..."
+                  : isMuted
+                    ? "Unmute user"
+                    : "Mute user"}
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />

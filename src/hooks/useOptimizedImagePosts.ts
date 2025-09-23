@@ -2,6 +2,7 @@ import { useOptimizedFeedLoader } from './useOptimizedFeedLoader';
 import { getDiscoveryPool, getOutboxPool } from '@/lib/poolManager';
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 import { useFollowing } from './useFollowing';
+import { useMutedUsers } from './useMutedUsers';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 // Validator function for NIP-68 image events (more lenient)
@@ -24,9 +25,11 @@ function validateImageEvent(event: NostrEvent): boolean {
 }
 
 export function useOptimizedImagePosts(hashtag?: string, location?: string) {
+  const { data: mutedUsers = [] } = useMutedUsers();
+
   return useOptimizedFeedLoader({
     feedType: 'images',
-    queryKey: ['optimized-image-posts', hashtag, location],
+    queryKey: ['optimized-image-posts', hashtag, location, mutedUsers],
     queryFn: async ({ limit, pageParam, signal, hashtag: queryHashtag, location: queryLocation }) => {
       const filter = {
         kinds: [20],
@@ -70,6 +73,9 @@ export function useOptimizedImagePosts(hashtag?: string, location?: string) {
         // Filter and validate events
         let validEvents = events.filter(validateImageEvent);
 
+        // Filter out muted users
+        validEvents = validEvents.filter(event => !mutedUsers.includes(event.pubkey));
+
         // Filter out deleted events
         const { data: deletionData } = await useDeletedEvents.fetch();
         if (deletionData) {
@@ -106,9 +112,11 @@ export function useOptimizedImagePosts(hashtag?: string, location?: string) {
 }
 
 export function useOptimizedFollowingImagePosts(followingPubkeys: string[]) {
+  const { data: mutedUsers = [] } = useMutedUsers();
+
   return useOptimizedFeedLoader({
     feedType: 'images',
-    queryKey: ['optimized-following-image-posts', followingPubkeys.slice(0, 10)], // Limit key size
+    queryKey: ['optimized-following-image-posts', followingPubkeys.slice(0, 10), mutedUsers], // Limit key size
     queryFn: async ({ limit, pageParam, signal, followingPubkeys: pubkeys }) => {
       if (pubkeys.length === 0) {
         return { events: [], nextCursor: undefined };
@@ -136,6 +144,9 @@ export function useOptimizedFollowingImagePosts(followingPubkeys: string[]) {
 
         // Filter and validate events
         let validEvents = events.filter(validateImageEvent);
+
+        // Filter out muted users
+        validEvents = validEvents.filter(event => !mutedUsers.includes(event.pubkey));
 
         // Filter out deleted events
         const { data: deletionData } = await useDeletedEvents.fetch();
