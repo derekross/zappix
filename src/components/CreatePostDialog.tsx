@@ -457,9 +457,10 @@ export function CreatePostDialog({
           }
         });
 
+        // Create proper NIP-94 imeta tag - each key-value pair as a separate array element
         const imetaTag: string[] = [
           "imeta",
-          imetaContent.join(' '), // Join all key-value pairs with spaces
+          ...imetaContent, // Spread the key-value pairs as separate elements
         ];
 
         newMedia.push({
