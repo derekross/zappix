@@ -57,44 +57,84 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
       // Error handled by mutation
     },
     onSuccess: (data) => {
-
-      // Invalidate relevant queries when publishing content
-      if ([20, 22, 34236].includes(data.kind) && user) {
-        // Invalidate user video posts query
+      // Add a small delay to allow the event to propagate to relays
+      // This ensures the new post will be included when queries are refetched
+      setTimeout(() => {
+        // Invalidate relevant queries when publishing content
+        if ([20, 22, 34236].includes(data.kind) && user) {
+        // Invalidate video posts queries for kinds 22 and 34236 (short vertical videos)
         if ([22, 34236].includes(data.kind)) {
           console.log('PUBLISH DEBUG: Invalidating video queries after publishing kind', data.kind);
 
+          // User's own video posts
           queryClient.invalidateQueries({
             queryKey: ['user-video-posts', user.pubkey]
           });
 
-          // Also invalidate global and following video feeds
+          // Global video feeds (all variations)
           queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === 'all-video-posts'
           });
           queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === 'video-posts'
+          });
+          queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === 'optimized-all-video-posts'
+          });
+
+          // Following video feeds
+          queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === 'following-all-video-posts'
           });
           queryClient.invalidateQueries({
-            predicate: (query) => query.queryKey[0] === 'hashtag-all-video-posts'
+            predicate: (query) => query.queryKey[0] === 'following-video-posts'
+          });
+          queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === 'optimized-following-all-video-posts'
           });
 
-          console.log('PUBLISH DEBUG: Queries invalidated, waiting for refetch...');
+          // Hashtag video feeds
+          queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === 'hashtag-all-video-posts'
+          });
+          queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === 'hashtag-video-posts'
+          });
+
+          console.log('PUBLISH DEBUG: Video queries invalidated, waiting for refetch...');
         }
 
-        // Invalidate user image posts query
+        // Invalidate image posts queries for kind 20
         if (data.kind === 20) {
+          console.log('PUBLISH DEBUG: Invalidating image queries after publishing kind', data.kind);
+
+          // User's own image posts
           queryClient.invalidateQueries({
             queryKey: ['user-image-posts', user.pubkey]
           });
 
-          // Also invalidate global and following image feeds if they exist
+          // Global image feeds (all variations)
           queryClient.invalidateQueries({
-            queryKey: ['all-image-posts']
+            predicate: (query) => query.queryKey[0] === 'image-posts'
           });
           queryClient.invalidateQueries({
-            queryKey: ['following-all-image-posts']
+            predicate: (query) => query.queryKey[0] === 'optimized-image-posts'
           });
+
+          // Following image feeds
+          queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === 'following-image-posts'
+          });
+          queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === 'optimized-following-image-posts'
+          });
+
+          // Hashtag image feeds
+          queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === 'hashtag-image-posts'
+          });
+
+          console.log('PUBLISH DEBUG: Image queries invalidated, waiting for refetch...');
         }
 
         // Wait a moment for the event to propagate, then refresh notifications
@@ -102,6 +142,7 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           refreshNotifications();
         }, 2000);
       }
+      }, 500); // 500ms delay for query invalidation
     },
   });
 }

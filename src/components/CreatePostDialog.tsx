@@ -588,32 +588,47 @@ export function CreatePostDialog({
         kind = 22;
       }
 
-      createEvent({
-        kind,
-        content: content.trim(),
-        tags,
-      });
+      // Use async mutation with onSuccess/onError callbacks
+      createEvent(
+        {
+          kind,
+          content: content.trim(),
+          tags,
+        },
+        {
+          onSuccess: () => {
+            // Reset form on success
+            setContent("");
+            setHashtags("");
+            setLocation("");
+            setGeohash("");
+            setContentWarning("");
+            setHasContentWarning(false);
+            setAutoLocation(false);
+            setMedia([]);
 
-      // Reset form
-      setContent("");
-      setHashtags("");
-      setLocation("");
-      setGeohash("");
-      setContentWarning("");
-      setHasContentWarning(false);
-      setAutoLocation(false);
-      setMedia([]);
-      // Videos are always kind 22 (short vertical videos)
+            // Close dialog
+            onOpenChange(false);
 
-      onOpenChange(false);
-
-      toast({
-        title: "Post created!",
-        description:
-          postType === "video"
-            ? "Flix post has been published"
-            : `Your ${postType} post has been published`,
-      });
+            // Show success toast
+            toast({
+              title: "Post created!",
+              description:
+                postType === "video"
+                  ? "Your Flix has been published and will appear in the feed shortly"
+                  : `Your ${postType === "image" ? "Pix" : postType} has been published and will appear in the feed shortly`,
+            });
+          },
+          onError: (error) => {
+            console.error("Failed to publish post:", error);
+            toast({
+              title: "Failed to create post",
+              description: error instanceof Error ? error.message : "Please try again",
+              variant: "destructive",
+            });
+          },
+        }
+      );
     } catch (error) {
       console.error("Create post error:", error);
       toast({
