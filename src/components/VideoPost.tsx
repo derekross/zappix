@@ -176,8 +176,24 @@ export function VideoPost({
         let mimeType: string | undefined;
         let thumbnail: string | undefined;
 
+        // Special handling for vine-archaeologist format: ['url', 'https://...', 'm'] or ['url', 'm', 'image']
+        if (tag.length === 3 && tag[0] === 'url') {
+          // Check if element 1 is a URL (starts with http)
+          if (tag[1].startsWith('http://') || tag[1].startsWith('https://')) {
+            url = tag[1];
+            // Infer MIME type from URL extension
+            if (url.endsWith('.mp4')) {
+              mimeType = 'video/mp4';
+            } else if (url.endsWith('.webm')) {
+              mimeType = 'video/webm';
+            } else if (url.endsWith('.mov')) {
+              mimeType = 'video/quicktime';
+            }
+          }
+        }
+
         // First try the correct NIP-94 format: space-separated key-value pairs in single string
-        if (tag.length === 2) {
+        if (!url && tag.length === 2) {
           const tagContent = tag[1]; // Just the second element which should be the full content string
 
           const urlMatch = tagContent.match(/url\s+(\S+)/);

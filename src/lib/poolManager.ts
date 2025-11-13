@@ -32,6 +32,9 @@ class PoolManager {
       'wss://relay.primal.net',
       'wss://nos.lol',
       'wss://relay.damus.io',
+      // Divine-web / OpenVine relays for vine-like 6-second loop videos
+      'wss://relay.divine.video',
+      'wss://relay3.openvine.co',
     ];
   }
 
@@ -66,8 +69,8 @@ class PoolManager {
         },
         reqRouter: (filters) => {
           const relayMap = new Map<string, typeof filters>();
-          // Only use top 3 relays for faster response
-          for (const url of relayUrls.slice(0, 3)) {
+          // Use all discovery relays to ensure comprehensive coverage
+          for (const url of relayUrls) {
             relayMap.set(url, filters);
           }
           return relayMap;

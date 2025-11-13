@@ -74,8 +74,16 @@ function validateVideoEvent(event: NostrEvent): boolean {
     // Check if any imeta tag contains video content
     const hasVideoImeta = imetaTags.some(tag => {
       const tagContent = tag.slice(1).join(" ");
-      const hasUrl = tagContent.includes("url ") || /url\s+\S+/.test(tagContent);
-      const hasVideoMime = tagContent.includes("m video/") || /m\s+video\//.test(tagContent);
+
+      // Check for URL in multiple ways
+      const hasUrlPrefix = tagContent.includes("url ") || /url\s+\S+/.test(tagContent);
+      const hasHttpUrl = tagContent.includes("http://") || tagContent.includes("https://");
+      const hasUrl = hasUrlPrefix || hasHttpUrl;
+
+      // Check for video MIME type in multiple ways
+      const hasMimePrefix = tagContent.includes("m video/") || /m\s+video\//.test(tagContent);
+      const hasVideoMime = hasMimePrefix || tagContent.includes("video/");
+
       return hasUrl && hasVideoMime;
     });
 
