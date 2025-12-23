@@ -32,22 +32,10 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           created_at: t.created_at ?? Math.floor(Date.now() / 1000),
         });
 
-        // DEBUG: Log the event being published
-        console.log('PUBLISH DEBUG: Publishing event:', {
-          id: event.id,
-          kind: event.kind,
-          pubkey: event.pubkey.slice(0, 8),
-          created_at: event.created_at,
-          timestamp: new Date(event.created_at * 1000).toISOString(),
-          content: event.content.slice(0, 50) + '...',
-          tags: event.tags.map(tag => `${tag[0]}:${tag[1]?.slice(0, 30) || ''}...`)
-        });
-
         // The NostrProvider with outbox model will automatically route this event
         // to the user's write relays and any mentioned users' read relays
         await nostr.event(event, { signal: AbortSignal.timeout(15000) });
 
-        console.log('PUBLISH DEBUG: Event published successfully to relays');
         return event;
       } else {
         throw new Error("User is not logged in");
@@ -64,8 +52,6 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
         if ([20, 22, 34236].includes(data.kind) && user) {
         // Invalidate video posts queries for kinds 22 and 34236 (short vertical videos)
         if ([22, 34236].includes(data.kind)) {
-          console.log('PUBLISH DEBUG: Invalidating video queries after publishing kind', data.kind);
-
           // User's own video posts
           queryClient.invalidateQueries({
             queryKey: ['user-video-posts', user.pubkey]
@@ -100,14 +86,10 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === 'hashtag-video-posts'
           });
-
-          console.log('PUBLISH DEBUG: Video queries invalidated, waiting for refetch...');
         }
 
         // Invalidate image posts queries for kind 20
         if (data.kind === 20) {
-          console.log('PUBLISH DEBUG: Invalidating image queries after publishing kind', data.kind);
-
           // User's own image posts
           queryClient.invalidateQueries({
             queryKey: ['user-image-posts', user.pubkey]
@@ -133,8 +115,6 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === 'hashtag-image-posts'
           });
-
-          console.log('PUBLISH DEBUG: Image queries invalidated, waiting for refetch...');
         }
 
         // Wait a moment for the event to propagate, then refresh notifications

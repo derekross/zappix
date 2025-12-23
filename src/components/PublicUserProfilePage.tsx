@@ -74,13 +74,6 @@ export function PublicUserProfilePage({ pubkey }: PublicUserProfilePageProps) {
   };
 
   const handleFollowToggle = () => {
-    console.log('Follow toggle clicked', { 
-      currentUser: !!currentUser, 
-      pubkey, 
-      isFollowing: isFollowing.data,
-      currentUserPubkey: currentUser?.pubkey 
-    });
-
     if (!currentUser) {
       toast({
         title: 'Login Required',
@@ -100,13 +93,11 @@ export function PublicUserProfilePage({ pubkey }: PublicUserProfilePageProps) {
     }
 
     const followingState = isFollowing.data || false;
-    console.log('Calling toggleFollow with:', { pubkey, isFollowing: followingState });
 
     toggleFollow(
       { pubkey, isFollowing: followingState },
       {
         onSuccess: (data) => {
-          console.log('Follow toggle success:', data);
           toast({
             title: followingState ? 'Unfollowed' : 'Following',
             description: followingState 

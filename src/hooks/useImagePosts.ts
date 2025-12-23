@@ -1,34 +1,9 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { useOptimizedFeedLoader } from "./useOptimizedFeedLoader";
-import type { NostrEvent } from "@nostrify/nostrify";
-import { getDiscoveryPool, getOutboxPool } from "@/lib/poolManager";
+import { useNostr } from "@nostrify/react";
+import { getDiscoveryPool } from "@/lib/poolManager";
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 import { useMutedUsers } from './useMutedUsers';
-
-// Validator function for NIP-68 image events (more lenient)
-function validateImageEvent(event: NostrEvent): boolean {
-  // Check if it's a picture event kind
-  if (event.kind !== 20) return false;
-
-  // Check for required tags according to NIP-68 (be more lenient)
-  const title = event.tags.find(([name]) => name === "title")?.[1];
-  const imeta = event.tags.find(([name]) => name === "imeta");
-
-  // Picture events should have 'title' and 'imeta' tag, but be more forgiving
-  if (!title && !imeta) {
-    // If neither title nor imeta, reject
-    return false;
-  }
-
-  // If we have imeta, do basic validation
-  if (imeta && imeta[1] && !imeta[1].includes("url")) {
-    return false;
-  }
-
-  return true;
-}
-
-// Pool management is now centralized in poolManager.ts
+import { validateImageEvent } from '@/lib/validators';
 
 export function useImagePosts(hashtag?: string, location?: string) {
   const { data: deletionData } = useDeletedEvents();
@@ -104,13 +79,12 @@ export function useImagePosts(hashtag?: string, location?: string) {
 }
 
 export function useFollowingImagePosts(followingPubkeys: string[]) {
+  const { nostr } = useNostr();
+
   return useInfiniteQuery({
     queryKey: ["following-image-posts", followingPubkeys],
     queryFn: async ({ pageParam, signal }) => {
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(6000)]); // Faster timeout
-
-      // Use outbox model for following feed
-      const outboxPool = getOutboxPool();
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
 
       try {
         const filter: {
@@ -121,7 +95,7 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
         } = {
           kinds: [20],
           authors: followingPubkeys,
-          limit: 12, // Slightly larger for following feed since it's more targeted
+          limit: 12,
         };
 
         // Add pagination using 'until' timestamp
@@ -129,21 +103,17 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
           filter.until = pageParam;
         }
 
-        const events = await outboxPool.query([filter], {
-          signal: querySignal,
-        });
+        // Query user's read relays (via NostrProvider) AND discovery pool
+        // NostrProvider routes to user's NIP-65 read relays automatically
+        const [userRelayEvents, discoveryEvents] = await Promise.all([
+          nostr.query([filter], { signal: querySignal }).catch(() => []),
+          getDiscoveryPool().query([filter], { signal: querySignal }).catch(() => []),
+        ]);
 
-        console.log("Following feed raw events received:", events.length);
+        // Combine results from both pools
+        const allEvents = [...userRelayEvents, ...discoveryEvents];
 
-        const validEvents = events.filter(validateImageEvent);
-        console.log("Following feed valid events:", validEvents.length);
-
-        // Log unique authors found
-        const uniqueAuthors = [...new Set(validEvents.map((e) => e.pubkey))];
-        console.log(
-          "Following feed unique authors found:",
-          uniqueAuthors.length
-        );
+        const validEvents = allEvents.filter(validateImageEvent);
 
         // Sort by created_at and deduplicate by ID
         const sortedEvents = validEvents
@@ -161,17 +131,16 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
               : undefined,
         };
       } catch (error) {
-
         throw error;
       }
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: followingPubkeys.length > 0, // Only run query if we have pubkeys to follow
-    staleTime: 60000, // 1 minute
-    refetchInterval: false, // Disable automatic refetching
-    retry: 1, // Reduce retries for faster response
-    retryDelay: 1000, // Shorter retry delay
+    enabled: followingPubkeys.length > 0,
+    staleTime: 60000,
+    refetchInterval: false,
+    retry: 1,
+    retryDelay: 1000,
   });
 }
 

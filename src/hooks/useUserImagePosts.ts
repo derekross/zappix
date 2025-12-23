@@ -1,32 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import type { NostrEvent } from '@nostrify/nostrify';
 import { getDiscoveryPool } from "@/lib/poolManager";
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
-
-// Validator function for NIP-68 image events (more lenient)
-function validateImageEvent(event: NostrEvent): boolean {
-  // Check if it's a picture event kind
-  if (event.kind !== 20) return false;
-
-  // Check for required tags according to NIP-68 (be more lenient)
-  const title = event.tags.find(([name]) => name === 'title')?.[1];
-  const imeta = event.tags.find(([name]) => name === 'imeta');
-
-  // Picture events should have 'title' and 'imeta' tag, but be more forgiving
-  if (!title && !imeta) {
-    // If neither title nor imeta, reject
-    return false;
-  }
-
-  // If we have imeta, do basic validation
-  if (imeta && imeta[1] && !imeta[1].includes('url')) {
-    return false;
-  }
-
-  return true;
-}
-
-// Pool management is now centralized in poolManager.ts
+import { validateImageEvent } from '@/lib/validators';
 
 export function useUserImagePosts(pubkey: string | undefined) {
   const { data: deletionData } = useDeletedEvents();

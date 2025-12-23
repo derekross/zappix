@@ -1,111 +1,9 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import type { NostrEvent, NostrFilter } from "@nostrify/nostrify";
 import { useNostr } from '@nostrify/react';
-import { useOutboxModel } from './useOutboxModel';
 import { getDiscoveryPool } from "@/lib/poolManager";
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
-
-// Validator function for vertical video events (NIP-71 kind 22 and legacy kind 34236)
-function validateVideoEvent(event: NostrEvent): boolean {
-  // Check for NIP-71 short-form video events (kind 22)
-  if (event.kind === 22) {
-    // For NIP-71 video events, check for imeta tag with video content
-    const imetaTags = event.tags.filter(([name]) => name === "imeta");
-
-    // Check if any imeta tag contains video content
-    const hasVideoImeta = imetaTags.some(tag => {
-      // Handle multiple formats more flexibly
-      let hasUrl = false;
-      let hasVideoMime = false;
-
-      // Join all tag elements after the first one to create content string
-      const tagContent = tag.slice(1).join(" ");
-
-      // Look for URL in any format
-      const urlMatch = tagContent.match(/(?:^|\s)url\s+(\S+)/);
-      hasUrl = !!urlMatch;
-
-      // Look for video MIME type in any format
-      const mimeMatch = tagContent.match(/(?:^|\s)m\s+(video\/\S+|application\/x-mpegURL)/);
-      hasVideoMime = !!mimeMatch;
-
-      // Also check for video file extensions as backup
-      if (hasUrl && !hasVideoMime) {
-        const url = urlMatch![1];
-        hasVideoMime = /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(url);
-      }
-
-      return hasUrl && hasVideoMime;
-    });
-
-    // Check for simple URL tags as additional fallback
-    const hasVideoUrl = event.tags.some(([name, value]) => {
-      if (name !== 'url') return false;
-      if (!value) return false;
-      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) ||
-             value.includes('video') ||
-             value.includes('.webm') ||
-             value.includes('.mp4');
-    });
-
-    // Also check for single-string imeta format (like user's event)
-    const hasSingleStringImeta = event.tags.some(([name, value]) => {
-      if (name !== 'imeta' || !value) return false;
-
-      // Check if single string contains both url and video mime type
-      const hasUrl = value.includes('url https://') || value.includes('url http://');
-      const hasVideoMime = value.includes('m video/') || value.includes('m application/x-mpegURL');
-
-      // Also check for video file extensions
-      const hasVideoExtension = /\.(mp4|webm|mov|avi|mkv|3gp|m4v)/i.test(value);
-
-      return hasUrl && (hasVideoMime || hasVideoExtension);
-    });
-
-    // For kind 22, we're more permissive - just need video content
-    return hasVideoImeta || hasSingleStringImeta || hasVideoUrl;
-  }
-
-  // Check for legacy vertical video events (kind 34236)
-  if (event.kind === 34236) {
-    // For legacy kind 34236, check for imeta tag with video content
-    const imetaTags = event.tags.filter(([name]) => name === "imeta");
-
-    // Check if any imeta tag contains video content
-    const hasVideoImeta = imetaTags.some(tag => {
-      const tagContent = tag.slice(1).join(" ");
-
-      // Check for URL in multiple ways
-      const hasUrlPrefix = tagContent.includes("url ") || /url\s+\S+/.test(tagContent);
-      const hasHttpUrl = tagContent.includes("http://") || tagContent.includes("https://");
-      const hasUrl = hasUrlPrefix || hasHttpUrl;
-
-      // Check for video MIME type in multiple ways
-      const hasMimePrefix = tagContent.includes("m video/") || /m\s+video\//.test(tagContent);
-      const hasVideoMime = hasMimePrefix || tagContent.includes("video/");
-
-      return hasUrl && hasVideoMime;
-    });
-
-    // Also check for standalone m and x tags (legacy format)
-    const hasMimeTag = event.tags.some(([name, value]) => name === "m" && value?.startsWith("video/"));
-    const hasHashTag = event.tags.some(([name]) => name === "x");
-
-    // Check for simple URL tags as additional fallback
-    const hasVideoUrl = event.tags.some(([name, value]) => {
-      if (name !== 'url') return false;
-      if (!value) return false;
-      return /\.(mp4|webm|mov|avi|mkv|3gp|m4v)$/i.test(value) ||
-             value.includes('video');
-    });
-
-    return hasVideoImeta || (hasMimeTag && hasHashTag) || hasVideoUrl;
-  }
-
-  return false;
-}
-
-// Pool management is now centralized in poolManager.ts
+import { validateVideoEvent } from '@/lib/validators';
 
 
 
@@ -124,7 +22,7 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
         "#t"?: string[];
         until?: number;
       } = {
-        kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
+        kinds: [22, 32222, 34236], // Vertical videos: NIP-71 short (22, 34236) + OpenVine (32222)
         limit: 10, // Smaller page size for faster video loading
       };
 
@@ -181,7 +79,6 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
 
 export function useFollowingAllVideoPosts(followingPubkeys: string[], orientation?: 'vertical' | 'horizontal' | 'all') {
   const { nostr } = useNostr();
-  const { routeRequest } = useOutboxModel();
   const { data: deletionData } = useDeletedEvents();
 
   // Create a stable query key by sorting and stringifying the pubkeys array
@@ -190,72 +87,39 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
   return useInfiniteQuery({
     queryKey: ["following-all-video-posts", stableFollowingKey, orientation],
     queryFn: async ({ pageParam, signal }) => {
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(6000)]); // Faster timeout for following feed
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
 
       // If no following pubkeys, return empty result
       if (followingPubkeys.length === 0) {
-        console.log('❌ No following pubkeys, returning empty result');
         return {
           events: [],
           nextCursor: undefined,
         };
       }
 
-      console.log(`🔍 Following video query - ${followingPubkeys.length} authors, pageParam: ${pageParam}`);
+      // Build filter
+      const filter: NostrFilter = {
+        kinds: [22, 32222, 34236], // Vertical videos: NIP-71 short (22, 34236) + OpenVine (32222)
+        authors: followingPubkeys,
+        limit: 15,
+      };
 
-      // Fallback relays - using fewer, faster relays
-      const fallbackRelays = [
-        "wss://relay.nostr.band",
-        "wss://relay.primal.net",
-        "wss://nos.lol",
-      ];
-
-      // Chunk authors to avoid relay limits (max 500 authors per query)
-      const maxAuthorsPerQuery = 500;
-      const authorChunks = [];
-      for (let i = 0; i < followingPubkeys.length; i += maxAuthorsPerQuery) {
-        authorChunks.push(followingPubkeys.slice(i, i + maxAuthorsPerQuery));
+      // Add pagination using 'until' timestamp
+      if (pageParam) {
+        filter.until = pageParam;
       }
 
-      console.log(`📦 Split ${followingPubkeys.length} authors into ${authorChunks.length} chunks`);
+      // Query user's read relays (via NostrProvider) AND discovery pool (for video-specific relays)
+      // NostrProvider routes to user's NIP-65 read relays automatically
+      const [userRelayEvents, discoveryEvents] = await Promise.all([
+        nostr.query([filter], { signal: querySignal }).catch(() => []),
+        getDiscoveryPool().query([filter], { signal: querySignal }).catch(() => []),
+      ]);
 
-      // Query each chunk and combine results
-      const allEvents: NostrEvent[] = [];
-      
-      for (const [chunkIndex, authorChunk] of authorChunks.entries()) {
-        console.log(`🔄 Querying chunk ${chunkIndex + 1}/${authorChunks.length} with ${authorChunk.length} authors`);
-
-        const filter: {
-          kinds: number[];
-          authors: string[];
-          limit: number;
-          until?: number;
-        } = {
-          kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
-          authors: authorChunk,
-          limit: Math.ceil(10 / authorChunks.length), // Distribute limit across chunks
-        };
-
-        // Add pagination using 'until' timestamp
-        if (pageParam) {
-          filter.until = pageParam;
-        }
-
-        try {
-          // Use discovery pool directly for better reliability with large author lists
-          const discoveryPool = getDiscoveryPool();
-          const chunkEvents = await discoveryPool.query([filter], { signal: querySignal });
-          console.log(`📥 Chunk ${chunkIndex + 1} returned ${chunkEvents.length} raw events`);
-          allEvents.push(...chunkEvents);
-        } catch (error) {
-          console.error(`❌ Error querying chunk ${chunkIndex + 1}:`, error);
-        }
-      }
-
-      console.log(`📊 Total raw events from all chunks: ${allEvents.length}`);
+      // Combine results from both pools
+      const allEvents = [...userRelayEvents, ...discoveryEvents];
 
       const validEvents = allEvents.filter(validateVideoEvent);
-      console.log(`✅ Valid video events after filtering: ${validEvents.length}`);
 
       // Deduplicate by ID first, then sort by created_at
       const uniqueEvents = validEvents.filter(
@@ -269,7 +133,6 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
         ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
         : sortedEvents;
 
-
       return {
         events: filteredEvents,
         nextCursor:
@@ -280,13 +143,13 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: followingPubkeys.length > 0, // Only run query if we have pubkeys to follow
+    enabled: followingPubkeys.length > 0,
     staleTime: 60000, // 1 minute
-    refetchInterval: false, // Disable automatic refetching to prevent constant refreshing
-    retry: 1, // Single retry for faster response
-    retryDelay: 1000, // Fixed 1 second retry delay
-    maxPages: 15, // Limit to 15 pages for following feed
-    gcTime: 5 * 60 * 1000, // Clean up after 5 minutes for following feed
+    refetchInterval: false,
+    retry: 1,
+    retryDelay: 1000,
+    maxPages: 15,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -308,7 +171,7 @@ export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientati
           const events = await discoveryPool.query(
             [
               {
-                kinds: [22, 34236], // Vertical video events only (NIP-71 short-form + legacy)
+                kinds: [22, 32222, 34236], // Vertical videos: NIP-71 short (22, 34236) + OpenVine (32222)
                 "#t": [hashtag],
                 limit,
               },
@@ -318,7 +181,7 @@ export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientati
 
           const validEvents = events.filter(validateVideoEvent);
 
-          // All videos are vertical by design (kind 22 and 34236 are vertical-only)
+          // All videos are vertical by design (NIP-71 short videos: kinds 22, 34236)
 
           const sortedEvents = validEvents.sort((a, b) => b.created_at - a.created_at);
 

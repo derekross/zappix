@@ -1,6 +1,7 @@
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { profileCache } from '@/lib/profileCache';
 
 export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
@@ -12,50 +13,88 @@ export function useAuthors(pubkeys: string[]) {
         return {};
       }
 
+      const result: Record<string, { event?: NostrEvent; metadata?: NostrMetadata }> = {};
+
+      // Check localStorage cache first and build result with cached data
+      const cachedProfiles = profileCache.getMultiple(pubkeys);
+      const uncachedPubkeys: string[] = [];
+
+      for (const pubkey of pubkeys) {
+        const cached = cachedProfiles.get(pubkey);
+        if (cached && !profileCache.needsRefresh(pubkey)) {
+          result[pubkey] = { metadata: cached };
+        } else {
+          uncachedPubkeys.push(pubkey);
+          result[pubkey] = cached ? { metadata: cached } : {};
+        }
+      }
+
+      // If all profiles are cached and fresh, return immediately
+      if (uncachedPubkeys.length === 0) {
+        return result;
+      }
+
       // Use a longer timeout for batch queries - they need more time
       const timeoutSignal = AbortSignal.timeout(10000);
       const combinedSignal = AbortSignal.any([signal, timeoutSignal]);
 
-      const result: Record<string, { event?: NostrEvent; metadata?: NostrMetadata }> = {};
-
-      // Initialize all pubkeys with empty objects
-      for (const pubkey of pubkeys) {
-        result[pubkey] = {};
-      }
-
       try {
-        // Batch query for all profile metadata
+        // Batch query for uncached profile metadata
         const events = await nostr.query(
-          [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
+          [{ kinds: [0], authors: uncachedPubkeys, limit: uncachedPubkeys.length }],
           { signal: combinedSignal }
         );
 
-        // Process found events
+        // Process found events and cache them
+        const newProfiles = new Map<string, NostrMetadata>();
         for (const event of events) {
           try {
             const metadata = n.json().pipe(n.metadata()).parse(event.content);
             result[event.pubkey] = { metadata, event };
+            newProfiles.set(event.pubkey, metadata);
           } catch {
             result[event.pubkey] = { event };
           }
         }
 
+        // Save new profiles to localStorage cache
+        if (newProfiles.size > 0) {
+          profileCache.setMultiple(newProfiles);
+        }
+
         return result;
-      } catch (error) {
-        console.warn(`Failed to load profiles for ${pubkeys.length} authors:`, error);
-        // Return empty objects for all pubkeys on error - don't fail completely
+      } catch {
+        // Return what we have (including stale cached data) on error
         return result;
       }
     },
+    // Use cached data as initial data for instant loading
+    initialData: () => {
+      if (pubkeys.length === 0) return undefined;
+      const cachedProfiles = profileCache.getMultiple(pubkeys);
+      if (cachedProfiles.size === 0) return undefined;
+
+      const result: Record<string, { event?: NostrEvent; metadata?: NostrMetadata }> = {};
+      let hasAnyData = false;
+      for (const pubkey of pubkeys) {
+        const cached = cachedProfiles.get(pubkey);
+        if (cached) {
+          result[pubkey] = { metadata: cached };
+          hasAnyData = true;
+        } else {
+          result[pubkey] = {};
+        }
+      }
+      return hasAnyData ? result : undefined;
+    },
     enabled: pubkeys.length > 0,
-    retry: 1, // Reduce retries for batch queries
-    retryDelay: 2000, // Fixed delay
-    staleTime: 30 * 60 * 1000, // 30 minutes - longer for batch queries
-    gcTime: 2 * 60 * 60 * 1000, // 2 hours - keep batch data longer
+    retry: 1,
+    retryDelay: 2000,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchOnMount: false, // Don't refetch if we have cached data
-    // Don't block other queries if this one fails
+    refetchOnMount: false,
     throwOnError: false,
   });
 }

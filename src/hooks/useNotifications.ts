@@ -32,10 +32,6 @@ export function useNotifications() {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(8000)]);
 
       try {
-        if (import.meta.env.DEV) {
-          console.log('Fetching notifications for user:', user.pubkey);
-        }
-
         // Simplified approach: Get user's posts and notifications in parallel
         const [userPosts, reactions, comments, zaps] = await Promise.all([
           // Get user's image and video posts
@@ -175,9 +171,6 @@ export function useNotifications() {
             index === self.findIndex(n => n.id === notification.id)
           );
 
-        if (import.meta.env.DEV) {
-          console.log('Final notifications:', sortedNotifications.length);
-        }
         return sortedNotifications;
       } catch (error) {
         console.error('Error fetching notifications:', error);

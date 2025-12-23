@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import {
   Copy,
   Share,
@@ -28,7 +28,7 @@ interface VideoPostActionsProps {
   onClose: () => void;
 }
 
-export function VideoPostActions({ event, onClose }: VideoPostActionsProps) {
+export const VideoPostActions = memo(function VideoPostActions({ event, onClose }: VideoPostActionsProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const [isMuted, setIsMuted] = useState(false); // TODO: Implement mute functionality
@@ -297,4 +297,4 @@ export function VideoPostActions({ event, onClose }: VideoPostActionsProps) {
       )}
     </>
   );
-}
+});

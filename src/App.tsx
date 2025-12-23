@@ -6,7 +6,7 @@ import { createHead, UnheadProvider } from "@unhead/react/client";
 import { InferSeoMetaPlugin } from "@unhead/addons";
 import { Suspense } from "react";
 import NostrProvider from "@/components/NostrProvider";
-import { OutboxEnhancer } from "@/components/OutboxEnhancer";
+import { NostrSync } from "@/components/NostrSync";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -54,6 +54,16 @@ const queryClient = new QueryClient({
 
 const defaultConfig: AppConfig = {
   theme: "light",
+  relayMetadata: {
+    relays: [
+      { url: "wss://relay.nostr.band", read: true, write: true },
+      { url: "wss://relay.primal.net", read: true, write: true },
+      { url: "wss://nos.lol", read: true, write: true },
+      { url: "wss://relay.damus.io", read: true, write: true },
+      { url: "wss://relay.divine.video", read: true, write: true },
+    ],
+    updatedAt: 0,
+  },
 };
 
 const defaultRelays = [
@@ -84,7 +94,7 @@ export function App() {
           <MemoryMonitorWrapper>
             <NostrLoginProvider storageKey="nostr:login">
               <NostrProvider>
-                <OutboxEnhancer />
+                <NostrSync />
                 <NotificationProvider>
                   <NWCProvider>
                     <TooltipProvider>

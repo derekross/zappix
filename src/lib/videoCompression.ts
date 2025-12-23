@@ -129,8 +129,6 @@ async function createSimpleFallbackCompression(
   file: File,
   settings: CompressionOptions
 ): Promise<CompressionResult> {
-  console.log('Attempting simple fallback compression...');
-
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
     let objectUrl: string | null = null;
@@ -272,7 +270,6 @@ export async function compressVideo(
   }
 
   const fileSizeMB = file.size / (1024 * 1024);
-  console.log(`Starting compression for ${fileSizeMB.toFixed(1)}MB video - large files WILL be compressed!`);
 
   const settings = { ...DEFAULT_COMPRESSION_OPTIONS, ...options };
 
@@ -308,14 +305,6 @@ export async function compressVideo(
     finalSettings.audioBitrate = 128000;
   }
   // Small files use default settings with good quality
-
-  console.log('Final compression settings:', {
-    originalSize: `${fileSizeMB.toFixed(1)}MB`,
-    videoBitrate: finalSettings.videoBitrate,
-    maxWidth: finalSettings.maxWidth,
-    maxHeight: finalSettings.maxHeight,
-    frameRate: finalSettings.frameRate
-  });
 
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
@@ -398,7 +387,6 @@ export async function compressVideo(
       // Special settings for large files
       if (fileSizeMB > 100) {
         video.preload = 'none'; // Don't preload anything for very large files
-        console.log('Large file detected - using minimal preload');
       } else {
         video.preload = 'metadata';
       }
@@ -434,8 +422,6 @@ async function createLightweightCompression(
   originalMetadata: { width: number; height: number; duration: number }
 ): Promise<CompressionResult> {
   return new Promise((resolve, reject) => {
-    console.log(`Starting ultra-efficient compression: ${newWidth}x${newHeight} at ${settings.frameRate}fps, ${settings.videoBitrate}bps`);
-
     // Use minimal canvas for memory efficiency
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', {
@@ -465,22 +451,15 @@ async function createLightweightCompression(
         const audioTracks = originalVideoStream.getAudioTracks();
 
         if (audioTracks.length > 0) {
-          console.log(`Found ${audioTracks.length} audio track(s) in original video`);
           // Combine our compressed video with the original audio
           finalStream = new MediaStream([
             ...videoStream.getVideoTracks(),
             ...audioTracks
           ]);
-          console.log(`Final stream has ${finalStream.getVideoTracks().length} video tracks and ${finalStream.getAudioTracks().length} audio tracks`);
-        } else {
-          console.log('No audio tracks found in original video stream');
         }
-      } else {
-        console.log('Video.captureStream not available - video only');
       }
     } catch (audioError) {
       console.warn('Could not capture audio from video:', audioError);
-      console.log('Proceeding with video-only compression');
     }
 
     // Check MediaRecorder support and use best available codec
@@ -499,8 +478,6 @@ async function createLightweightCompression(
       }
     }
 
-    console.log(`Using MediaRecorder with MIME type: ${selectedMimeType}`);
-
     const mediaRecorderOptions: MediaRecorderOptions = {
       mimeType: selectedMimeType,
       videoBitsPerSecond: settings.videoBitrate || 1200000, // Use the specified bitrate
@@ -509,21 +486,15 @@ async function createLightweightCompression(
     // Add audio bitrate if we have audio tracks
     if (finalStream.getAudioTracks().length > 0) {
       mediaRecorderOptions.audioBitsPerSecond = settings.audioBitrate || 128000;
-      console.log(`Recording with audio: ${settings.audioBitrate || 128000} bps`);
-    } else {
-      console.log('Recording video only (no audio)');
     }
 
     const mediaRecorder = new MediaRecorder(finalStream, mediaRecorderOptions);
-
-    console.log(`MediaRecorder created - state: ${mediaRecorder.state}, mimeType: ${mediaRecorder.mimeType}`);
 
     const chunks: Blob[] = [];
     let lastProgressUpdate = 0;
 
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
-        console.log(`MediaRecorder data chunk received: ${event.data.size} bytes, type: ${event.data.type}`);
         chunks.push(event.data);
       } else {
         console.warn('MediaRecorder data chunk is empty');
@@ -532,18 +503,12 @@ async function createLightweightCompression(
 
     mediaRecorder.onstop = () => {
       try {
-        console.log(`MediaRecorder stopped. Chunks collected: ${chunks.length}, total size: ${chunks.reduce((sum, chunk) => sum + chunk.size, 0)} bytes`);
-
         if (chunks.length === 0) {
           reject(new Error('No video data was recorded - compression failed'));
           return;
         }
 
-        // Check chunk types to understand the data we're getting
-        console.log(`Chunk types: ${chunks.map(chunk => chunk.type).join(', ')}`);
-
         const compressedBlob = new Blob(chunks, { type: 'video/webm' });
-        console.log(`Created blob: size=${compressedBlob.size}, type=${compressedBlob.type}`);
 
         if (compressedBlob.size === 0) {
           reject(new Error('Compressed video is empty - compression failed'));
@@ -555,15 +520,10 @@ async function createLightweightCompression(
         if (firstChunk && firstChunk.size > 10) {
           firstChunk.slice(0, 20).arrayBuffer().then(buffer => {
             const bytes = new Uint8Array(buffer);
-            const signature = Array.from(bytes.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
-            console.log(`Video file signature: ${signature} (should start with WebM header)`);
 
             // WebM files should start with 0x1A45DFA3 (EBML signature)
-            if (bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3) {
-              console.log('✅ Valid WebM file detected');
-            } else {
-              console.warn('⚠️ File may not be valid WebM - signature mismatch');
-              console.log('First 20 bytes:', Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' '));
+            if (!(bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3)) {
+              console.warn('File may not be valid WebM - signature mismatch');
             }
           }).catch(err => console.warn('Could not check file signature:', err));
         }
@@ -577,25 +537,7 @@ async function createLightweightCompression(
           lastModified: Date.now(),
         });
 
-        // Create a test URL to verify the file is valid
-        const testUrl = URL.createObjectURL(compressedFile);
-        console.log(`Test WebM URL (check if this plays as video): ${testUrl}`);
-
-        // Clean up test URL after a short delay
-        setTimeout(() => {
-          URL.revokeObjectURL(testUrl);
-        }, 5000);
-
         const compressionRatio = compressedFile.size / file.size;
-        const sizeSavedMB = (file.size - compressedFile.size) / (1024 * 1024);
-
-        console.log(`Compression completed! ${(file.size / 1024 / 1024).toFixed(1)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(1)}MB (${sizeSavedMB.toFixed(1)}MB saved, ${(compressionRatio * 100).toFixed(1)}% of original)`);
-        console.log(`Compressed file details:`, {
-          name: compressedFile.name,
-          type: compressedFile.type,
-          size: compressedFile.size,
-          lastModified: compressedFile.lastModified
-        });
 
         // Clean up video resources after successful compression
         compressionCompleted = true;
@@ -629,8 +571,6 @@ async function createLightweightCompression(
 
     // Don't use timeslices - record as one complete WebM file
     mediaRecorder.start();
-
-    console.log(`MediaRecorder started (no timeslice for complete WebM), state: ${mediaRecorder.state}`);
 
     // Super efficient frame processing with minimal overhead
     let lastFrameTime = 0;
@@ -691,7 +631,6 @@ async function createLightweightCompression(
       if (hasStarted) return;
       hasStarted = true;
 
-      console.log('Video ready, starting compression...');
       video.currentTime = 0;
 
       // Mute video for user playback (after audio stream capture)
@@ -702,12 +641,10 @@ async function createLightweightCompression(
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
-          console.log('Video playback started successfully (muted for user, audio captured in stream)');
           drawFrame();
         }).catch((error) => {
           console.warn('Video play failed, retrying:', error);
           video.play().then(() => {
-            console.log('Video playback started (retry successful)');
             drawFrame();
           }).catch((mutedError) => {
             console.error('Video play failed on retry:', mutedError);
@@ -722,7 +659,6 @@ async function createLightweightCompression(
     };
 
     const handleEnded = () => {
-      console.log('Video playback ended, stopping recording');
       compressionCompleted = true;
       removeAllEventListeners();
       mediaRecorder.stop();
@@ -819,20 +755,11 @@ export async function shouldCompressVideo(file: File): Promise<boolean> {
       (metadata.bitrate && metadata.bitrate > 1500000) // Bitrate over 1.5 Mbps
     );
 
-    console.log(`Compression check for ${fileSizeMB.toFixed(1)}MB video:`, {
-      size: fileSizeMB > 5,
-      width: metadata.width > 720,
-      height: metadata.height > 1280,
-      bitrate: metadata.bitrate && metadata.bitrate > 1500000,
-      shouldCompress: needsCompression || false
-    });
-
     return needsCompression || false;
   } catch {
     // If we can't get metadata, compress anything over 5MB
     const fileSizeMB = file.size / (1024 * 1024);
     const shouldCompress = fileSizeMB > 5;
-    console.log(`Compression fallback check: ${fileSizeMB.toFixed(1)}MB file, shouldCompress: ${shouldCompress}`);
     return shouldCompress;
   }
 }

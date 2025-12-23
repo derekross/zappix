@@ -1,11 +1,13 @@
 import { NPool, NRelay1 } from '@nostrify/nostrify';
 
 // Centralized pool manager to prevent duplicate WebSocket connections
+// Main user queries go through NostrProvider which routes to user's NIP-65 read relays
+// Discovery pool is used for global feeds, hashtag queries, and video-specific relays
 class PoolManager {
   private static instance: PoolManager;
   private mainPool: NPool | null = null;
   private discoveryPool: NPool | null = null;
-  private outboxPool: NPool | null = null;
+  private relayConnections = new Map<string, NRelay1>();
 
   private constructor() {}
 
@@ -14,6 +16,16 @@ class PoolManager {
       PoolManager.instance = new PoolManager();
     }
     return PoolManager.instance;
+  }
+
+  // Shared relay opener to reuse connections
+  private openRelay(url: string): NRelay1 {
+    let relay = this.relayConnections.get(url);
+    if (!relay) {
+      relay = new NRelay1(url);
+      this.relayConnections.set(url, relay);
+    }
+    return relay;
   }
 
   // Optimized relays - fewer, faster relays for better performance
@@ -32,9 +44,8 @@ class PoolManager {
       'wss://relay.primal.net',
       'wss://nos.lol',
       'wss://relay.damus.io',
-      // Divine-web / OpenVine relays for vine-like 6-second loop videos
+      // Divine relay for video content
       'wss://relay.divine.video',
-      'wss://relay3.openvine.co',
     ];
   }
 
@@ -42,10 +53,9 @@ class PoolManager {
   getMainPool(): NPool {
     if (!this.mainPool) {
       const relayUrls = this.getFastRelays();
+      const openRelay = this.openRelay.bind(this);
       this.mainPool = new NPool({
-        open(url: string) {
-          return new NRelay1(url);
-        },
+        open: openRelay,
         reqRouter: (filters) => {
           const relayMap = new Map<string, typeof filters>();
           for (const url of relayUrls) {
@@ -63,10 +73,9 @@ class PoolManager {
   getDiscoveryPool(): NPool {
     if (!this.discoveryPool) {
       const relayUrls = this.getDiscoveryRelays();
+      const openRelay = this.openRelay.bind(this);
       this.discoveryPool = new NPool({
-        open(url: string) {
-          return new NRelay1(url);
-        },
+        open: openRelay,
         reqRouter: (filters) => {
           const relayMap = new Map<string, typeof filters>();
           // Use all discovery relays to ensure comprehensive coverage
@@ -81,41 +90,20 @@ class PoolManager {
     return this.discoveryPool;
   }
 
-  // Get outbox pool for following feeds - optimized for fast profile/following queries
-  getOutboxPool(): NPool {
-    if (!this.outboxPool) {
-      const relayUrls = this.getFastRelays();
-      this.outboxPool = new NPool({
-        open(url: string) {
-          return new NRelay1(url);
-        },
-        reqRouter: (filters) => {
-          const relayMap = new Map<string, typeof filters>();
-          // Use only the fastest relays for following feeds
-          for (const url of relayUrls) {
-            relayMap.set(url, filters);
-          }
-          return relayMap;
-        },
-        eventRouter: () => relayUrls.slice(0, 2),
-      });
-    }
-    return this.outboxPool;
-  }
-
   // Close all connections and reset pools
   closeAll(): void {
-    if (this.mainPool) {
-      // Note: NPool doesn't have a close method, but we can nullify the references
-      // to allow garbage collection
-      this.mainPool = null;
+    // Close all relay connections
+    for (const relay of this.relayConnections.values()) {
+      try {
+        relay.close();
+      } catch {
+        // Ignore close errors
+      }
     }
-    if (this.discoveryPool) {
-      this.discoveryPool = null;
-    }
-    if (this.outboxPool) {
-      this.outboxPool = null;
-    }
+    this.relayConnections.clear();
+
+    this.mainPool = null;
+    this.discoveryPool = null;
   }
 
   // Reset all pools (useful for testing or when configuration changes)
@@ -126,13 +114,9 @@ class PoolManager {
 
 export const poolManager = PoolManager.getInstance();
 
-// Export convenience functions for backward compatibility
+// Export convenience functions
 export function getDiscoveryPool() {
   return poolManager.getDiscoveryPool();
-}
-
-export function getOutboxPool() {
-  return poolManager.getOutboxPool();
 }
 
 export function getMainPool() {

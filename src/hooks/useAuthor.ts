@@ -1,6 +1,7 @@
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { profileCache } from '@/lib/profileCache';
 
 export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
@@ -10,6 +11,14 @@ export function useAuthor(pubkey: string | undefined) {
     queryFn: async ({ signal }) => {
       if (!pubkey) {
         return {};
+      }
+
+      // Check localStorage cache first for instant loading
+      const cached = profileCache.get(pubkey);
+
+      // If we have a fresh cache (< 1 hour old), return it without fetching
+      if (cached && !profileCache.needsRefresh(pubkey)) {
+        return { metadata: cached };
       }
 
       // Shorter timeout for faster loading - profiles should load quickly
@@ -25,29 +34,59 @@ export function useAuthor(pubkey: string | undefined) {
 
         const event = events[0];
         if (!event) {
+          // If we have stale cache but network failed, return stale data
+          if (cached) {
+            return { metadata: cached };
+          }
           return {};
         }
 
         try {
           const metadata = n.json().pipe(n.metadata()).parse(event.content);
+
+          // Save to localStorage cache
+          profileCache.set(pubkey, metadata);
+
           return { metadata, event };
         } catch {
+          // If we have stale cache but parsing failed, return stale data
+          if (cached) {
+            return { metadata: cached };
+          }
           return { event };
         }
-      } catch (error) {
-        console.warn(`Failed to load profile for ${pubkey}:`, error);
+      } catch {
+        // If network fails but we have cached data, return it
+        if (cached) {
+          return { metadata: cached };
+        }
         return {};
       }
     },
-    retry: 1, // Reduce retries to prevent blocking
-    retryDelay: 2000, // Fixed 2 second delay
-    staleTime: 30 * 60 * 1000, // 30 minutes - much longer for profiles
-    gcTime: 2 * 60 * 60 * 1000, // 2 hours - keep profiles in memory longer
-    // Minimal background refetching for better performance
+    // Use cached data as initial data for instant loading
+    initialData: () => {
+      if (!pubkey) return undefined;
+      const cached = profileCache.get(pubkey);
+      if (cached) {
+        return { metadata: cached };
+      }
+      return undefined;
+    },
+    // Mark initial data as stale if it needs refresh
+    initialDataUpdatedAt: () => {
+      if (!pubkey) return undefined;
+      if (profileCache.needsRefresh(pubkey)) {
+        return 0; // Mark as stale to trigger background refetch
+      }
+      return Date.now();
+    },
+    retry: 1,
+    retryDelay: 2000,
+    staleTime: 60 * 60 * 1000, // 1 hour - rely more on localStorage cache
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchOnMount: false, // Don't refetch if we have cached data
-    // Don't block other queries if this one fails
+    refetchOnMount: false,
     throwOnError: false,
   });
 }

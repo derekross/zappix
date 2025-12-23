@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Copy,
   Share,
@@ -26,7 +27,7 @@ interface ImagePostActionsProps {
   onClose: () => void;
 }
 
-export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
+export const ImagePostActions = memo(function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
 
@@ -285,4 +286,4 @@ export function ImagePostActions({ event, onClose }: ImagePostActionsProps) {
       )}
     </>
   );
-}
+});

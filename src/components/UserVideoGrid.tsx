@@ -7,8 +7,9 @@ import * as nip19 from 'nostr-tools/nip19';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { useEffect } from 'react';
-import { Loader2, Play } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Loader2, Play, Video as VideoIcon } from 'lucide-react';
+import { OptimizedImage } from '@/components/OptimizedImage';
 
 interface UserVideoGridProps {
   pubkey: string;
@@ -27,6 +28,7 @@ function VideoGridSkeleton() {
 
 function VideoGridItem({ event }: { event: NostrEvent }) {
   const navigate = useNavigate();
+  const [thumbnailError, setThumbnailError] = useState(false);
 
   // Parse video URLs from imeta tags
   const imetaTags = event.tags.filter(([name]) => name === 'imeta');
@@ -36,7 +38,8 @@ function VideoGridItem({ event }: { event: NostrEvent }) {
     const mPart = tag.find(part => part.startsWith('m '));
     const mimeType = mPart?.replace('m ', '');
     const thumbPart = tag.find(part => part.startsWith('thumb '));
-    const thumbnail = thumbPart?.replace('thumb ', '');
+    const imagePart = tag.find(part => part.startsWith('image '));
+    const thumbnail = thumbPart?.replace('thumb ', '') || imagePart?.replace('image ', '');
 
     return { url, mimeType, thumbnail };
   }).filter(video => video.url && video.mimeType?.startsWith('video/'));
@@ -53,37 +56,41 @@ function VideoGridItem({ event }: { event: NostrEvent }) {
     navigate(`/${nevent}`);
   };
 
+  const hasThumbnail = primaryVideo.thumbnail && !thumbnailError;
+
   return (
     <div
       className="relative aspect-square bg-muted cursor-pointer group overflow-hidden rounded-sm"
       onClick={handleClick}
     >
-      {/* Video thumbnail or first frame */}
-      {primaryVideo.thumbnail ? (
-        <img
-          src={primaryVideo.thumbnail}
+      {/* Video thumbnail with optimization or fallback placeholder */}
+      {hasThumbnail ? (
+        <OptimizedImage
+          src={primaryVideo.thumbnail || ''}
           alt="Video thumbnail"
-          className="w-full h-full object-cover"
-          loading="lazy"
+          preset="videoThumbnail"
+          width={320}
+          className="transition-transform duration-200 group-hover:scale-105"
+          containerClassName="w-full h-full"
+          objectFit="cover"
+          responsive={false}
         />
       ) : (
-        <video
-          src={primaryVideo.url}
-          className="w-full h-full object-cover"
-          muted
-          preload="metadata"
-        />
+        // Fallback: gradient background with video icon
+        <div className="w-full h-full bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center">
+          <VideoIcon className="h-10 w-10 text-muted-foreground/50" />
+        </div>
       )}
 
       {/* Play button overlay */}
-      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
         <div className="bg-black/50 rounded-full p-2">
           <Play className="h-6 w-6 text-white fill-white" />
         </div>
       </div>
 
       {/* Video indicator */}
-      <div className="absolute top-2 right-2">
+      <div className="absolute top-2 right-2 pointer-events-none">
         <div className="bg-black/50 rounded px-1.5 py-0.5">
           <Play className="h-3 w-3 text-white fill-white" />
         </div>

@@ -3,15 +3,14 @@ import { useFollowing } from "@/hooks/useFollowing";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuthors } from "@/hooks/useAuthors";
 import { useAutomaticProfilePrefetch } from "@/hooks/useProfilePrefetch";
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect, useCallback } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ImagePost } from "./ImagePost";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ImagePostSkeleton } from "./ImagePostSkeleton";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useInView } from "react-intersection-observer";
-import { useEffect } from "react";
 
 interface ImageFeedProps {
   feedType: "global" | "following";
@@ -61,18 +60,37 @@ export function ImageFeed({
   // Also use automatic prefetching for new posts as they come in
   useAutomaticProfilePrefetch(allPosts);
 
-  // Intersection observer for infinite scrolling
-  const { ref: loadMoreRef, inView } = useInView({
-    threshold: 0,
-    rootMargin: "100px", // Start loading 100px before the element comes into view
+  // Virtualization setup
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: allPosts.length + (posts.hasNextPage ? 1 : 0), // +1 for load more trigger
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 600, // Estimated height of each ImagePost
+    overscan: 2, // Render 2 items above and below visible area
   });
 
-  // Load more posts when the load more element comes into view
-  useEffect(() => {
-    if (inView && posts.hasNextPage && !posts.isFetchingNextPage) {
+  // Fetch more when scrolling near the end
+  const fetchMoreOnScroll = useCallback(() => {
+    const virtualItems = virtualizer.getVirtualItems();
+    const lastItem = virtualItems[virtualItems.length - 1];
+
+    if (!lastItem) return;
+
+    // If we're near the end and can load more
+    if (
+      lastItem.index >= allPosts.length - 3 &&
+      posts.hasNextPage &&
+      !posts.isFetchingNextPage
+    ) {
       posts.fetchNextPage();
     }
-  }, [inView, posts]);
+  }, [allPosts.length, posts, virtualizer]);
+
+  // Check if we need to load more when virtual items change
+  useEffect(() => {
+    fetchMoreOnScroll();
+  }, [fetchMoreOnScroll, virtualizer.getVirtualItems()]);
 
   const handleRefresh = () => {
     if (feedType === "following") {
@@ -158,35 +176,62 @@ export function ImageFeed({
   }
 
   return (
-    <div className="space-y-6">
-      {allPosts.map((post) => (
-        <ImagePost
-          key={post.id}
-          event={post}
-          onHashtagClick={onHashtagClick}
-          onLocationClick={onLocationClick}
-        />
-      ))}
+    <div
+      ref={parentRef}
+      className="h-[calc(100vh-200px)] overflow-auto"
+    >
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const isLoadMoreRow = virtualItem.index >= allPosts.length;
+          const post = allPosts[virtualItem.index];
 
-      {/* Load more trigger element */}
-      {posts.hasNextPage && (
-        <div ref={loadMoreRef} className="flex justify-center py-8">
-          {posts.isFetchingNextPage ? (
-            <div className="flex items-center space-x-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading more posts...</span>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => posts.fetchNextPage()}
-              disabled={!posts.hasNextPage}
+          return (
+            <div
+              key={virtualItem.key}
+              data-index={virtualItem.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+              className="pb-6"
             >
-              Load More
-            </Button>
-          )}
-        </div>
-      )}
+              {isLoadMoreRow ? (
+                <div className="flex justify-center py-8">
+                  {posts.isFetchingNextPage ? (
+                    <div className="flex items-center space-x-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Loading more posts...</span>
+                    </div>
+                  ) : posts.hasNextPage ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => posts.fetchNextPage()}
+                    >
+                      Load More
+                    </Button>
+                  ) : null}
+                </div>
+              ) : post ? (
+                <ImagePost
+                  event={post}
+                  onHashtagClick={onHashtagClick}
+                  onLocationClick={onLocationClick}
+                />
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
 
       {/* End of feed indicator */}
       {!posts.hasNextPage && allPosts.length > 0 && (

@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/useToast';
 import { ZapButton } from '@/components/ZapButton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { getOptimizedImageUrl, ImagePresets } from '@/lib/imageOptimization';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,7 @@ interface VideoPostProps {
   className?: string;
 }
 
-export function VideoPost({
+export const VideoPost = memo(function VideoPost({
   event,
   isActive,
   isMuted,
@@ -500,6 +501,11 @@ export function VideoPost({
   const primaryVideo = videos.length > 0 ? videos[0] : undefined;
   const correctedVideo = getCorrectedVideo(primaryVideo);
 
+  // Optimize thumbnail URL for faster loading
+  const optimizedPoster = correctedVideo?.thumbnail
+    ? getOptimizedImageUrl(correctedVideo.thumbnail, ImagePresets.videoThumbnail)
+    : undefined;
+
   // Check codec support for WebM files
   useEffect(() => {
     if (correctedVideo?.url && correctedVideo.url.endsWith('.webm')) {
@@ -564,12 +570,12 @@ export function VideoPost({
         <video
           ref={videoRef}
           src={correctedVideo.url}
-          poster={correctedVideo.thumbnail}
+          poster={optimizedPoster}
           loop
           muted={isMuted}
           playsInline
           autoPlay={isActive}
-          preload="metadata"
+          preload={isActive ? "auto" : "none"}
           className="max-w-full max-h-full object-contain cursor-pointer"
           onClick={(e) => {
             e.preventDefault(); // Prevent default behavior
@@ -765,4 +771,4 @@ export function VideoPost({
         </div>
     </div>
   );
-}
+});

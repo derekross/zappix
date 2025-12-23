@@ -44,12 +44,8 @@ async function uploadToBlossom(
   // Try servers in order, fallback to next if one fails
   for (const server of servers) {
     try {
-      console.log(`Attempting upload to server: ${server}`);
-
       // Calculate the file hash first
-      console.log('Calculating file hash...');
       const sha256 = await calculateSHA256(file);
-      console.log('File SHA-256:', sha256);
 
       // Create Blossom authorization event (kind 24242)
       const authEvent = await signer.signEvent({
@@ -76,7 +72,6 @@ async function uploadToBlossom(
           if (event.lengthComputable && options?.onProgress) {
             const progress = Math.round((event.loaded / event.total) * 100);
             options.onProgress(progress);
-            console.log(`Upload progress: ${progress}% (${(event.loaded / 1024 / 1024).toFixed(2)}MB / ${(event.total / 1024 / 1024).toFixed(2)}MB)`);
           }
         };
 
@@ -85,7 +80,6 @@ async function uploadToBlossom(
           if (xhr.status === 200 || xhr.status === 201) {
             try {
               const descriptor: BlobDescriptor = JSON.parse(xhr.responseText);
-              console.log('Blossom blob descriptor:', descriptor);
 
               if (descriptor.url && descriptor.sha256) {
                 // Verify the hash matches
@@ -102,12 +96,6 @@ async function uploadToBlossom(
                   ['size', descriptor.size.toString()],
                   ['m', finalMimeType],
                 ];
-                console.log('Generated upload tags:', {
-                  uploadedFileType: file.type,
-                  originalFileType: originalFile?.type,
-                  descriptorType: descriptor.type,
-                  finalMimeTag: finalMimeType,
-                });
 
                 // Add service tag for Blossom
                 tags.push(['service', 'blossom']);
@@ -155,16 +143,6 @@ async function uploadToBlossom(
         xhr.setRequestHeader('Authorization', `Nostr ${authHeader}`);
         xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
 
-        console.log(`Starting Blossom upload to ${server}:`, {
-          fileName: file.name,
-          fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-          fileType: file.type || 'application/octet-stream',
-          fileTypeDetected: file.type,
-          contentTypeHeader: file.type || 'application/octet-stream',
-          sha256: sha256,
-          timeout: `${timeout / 1000} seconds`
-        });
-
         // Send the raw file data, not FormData
         xhr.send(file);
       });
@@ -201,8 +179,6 @@ export function useUploadFile() {
         await shouldCompressVideo(file);
 
       if (shouldCompress) {
-        console.log(`Video compression required for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB) - compressing BEFORE upload for Blossom hash compatibility`);
-
         try {
           // Create a wrapper for progress that allocates 70% to compression, 30% to upload
           const compressionProgress = (progress: number) => {
@@ -211,21 +187,12 @@ export function useUploadFile() {
             }
           };
 
-          console.log('Starting video compression (must complete before upload)...');
           compressionInfo = await compressVideo(file, {
             onProgress: compressionProgress
           });
 
           // IMPORTANT: Wait for compression to fully complete before proceeding
           fileToUpload = compressionInfo.compressedFile;
-
-          console.log('✅ Video compression completed BEFORE upload:', {
-            originalSize: `${(compressionInfo.originalSize / 1024 / 1024).toFixed(2)}MB`,
-            compressedSize: `${(compressionInfo.compressedSize / 1024 / 1024).toFixed(2)}MB`,
-            compressionRatio: `${(compressionInfo.compressionRatio * 100).toFixed(1)}%`,
-            sizeSaved: `${((compressionInfo.originalSize - compressionInfo.compressedSize) / 1024 / 1024).toFixed(2)}MB`,
-            newFileName: fileToUpload.name
-          });
 
           // Update progress to show compression is complete
           if (options.onProgress) {
@@ -235,25 +202,10 @@ export function useUploadFile() {
         } catch (compressionError) {
           console.warn('Video compression failed, uploading original:', compressionError);
 
-          // Show user-friendly message for different failure types
-          if (compressionError instanceof Error) {
-            if (compressionError.message.includes('memory')) {
-              
-            } else if (compressionError.message.includes('format not supported') || compressionError.message.includes('MEDIA_ERR_DECODE')) {
-              console.log('Video format not supported for compression - uploading original file');
-            } else if (compressionError.message.includes('timeout') || compressionError.message.includes('stalled')) {
-              console.log('Video compression timeout - file may be too large, uploading original');
-            } else {
-              console.log('Video compression failed for unknown reason - uploading original file');
-            }
-          }
-
           // Fall back to original file if compression fails
           fileToUpload = file;
         }
       }
-
-      console.log(`📤 Starting Blossom upload for ${compressionInfo ? 'COMPRESSED' : 'original'} file: ${fileToUpload.name} (${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB)`);
 
       // Use user's configured servers, fallback to default servers
       const servers = userServers && userServers.length > 0
@@ -264,18 +216,9 @@ export function useUploadFile() {
             'https://nostr.download',        // Second fallback
           ];
 
-      console.log(`Using upload servers:`, servers);
-      console.log(`File details for Blossom hash:`, {
-        name: fileToUpload.name,
-        size: fileToUpload.size,
-        type: fileToUpload.type,
-        compressed: !!compressionInfo
-      });
-
       // Dynamic timeout based on compressed file size: ~1MB per 3 seconds, min 2min, max 15min
       const baseMB = fileToUpload.size / (1024 * 1024);
       const dynamicTimeoutMs = Math.max(120000, Math.min(900000, baseMB * 3000)); // 2min to 15min
-      console.log(`Upload timeout set to ${Math.round(dynamicTimeoutMs / 1000)} seconds for ${baseMB.toFixed(1)}MB compressed file`);
 
       try {
         // Create a wrapper for upload progress that accounts for compression
@@ -293,8 +236,6 @@ export function useUploadFile() {
           onProgress: uploadProgress,
           timeout: dynamicTimeoutMs
         }, file);
-
-        console.log(`✅ Upload successful for ${compressionInfo ? 'compressed' : 'original'} file ${fileToUpload.name}:`, tags);
 
         // Add compression metadata to tags if applicable
         if (compressionInfo) {

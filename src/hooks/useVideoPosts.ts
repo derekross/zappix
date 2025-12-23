@@ -1,51 +1,6 @@
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import type { NostrEvent } from "@nostrify/nostrify";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { getDiscoveryPool } from "@/lib/poolManager";
-
-// Validator function for vertical video events (kind 22 and legacy 34236)
-function validateVideoEvent(event: NostrEvent): boolean {
-  // Check if it's a vertical video event kind (22 for short-form vertical videos, 34236 for legacy vertical videos)
-  if (![22, 34236].includes(event.kind)) return false;
-
-  // For NIP-71 kind 22, check for imeta tag with video content
-  if (event.kind === 22) {
-    const imetaTags = event.tags.filter(([name]) => name === "imeta");
-
-    // Check if any imeta tag contains video content
-    const hasVideoImeta = imetaTags.some(tag => {
-      const tagContent = tag.slice(1).join(" ");
-      return tagContent.includes("url ") &&
-             (tagContent.includes("m video/") ||
-              tagContent.includes(".mp4") ||
-              tagContent.includes(".webm") ||
-              tagContent.includes(".mov"));
-    });
-
-    // Also check content field for video URLs as fallback
-    const hasVideoInContent = event.content.includes('.mp4') ||
-                             event.content.includes('.webm') ||
-                             event.content.includes('.mov');
-
-    if (!hasVideoImeta && !hasVideoInContent) return false;
-  }
-
-  // For legacy kind 34236, check for basic video content in event.content or tags
-  if (event.kind === 34236) {
-    // Legacy format may have video URL in content or url tags
-    const hasVideoUrl = event.content.includes('.mp4') ||
-                       event.content.includes('.webm') ||
-                       event.content.includes('.mov') ||
-                       event.tags.some(([name, value]) =>
-                         name === 'url' && value &&
-                         (value.includes('.mp4') || value.includes('.webm') || value.includes('.mov'))
-                       );
-    if (!hasVideoUrl) return false;
-  }
-
-  return true;
-}
-
-// Pool management is now centralized in poolManager.ts
+import { validateVideoEvent } from '@/lib/validators';
 
 
 

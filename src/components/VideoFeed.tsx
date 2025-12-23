@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { VideoPost } from './VideoPost';
 import { VideoPostSkeleton } from './VideoPostSkeleton';
 import { CommentModal } from './CommentModal';
@@ -39,33 +40,6 @@ export function VideoFeed({
   // Choose the appropriate query based on feed type
   const query = feedType === 'following' ? followingAllQuery : globalAllQuery;
 
-  // Debug logging for following feed
-  useEffect(() => {
-    if (feedType === 'following') {
-      console.log('🔍 Following feed debug:', {
-        userPubkey: user?.pubkey,
-        followingPubkeys: followingPubkeys.length,
-        followingPubkeysSample: followingPubkeys.slice(0, 3),
-        followingQuery: {
-          isLoading: followingAllQuery.isLoading,
-          isError: followingAllQuery.isError,
-          error: followingAllQuery.error,
-          data: followingAllQuery.data,
-          hasNextPage: followingAllQuery.hasNextPage,
-          isFetching: followingAllQuery.isFetching,
-          isFetchingNextPage: followingAllQuery.isFetchingNextPage,
-          hasPreviousPage: followingAllQuery.hasPreviousPage,
-        },
-        following: {
-          isLoading: following.isLoading,
-          isError: following.isError,
-          error: following.error,
-          data: following.data,
-        }
-      });
-    }
-  }, [feedType, followingPubkeys, followingAllQuery, following, user]);
-
   const { ref, inView } = useInView({
     threshold: 0,
     rootMargin: '200px', // Start loading earlier
@@ -92,56 +66,61 @@ export function VideoFeed({
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
-  const videoRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Comment modal state
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
 
   // Calculate container height based on layout
-  const getContainerHeight = useCallback(() => {
+  const containerHeight = useMemo(() => {
     if (isMobile) {
-      // Mobile: subtract header (56px) and bottom nav (80px)
       return window.innerHeight - 56 - 80;
     } else {
-      // Desktop: full height minus some padding/header space
-      return window.innerHeight - 120; // Account for desktop layout padding
+      return window.innerHeight - 120;
     }
   }, [isMobile]);
 
-  // Handle scroll with intersection observer for better performance
+  // Virtualization for video list
+  const virtualizer = useVirtualizer({
+    count: uniqueEvents.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => containerHeight,
+    overscan: 1, // Only render 1 item above/below for videos
+  });
+
+  // Update active index based on scroll position
   useEffect(() => {
-    if (!containerRef.current || uniqueEvents.length === 0) return;
+    const scrollElement = containerRef.current;
+    if (!scrollElement) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const element = entry.target as HTMLDivElement;
-            const index = videoRefs.current.indexOf(element);
-            if (index !== -1 && index !== activeIndex) {
-              setActiveIndex(index);
-            }
-          }
-        });
-      },
-      {
-        root: containerRef.current,
-        threshold: 0.7, // 70% of the video should be visible
+    const handleScroll = () => {
+      const scrollTop = scrollElement.scrollTop;
+      const newIndex = Math.round(scrollTop / containerHeight);
+      if (newIndex !== activeIndex && newIndex >= 0 && newIndex < uniqueEvents.length) {
+        setActiveIndex(newIndex);
       }
-    );
-
-    // Observe all video containers
-    videoRefs.current.forEach((element) => {
-      if (element) {
-        observer.observe(element);
-      }
-    });
-
-    return () => {
-      observer.disconnect();
     };
-  }, [uniqueEvents, activeIndex]);
+
+    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollElement.removeEventListener('scroll', handleScroll);
+  }, [activeIndex, containerHeight, uniqueEvents.length]);
+
+  // Fetch more when near the end
+  useEffect(() => {
+    if (activeIndex >= uniqueEvents.length - 3 && query.hasNextPage && !query.isFetchingNextPage) {
+      query.fetchNextPage();
+    }
+  }, [activeIndex, uniqueEvents.length, query]);
+
+  // Scroll to specific index
+  const scrollToIndex = useCallback((index: number) => {
+    if (containerRef.current && index >= 0 && index < uniqueEvents.length) {
+      containerRef.current.scrollTo({
+        top: index * containerHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [containerHeight, uniqueEvents.length]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -150,26 +129,20 @@ export function VideoFeed({
 
       if (e.key === 'ArrowDown' && activeIndex < uniqueEvents.length - 1) {
         e.preventDefault();
-        setActiveIndex(prev => prev + 1);
-        // Scroll to next video
-        videoRefs.current[activeIndex + 1]?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
+        const newIndex = activeIndex + 1;
+        setActiveIndex(newIndex);
+        scrollToIndex(newIndex);
       } else if (e.key === 'ArrowUp' && activeIndex > 0) {
         e.preventDefault();
-        setActiveIndex(prev => prev - 1);
-        // Scroll to previous video
-        videoRefs.current[activeIndex - 1]?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
+        const newIndex = activeIndex - 1;
+        setActiveIndex(newIndex);
+        scrollToIndex(newIndex);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [uniqueEvents, activeIndex]);
+  }, [uniqueEvents, activeIndex, scrollToIndex]);
 
   // Touch handling for mobile swipe
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -192,19 +165,15 @@ export function VideoFeed({
     const isSwipeDown = distance < -50;
 
     if (isSwipeUp && activeIndex < uniqueEvents.length - 1) {
-      setActiveIndex(prev => prev + 1);
-      videoRefs.current[activeIndex + 1]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
+      const newIndex = activeIndex + 1;
+      setActiveIndex(newIndex);
+      scrollToIndex(newIndex);
     } else if (isSwipeDown && activeIndex > 0) {
-      setActiveIndex(prev => prev - 1);
-      videoRefs.current[activeIndex - 1]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
+      const newIndex = activeIndex - 1;
+      setActiveIndex(newIndex);
+      scrollToIndex(newIndex);
     }
-  }, [touchStart, touchEnd, activeIndex, uniqueEvents.length]);
+  }, [touchStart, touchEnd, activeIndex, uniqueEvents.length, scrollToIndex]);
 
   // Show loading skeleton for initial load
   if (query.isLoading && !query.data) {
@@ -289,33 +258,55 @@ export function VideoFeed({
   return (
     <div
       className="relative overflow-hidden"
-      style={{ height: `${getContainerHeight()}px` }}
+      style={{ height: `${containerHeight}px` }}
       ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Video Container */}
-      <div className="h-full overflow-y-auto snap-y snap-mandatory scrollbar-hide">
-        {uniqueEvents.map((event, index) => (
-          <div
-            key={event.id}
-            ref={(el) => {
-              videoRefs.current[index] = el;
-            }}
-            className="h-full snap-start"
-          >
-            <VideoPost
-              event={event}
-              isActive={index === activeIndex}
-              isMuted={isMuted}
-              onMuteToggle={() => setIsMuted(!isMuted)}
-              onHashtagClick={onHashtagClick}
-              onLocationClick={onLocationClick}
-              onCommentClick={handleCommentClick}
-            />
-          </div>
-        ))}
+      {/* Virtualized Video Container */}
+      <div
+        className="h-full overflow-y-auto snap-y snap-mandatory scrollbar-hide"
+        style={{ contain: 'strict' }}
+      >
+        <div
+          style={{
+            height: `${virtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {virtualizer.getVirtualItems().map((virtualItem) => {
+            const event = uniqueEvents[virtualItem.index];
+            if (!event) return null;
+
+            return (
+              <div
+                key={event.id}
+                data-index={virtualItem.index}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: `${containerHeight}px`,
+                  transform: `translateY(${virtualItem.start}px)`,
+                }}
+                className="snap-start"
+              >
+                <VideoPost
+                  event={event}
+                  isActive={virtualItem.index === activeIndex}
+                  isMuted={isMuted}
+                  onMuteToggle={() => setIsMuted(!isMuted)}
+                  onHashtagClick={onHashtagClick}
+                  onLocationClick={onLocationClick}
+                  onCommentClick={handleCommentClick}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Navigation Arrows - Desktop only */}
@@ -327,11 +318,9 @@ export function VideoFeed({
             className="bg-black/50 hover:bg-black/70 text-white border-0 rounded-full w-12 h-12 disabled:opacity-30"
             onClick={() => {
               if (activeIndex > 0) {
-                setActiveIndex(prev => prev - 1);
-                videoRefs.current[activeIndex - 1]?.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'start'
-                });
+                const newIndex = activeIndex - 1;
+                setActiveIndex(newIndex);
+                scrollToIndex(newIndex);
               }
             }}
             disabled={activeIndex === 0}
@@ -344,11 +333,9 @@ export function VideoFeed({
             className="bg-black/50 hover:bg-black/70 text-white border-0 rounded-full w-12 h-12 disabled:opacity-30"
             onClick={() => {
               if (activeIndex < uniqueEvents.length - 1) {
-                setActiveIndex(prev => prev + 1);
-                videoRefs.current[activeIndex + 1]?.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'start'
-                });
+                const newIndex = activeIndex + 1;
+                setActiveIndex(newIndex);
+                scrollToIndex(newIndex);
               }
             }}
             disabled={activeIndex === uniqueEvents.length - 1}
@@ -358,17 +345,13 @@ export function VideoFeed({
         </div>
       )}
 
-      {/* Load more trigger */}
-      {query.hasNextPage && activeIndex > uniqueEvents.length - 5 && (
-        <div ref={ref} className="flex justify-center py-8 absolute bottom-0 left-0 right-0">
-          {query.isFetchingNextPage ? (
-            <div className="flex items-center space-x-2 text-white">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span className="text-sm">Loading more videos...</span>
-            </div>
-          ) : (
-            <div className="h-1 w-1" /> // Invisible trigger
-          )}
+      {/* Loading indicator */}
+      {query.isFetchingNextPage && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+          <div className="flex items-center space-x-2 text-white bg-black/50 px-3 py-1 rounded-full">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+            <span className="text-sm">Loading...</span>
+          </div>
         </div>
       )}
 

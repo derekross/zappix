@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuthor } from '@/hooks/useAuthor';
+import { getOptimizedImageUrl, ImagePresets } from '@/lib/imageOptimization';
 
 interface OptimizedAvatarProps {
   pubkey: string;
@@ -75,26 +76,12 @@ export function OptimizedAvatar({
     onError?.();
   };
 
-  // Get the best available image URL
+  // Get the best available image URL with optimization
   const getAvatarUrl = () => {
-    if (!author?.metadata) return null;
+    if (!author?.metadata?.picture) return null;
 
-    // Try picture URL first (highest quality)
-    if (author.metadata.picture) {
-      try {
-        // Try to add size parameters for optimization, but fallback gracefully
-        const url = new URL(author.metadata.picture);
-        url.searchParams.set('width', '80');
-        url.searchParams.set('height', '80');
-        url.searchParams.set('quality', '80');
-        return url.toString();
-      } catch {
-        // If URL parsing fails, return the original URL
-        return author.metadata.picture;
-      }
-    }
-
-    return null;
+    // Use wsrv.nl proxy for optimization
+    return getOptimizedImageUrl(author.metadata.picture, ImagePresets.avatar);
   };
 
   const avatarUrl = getAvatarUrl();
@@ -148,7 +135,7 @@ export function OptimizedAvatar({
           onError={handleError}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          fetchpriority={priority ? "high" : "auto"}
+          fetchPriority={priority ? "high" : "auto"}
         />
       )}
 

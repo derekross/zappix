@@ -1,36 +1,25 @@
 import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { useAuthor } from './useAuthor';
-import { useProfileCache } from './useProfileCache';
+import { useAuthors } from './useAuthors';
 import { genUserName } from '@/lib/genUserName';
 import { useMemo } from 'react';
 
 /**
- * Fast author hook that provides instant access to cached profile data
- * Falls back to regular useAuthor for uncached profiles
+ * Enhanced author hook that provides fallback values and never blocks rendering.
+ * Uses localStorage caching via useAuthor for instant loading of cached profiles.
  */
 export function useAuthorFast(pubkey: string | undefined) {
-  const { getCachedProfile } = useProfileCache();
   const authorQuery = useAuthor(pubkey);
-  
-  // Get cached data immediately if available
-  const cachedProfile = useMemo(() => {
-    return pubkey ? getCachedProfile(pubkey) : undefined;
-  }, [pubkey, getCachedProfile]);
 
-  // Use cached data if available, otherwise fall back to query data
-  const effectiveData = cachedProfile || authorQuery.data;
-  
   // Always provide fallback values
-  const displayName = effectiveData?.metadata?.name ?? genUserName(pubkey || '');
-  const profileImage = effectiveData?.metadata?.picture;
-  const metadata = effectiveData?.metadata;
-  const event = effectiveData?.event;
-  
+  const displayName = authorQuery.data?.metadata?.name ?? genUserName(pubkey || '');
+  const profileImage = authorQuery.data?.metadata?.picture;
+  const metadata = authorQuery.data?.metadata;
+  const event = authorQuery.data?.event;
+
   return {
     // Original query state for advanced usage
     ...authorQuery,
-    // Enhanced data that might come from cache
-    data: effectiveData,
     // Convenient fallback values that are always available
     displayName,
     profileImage,
@@ -38,36 +27,29 @@ export function useAuthorFast(pubkey: string | undefined) {
     event,
     // Helper to check if we have actual profile data (not just fallback)
     hasProfileData: !!metadata,
-    // Helper to check if data came from cache
-    isFromCache: !!cachedProfile,
     // Helper to check if loading failed but we have fallbacks
     isUsingFallback: !authorQuery.isLoading && !metadata && !!pubkey,
   };
 }
 
 /**
- * Hook for loading multiple authors with instant cache access
+ * Hook for loading multiple authors with fallback handling.
+ * Uses localStorage caching via useAuthors for instant loading of cached profiles.
  */
 export function useAuthorsFast(pubkeys: string[]) {
-  const { getCachedProfiles } = useProfileCache();
-  
-  // Get cached profiles immediately
-  const cachedProfiles = useMemo(() => {
-    return getCachedProfiles(pubkeys);
-  }, [pubkeys, getCachedProfiles]);
+  const authorsQuery = useAuthors(pubkeys);
 
   // Create a map with fallback values for all requested pubkeys
   const authorsWithFallbacks = useMemo(() => {
     return pubkeys.reduce((acc, pubkey) => {
-      const cachedData = cachedProfiles[pubkey];
+      const authorData = authorsQuery.data?.[pubkey];
       acc[pubkey] = {
-        displayName: cachedData?.metadata?.name ?? genUserName(pubkey),
-        profileImage: cachedData?.metadata?.picture,
-        metadata: cachedData?.metadata,
-        event: cachedData?.event,
-        hasProfileData: !!cachedData?.metadata,
-        isFromCache: !!cachedData,
-        isUsingFallback: !cachedData?.metadata,
+        displayName: authorData?.metadata?.name ?? genUserName(pubkey),
+        profileImage: authorData?.metadata?.picture,
+        metadata: authorData?.metadata,
+        event: authorData?.event,
+        hasProfileData: !!authorData?.metadata,
+        isUsingFallback: !authorsQuery.isLoading && !authorData?.metadata,
       };
       return acc;
     }, {} as Record<string, {
@@ -76,21 +58,17 @@ export function useAuthorsFast(pubkeys: string[]) {
       metadata?: NostrMetadata;
       event?: NostrEvent;
       hasProfileData: boolean;
-      isFromCache: boolean;
       isUsingFallback: boolean;
     }>);
-  }, [pubkeys, cachedProfiles]);
-  
+  }, [pubkeys, authorsQuery.data, authorsQuery.isLoading]);
+
   return {
-    // Enhanced data with instant cache access
+    // Original query state
+    ...authorsQuery,
+    // Enhanced data with fallbacks
     data: authorsWithFallbacks,
-    // Helper to check how many profiles are cached
-    cachedCount: Object.values(authorsWithFallbacks).filter(a => a.isFromCache).length,
     // Helper to check how many profiles loaded successfully
     loadedCount: Object.values(authorsWithFallbacks).filter(a => a.hasProfileData).length,
     totalCount: pubkeys.length,
-    // All profiles are considered "loaded" since we provide fallbacks
-    isLoading: false,
-    isError: false,
   };
 }

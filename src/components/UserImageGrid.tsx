@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { OptimizedImage } from '@/components/OptimizedImage';
 
 interface UserImageGridProps {
   pubkey: string;
@@ -71,20 +72,21 @@ function ImageGridItem({ event }: { event: NostrEvent }) {
 
   return (
     <div
-      className="relative aspect-square overflow-hidden rounded-md cursor-pointer group bg-muted"
+      className="relative aspect-square overflow-hidden rounded-md cursor-pointer group"
       onClick={handleClick}
     >
-      <img
-        src={firstImage.url}
+      <OptimizedImage
+        src={firstImage.url || ''}
         alt={firstImage.alt || title}
-        className={cn(
-          "w-full h-full transition-transform duration-200 group-hover:scale-105",
-          objectFit
-        )}
-        loading="lazy"
+        preset="feedThumbnail"
+        width={320}
+        className="transition-transform duration-200 group-hover:scale-105"
+        containerClassName="w-full h-full"
+        objectFit={isVeryNonSquare ? 'contain' : 'cover'}
+        responsive={false}
       />
       {/* Overlay on hover */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 pointer-events-none" />
 
       {/* Multiple images indicator */}
       {images.length > 1 && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import {
   Heart,
   MessageCircle,
@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,7 +50,7 @@ interface ImagePostProps {
   onLocationClick?: (location: string) => void;
 }
 
-export function ImagePost({
+export const ImagePost = memo(function ImagePost({
   event,
   className,
   onHashtagClick,
@@ -304,17 +305,21 @@ export function ImagePost({
               )}
               onClick={handleImageClick}
             >
-              <img
-                src={images[0].url}
+              <OptimizedImage
+                src={images[0].url || ''}
                 alt={images[0].alt || title}
+                preset="feedThumbnail"
                 className={cn(
-                  "w-full h-full object-cover group-hover:scale-105 transition-all duration-200",
+                  "group-hover:scale-105 transition-transform duration-200",
                   contentWarning && !isRevealed && "blur-[40px]"
                 )}
-                loading="lazy"
+                containerClassName="w-full h-full"
+                objectFit="cover"
+                responsive
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 640px"
               />
               {/* Subtle overlay on hover to indicate clickability */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 pointer-events-none" />
             </div>
 
             {/* Reveal overlay for content warnings */}
@@ -358,17 +363,22 @@ export function ImagePost({
                       )}
                       onClick={handleImageClick}
                     >
-                      <img
-                        src={image.url}
+                      <OptimizedImage
+                        src={image.url || ''}
                         alt={image.alt || title}
+                        preset="feedThumbnail"
                         className={cn(
-                          "w-full h-full object-cover group-hover:scale-105 transition-all duration-200",
+                          "group-hover:scale-105 transition-transform duration-200",
                           contentWarning && !isRevealed && "blur-[40px]"
                         )}
-                        loading="lazy"
+                        containerClassName="w-full h-full"
+                        objectFit="cover"
+                        responsive
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 640px"
+                        priority={index === 0}
                       />
                       {/* Subtle overlay on hover to indicate clickability */}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 pointer-events-none" />
                     </div>
                   </CarouselItem>
                 ))}
@@ -541,4 +551,4 @@ export function ImagePost({
       </CardContent>
     </Card>
   );
-}
+});

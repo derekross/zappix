@@ -1,26 +1,64 @@
-import { useEffect, useRef } from 'react';
-import { useProfileCache } from './useProfileCache';
+import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
+import { profileCache } from '@/lib/profileCache';
 
 /**
  * Hook for intelligently prefetching profiles based on visible content
  */
 export function useProfilePrefetch() {
-  const { isProfileCached } = useProfileCache();
   const queryClient = useQueryClient();
   const { nostr } = useNostr();
   const prefetchQueueRef = useRef<Set<string>>(new Set());
-  const prefetchTimeoutRef = useRef<NodeJS.Timeout>();
+  const prefetchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  /**
+   * Prefetch profiles in batches and populate both localStorage and React Query caches
+   */
+  const prefetchProfilesBatch = useCallback(async (pubkeys: string[]) => {
+    if (pubkeys.length === 0) return;
+
+    try {
+      // Use a shorter timeout for prefetch to not block other operations
+      const signal = AbortSignal.timeout(5000);
+
+      // Batch query for all profiles
+      const events = await nostr.query(
+        [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
+        { signal }
+      );
+
+      // Process and cache individual profiles
+      const newProfiles = new Map<string, NostrMetadata>();
+
+      events.forEach(event => {
+        try {
+          const metadata = n.json().pipe(n.metadata()).parse(event.content);
+          newProfiles.set(event.pubkey, metadata);
+          // Also update React Query cache for immediate availability
+          queryClient.setQueryData(['author', event.pubkey], { metadata, event });
+        } catch {
+          // Skip invalid profiles
+        }
+      });
+
+      // Save to localStorage cache
+      if (newProfiles.size > 0) {
+        profileCache.setMultiple(newProfiles);
+      }
+    } catch {
+      // Silent fail for prefetch - it's not critical
+    }
+  }, [nostr, queryClient]);
 
   /**
    * Add pubkeys to the prefetch queue
    */
-  const queueProfilePrefetch = (pubkeys: string[]) => {
-    // Filter out already cached profiles
-    const uncachedPubkeys = pubkeys.filter(pubkey => !isProfileCached(pubkey));
-    
+  const queueProfilePrefetch = useCallback((pubkeys: string[]) => {
+    // Filter out already cached profiles using localStorage cache
+    const uncachedPubkeys = profileCache.getMissingPubkeys(pubkeys);
+
     if (uncachedPubkeys.length === 0) return;
 
     // Add to queue
@@ -38,56 +76,7 @@ export function useProfilePrefetch() {
         prefetchQueueRef.current.clear();
       }
     }, 100); // 100ms debounce
-  };
-
-  /**
-   * Prefetch profiles in batches and populate individual caches
-   */
-  const prefetchProfilesBatch = async (pubkeys: string[]) => {
-    if (pubkeys.length === 0) return;
-
-    try {
-      // Use a shorter timeout for prefetch to not block other operations
-      const signal = AbortSignal.timeout(5000);
-
-      // Batch query for all profiles
-      const events = await nostr.query(
-        [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
-        { signal }
-      );
-
-      // Process and cache individual profiles
-      const profileData: Record<string, { event?: NostrEvent; metadata?: NostrMetadata }> = {};
-
-      // Initialize all pubkeys with empty objects
-      pubkeys.forEach(pubkey => {
-        profileData[pubkey] = {};
-      });
-
-      // Process found events
-      events.forEach(event => {
-        try {
-          const metadata = n.json().pipe(n.metadata()).parse(event.content);
-          profileData[event.pubkey] = { metadata, event };
-        } catch {
-          profileData[event.pubkey] = { event };
-        }
-      });
-
-      // Cache individual profiles
-      Object.entries(profileData).forEach(([pubkey, data]) => {
-        queryClient.setQueryData(['author', pubkey], data);
-      });
-
-      if (import.meta.env.DEV) {
-        console.log(`Prefetched ${events.length}/${pubkeys.length} profiles`);
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn('Profile prefetch failed:', error);
-      }
-    }
-  };
+  }, [prefetchProfilesBatch]);
 
   /**
    * Prefetch profiles for a list of events (extracts authors)
