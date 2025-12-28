@@ -1,0 +1,12 @@
+identifier: app.zappix
+name: Zappix
+summary: Social image sharing on Nostr with NIP-68 picture events
+description: Zappix is a modern social image sharing application built on the decentralized Nostr protocol. Share and discover amazing images with a vibrant community while maintaining full ownership of your data. Features NIP-68 picture events, reactions, comments, zaps, bookmarks, hashtag discovery, and NIP-46 remote signer support.
+repository: https://github.com/derekross/zappix
+homepage: https://zappix.app
+icon: ./public/icon-512.png
+tags: nostr social images photos sharing decentralized freedom-tech
+license: MIT
+builder: npub18ams6ewn5aj2n3wt2qawzglx9mr4nzksxhvrdc4gzrecw7n5tvjqctp424
+assets:
+  - ./android/app/build/outputs/apk/release/app-release.apk

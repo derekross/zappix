@@ -17,6 +17,7 @@ import { NWCProvider } from "@/contexts/NWCContext";
 import { PWAUpdateNotification } from "@/components/PWAUpdateNotification";
 import { BackgroundProfileManager } from "@/components/BackgroundProfileManager";
 import { useMemoryMonitor } from "@/hooks/useMemoryMonitor";
+import { useCapacitorStatusBar } from "@/hooks/useCapacitorStatusBar";
 
 import { AppConfig } from "@/contexts/AppContext";
 import AppRouter from "./AppRouter";
@@ -56,7 +57,6 @@ const defaultConfig: AppConfig = {
   theme: "light",
   relayMetadata: {
     relays: [
-      { url: "wss://relay.nostr.band", read: true, write: true },
       { url: "wss://relay.primal.net", read: true, write: true },
       { url: "wss://nos.lol", read: true, write: true },
       { url: "wss://relay.damus.io", read: true, write: true },
@@ -67,7 +67,6 @@ const defaultConfig: AppConfig = {
 };
 
 const defaultRelays = [
-  { url: "wss://relay.nostr.band", name: "Nostr.Band" },
   { url: "wss://relay.primal.net", name: "Primal" },
   { url: "wss://relay.olas.app", name: "Olas" },
   { url: "wss://nos.lol", name: "nos.lol" },
@@ -79,6 +78,7 @@ const defaultRelays = [
 
 function MemoryMonitorWrapper({ children }: { children: React.ReactNode }) {
   useMemoryMonitor();
+  useCapacitorStatusBar();
   return <>{children}</>;
 }
 

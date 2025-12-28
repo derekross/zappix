@@ -1,16 +1,25 @@
 {
   "name": "Zappix",
   "private": true,
-  "version": "2.4.0",
+  "version": "2.6.0",
   "type": "module",
   "scripts": {
     "dev": "npm i && vite",
     "dev:update-sw": "node scripts/update-sw-version.js",
     "build": "npm i && node scripts/update-sw-version.js && vite build && cp dist/index.html dist/404.html",
     "test": "npm i && tsc -p tsconfig.app.json --noEmit && eslint && NODE_OPTIONS=\"--max-old-space-size=4096\" vitest run && vite build",
-    "deploy": "npm run build && npx -y nostr-deploy-cli deploy --skip-setup"
+    "deploy": "npm run build && npx -y nostr-deploy-cli deploy --skip-setup",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npx cap sync",
+    "cap:build:android": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "cap:build:android:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
     "@getalby/sdk": "^5.1.2",
     "@hookform/resolvers": "^3.9.0",
     "@nostrify/nostrify": "npm:@jsr/nostrify__nostrify@^0.46.1",
@@ -59,6 +68,7 @@
     "ngeohash": "^0.6.3",
     "nostr-tools": "^2.15.0",
     "qrcode": "^1.5.4",
+    "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
