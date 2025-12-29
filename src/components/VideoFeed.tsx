@@ -144,36 +144,6 @@ export function VideoFeed({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [uniqueEvents, activeIndex, scrollToIndex]);
 
-  // Touch handling for mobile swipe
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientY);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientY);
-  };
-
-  const handleTouchEnd = useCallback(() => {
-    if (!touchStart || !touchEnd || uniqueEvents.length === 0) return;
-
-    const distance = touchStart - touchEnd;
-    const isSwipeUp = distance > 50;
-    const isSwipeDown = distance < -50;
-
-    if (isSwipeUp && activeIndex < uniqueEvents.length - 1) {
-      const newIndex = activeIndex + 1;
-      setActiveIndex(newIndex);
-      scrollToIndex(newIndex);
-    } else if (isSwipeDown && activeIndex > 0) {
-      const newIndex = activeIndex - 1;
-      setActiveIndex(newIndex);
-      scrollToIndex(newIndex);
-    }
-  }, [touchStart, touchEnd, activeIndex, uniqueEvents.length, scrollToIndex]);
 
   // Show loading skeleton for initial load
   if (query.isLoading && !query.data) {
@@ -260,14 +230,11 @@ export function VideoFeed({
       className="relative overflow-hidden"
       style={{ height: `${containerHeight}px` }}
     >
-      {/* Virtualized Video Container */}
+      {/* Virtualized Video Container - CSS snap handles swipe navigation */}
       <div
         ref={containerRef}
         className="h-full overflow-y-auto snap-y snap-mandatory scrollbar-hide"
         style={{ contain: 'strict' }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         <div
           style={{

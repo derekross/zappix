@@ -1,7 +1,7 @@
 {
   "name": "Zappix",
   "private": true,
-  "version": "2.7.1",
+  "version": "2.7.2",
   "type": "module",
   "scripts": {
     "dev": "npm i && vite",
