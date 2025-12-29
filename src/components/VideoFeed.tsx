@@ -259,15 +259,15 @@ export function VideoFeed({
     <div
       className="relative overflow-hidden"
       style={{ height: `${containerHeight}px` }}
-      ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {/* Virtualized Video Container */}
       <div
+        ref={containerRef}
         className="h-full overflow-y-auto snap-y snap-mandatory scrollbar-hide"
         style={{ contain: 'strict' }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div
           style={{
