@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { QRCodeSVG } from 'qrcode.react';
-import { Shield, Upload, Loader2, Copy, Check } from 'lucide-react';
+import { Shield, Upload, Loader2, Copy, Check, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import {
@@ -38,6 +38,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   const [isWaitingForConnect, setIsWaitingForConnect] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showBunkerInput, setShowBunkerInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const login = useLoginActions();
@@ -110,6 +111,13 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     await navigator.clipboard.writeText(nostrConnectUri);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Open the nostrconnect URI in the system - this will launch a signer app like Amber if installed
+  const handleOpenSignerApp = () => {
+    if (!nostrConnectUri) return;
+    // On Android/iOS, this will trigger the system to find an app that handles nostrconnect:// URIs
+    window.location.href = nostrConnectUri;
   };
 
   const handleExtensionLogin = () => {
@@ -299,13 +307,24 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                           <span>Waiting for connection...</span>
                         </>
                       ) : (
-                        <span>{isNative ? 'Copy and paste into your signer app' : 'Scan with your signer app'}</span>
+                        <span>{isNative ? 'Open your signer app to connect' : 'Scan with your signer app'}</span>
                       )}
                     </div>
 
+                    {/* Open Signer App button - primary action on native */}
+                    {isNative && (
+                      <Button
+                        className='w-full gap-2 py-6 rounded-full'
+                        onClick={handleOpenSignerApp}
+                      >
+                        <ExternalLink className='w-5 h-5' />
+                        Open Signer App
+                      </Button>
+                    )}
+
                     {/* Copy button */}
                     <Button
-                      variant={isNative ? 'default' : 'outline'}
+                      variant='outline'
                       size={isNative ? 'default' : 'sm'}
                       className={isNative ? 'w-full gap-2' : 'gap-2'}
                       onClick={handleCopyUri}
@@ -322,13 +341,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                         </>
                       )}
                     </Button>
-
-                    {/* Show truncated URI on native for verification */}
-                    {isNative && (
-                      <p className='text-xs text-muted-foreground text-center break-all px-2'>
-                        {nostrConnectUri.substring(0, 50)}...
-                      </p>
-                    )}
                   </>
                 ) : (
                   <div className='flex items-center justify-center h-[100px]'>
@@ -337,32 +349,46 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                 )}
               </div>
 
-              {/* Manual URI input section */}
+              {/* Manual URI input section - collapsible */}
               <div className='pt-4 border-t border-gray-200 dark:border-gray-700'>
-                <p className='text-sm text-muted-foreground text-center mb-3'>
-                  Or paste a bunker:// URI from your signer
-                </p>
-                <div className='space-y-2'>
-                  <Input
-                    id='bunkerUri'
-                    value={bunkerUri}
-                    onChange={(e) => setBunkerUri(e.target.value)}
-                    className='rounded-lg border-gray-300 dark:border-gray-700 focus-visible:ring-primary text-sm'
-                    placeholder='bunker://'
-                  />
-                  {bunkerUri && !bunkerUri.startsWith('bunker://') && !bunkerUri.startsWith('nostrconnect://') && (
-                    <p className='text-red-500 text-xs'>URI must start with bunker:// or nostrconnect://</p>
-                  )}
-                </div>
-
-                <Button
-                  className='w-full rounded-full py-4 mt-3'
-                  variant='outline'
-                  onClick={handleBunkerLogin}
-                  disabled={isLoading || !bunkerUri.trim() || (!bunkerUri.startsWith('bunker://') && !bunkerUri.startsWith('nostrconnect://'))}
+                <button
+                  type='button'
+                  onClick={() => setShowBunkerInput(!showBunkerInput)}
+                  className='flex items-center justify-center gap-2 w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2'
                 >
-                  {isLoading ? 'Connecting...' : 'Connect with Bunker'}
-                </Button>
+                  <span>Manual bunker connection</span>
+                  {showBunkerInput ? (
+                    <ChevronUp className='w-4 h-4' />
+                  ) : (
+                    <ChevronDown className='w-4 h-4' />
+                  )}
+                </button>
+
+                {showBunkerInput && (
+                  <div className='space-y-3 mt-3'>
+                    <div className='space-y-2'>
+                      <Input
+                        id='bunkerUri'
+                        value={bunkerUri}
+                        onChange={(e) => setBunkerUri(e.target.value)}
+                        className='rounded-lg border-gray-300 dark:border-gray-700 focus-visible:ring-primary text-sm'
+                        placeholder='bunker://'
+                      />
+                      {bunkerUri && !bunkerUri.startsWith('bunker://') && !bunkerUri.startsWith('nostrconnect://') && (
+                        <p className='text-red-500 text-xs'>URI must start with bunker:// or nostrconnect://</p>
+                      )}
+                    </div>
+
+                    <Button
+                      className='w-full rounded-full py-4'
+                      variant='outline'
+                      onClick={handleBunkerLogin}
+                      disabled={isLoading || !bunkerUri.trim() || (!bunkerUri.startsWith('bunker://') && !bunkerUri.startsWith('nostrconnect://'))}
+                    >
+                      {isLoading ? 'Connecting...' : 'Connect with Bunker'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
