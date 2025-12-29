@@ -1,16 +1,20 @@
 import { Download, X, RefreshCw } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { usePWAUpdate } from '@/hooks/usePWAUpdate';
 
 export function PWAUpdateNotification() {
-  const { 
-    updateAvailable, 
-    isUpdating, 
-    updateError, 
-    applyUpdate, 
-    dismissUpdate 
+  const {
+    updateAvailable,
+    isUpdating,
+    updateError,
+    applyUpdate,
+    dismissUpdate
   } = usePWAUpdate();
+
+  // Don't show PWA update notification on native apps - they update via app store/APK
+  if (Capacitor.isNativePlatform()) return null;
 
   if (!updateAvailable) return null;
 

@@ -1,4 +1,12 @@
+import { Capacitor } from '@capacitor/core';
+
 export function registerServiceWorker() {
+  // Skip service worker registration on native apps - caching is handled differently
+  if (Capacitor.isNativePlatform()) {
+    console.log('Skipping service worker registration on native platform');
+    return;
+  }
+
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker

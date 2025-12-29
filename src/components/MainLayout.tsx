@@ -160,7 +160,10 @@ export function MainLayout({ children }: MainLayoutProps) {
       <div className="min-h-screen bg-background">
         {isMobile ? (
           <>
-            <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <header
+              className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+              style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+            >
               <div className="px-2 flex h-14 items-center justify-between">
                 <Button
                   variant="ghost"
