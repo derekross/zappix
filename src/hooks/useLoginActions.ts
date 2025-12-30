@@ -29,6 +29,11 @@ export function generateNostrConnectURI(params: NostrConnectParams, appName?: st
     searchParams.set('name', appName);
   }
 
+  // Add callback URL based on current origin (works on any domain)
+  if (typeof window !== 'undefined') {
+    searchParams.set('callback', window.location.origin);
+  }
+
   return `nostrconnect://${params.clientPubkey}?${searchParams.toString()}`;
 }
 
