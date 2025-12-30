@@ -18,7 +18,7 @@ export function RemoteLoginSuccess() {
       return () => clearTimeout(timer);
     }
 
-    if (checkCount < 10) {
+    if (checkCount < 20) {
       const timer = setTimeout(() => {
         setCheckCount(prev => prev + 1);
       }, 500);
