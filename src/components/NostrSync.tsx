@@ -15,6 +15,9 @@ export function NostrSync() {
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
 
+  // Safe access for relayMetadata (may be undefined in older localStorage data)
+  const relayMetadataUpdatedAt = config.relayMetadata?.updatedAt ?? 0;
+
   useEffect(() => {
     if (!user) return;
 
@@ -29,7 +32,7 @@ export function NostrSync() {
           const event = events[0];
 
           // Only update if the event is newer than our stored data
-          if (event.created_at > config.relayMetadata.updatedAt) {
+          if (event.created_at > relayMetadataUpdatedAt) {
             const fetchedRelays = event.tags
               .filter(([name]) => name === 'r')
               .map(([, url, marker]) => ({
@@ -56,7 +59,7 @@ export function NostrSync() {
     };
 
     syncRelaysFromNostr();
-  }, [user, config.relayMetadata.updatedAt, nostr, updateConfig]);
+  }, [user, relayMetadataUpdatedAt, nostr, updateConfig]);
 
   return null;
 }

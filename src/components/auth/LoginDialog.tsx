@@ -21,6 +21,7 @@ import {
   generateNostrConnectURI,
   type NostrConnectParams,
 } from '@/hooks/useLoginActions';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -43,8 +44,11 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   const abortControllerRef = useRef<AbortController | null>(null);
   const login = useLoginActions();
 
-  // Check if running in native app (Capacitor)
+  // Check if running in native app (Capacitor) or mobile browser
   const isNative = Capacitor.isNativePlatform();
+  const isMobile = useIsMobile();
+  // Show signer app button on native OR mobile web (where users may have Amber etc installed)
+  const showSignerAppButton = isNative || isMobile;
   // Extension only available on web when window.nostr exists
   const hasExtension = !isNative && 'nostr' in window;
 
@@ -287,8 +291,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                   </div>
                 ) : nostrConnectUri ? (
                   <>
-                    {/* QR Code - only show on web */}
-                    {!isNative && (
+                    {/* QR Code - only show on desktop web */}
+                    {!showSignerAppButton && (
                       <div className='p-4 bg-white rounded-xl'>
                         <QRCodeSVG
                           value={nostrConnectUri}
@@ -307,12 +311,12 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                           <span>Waiting for connection...</span>
                         </>
                       ) : (
-                        <span>{isNative ? 'Open your signer app to connect' : 'Scan with your signer app'}</span>
+                        <span>{showSignerAppButton ? 'Open your signer app to connect' : 'Scan with your signer app'}</span>
                       )}
                     </div>
 
-                    {/* Open Signer App button - primary action on native */}
-                    {isNative && (
+                    {/* Open Signer App button - primary action on native and mobile web */}
+                    {showSignerAppButton && (
                       <Button
                         className='w-full gap-2 py-6 rounded-full'
                         onClick={handleOpenSignerApp}
@@ -325,8 +329,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                     {/* Copy button */}
                     <Button
                       variant='outline'
-                      size={isNative ? 'default' : 'sm'}
-                      className={isNative ? 'w-full gap-2' : 'gap-2'}
+                      size={showSignerAppButton ? 'default' : 'sm'}
+                      className={showSignerAppButton ? 'w-full gap-2' : 'gap-2'}
                       onClick={handleCopyUri}
                     >
                       {copied ? (
