@@ -5,6 +5,7 @@ import Index from "./pages/Index";
 import PostPage from "./pages/PostPage";
 import NotFound from "./pages/NotFound";
 import { PrivacyPolicy } from "./pages/PrivacyPolicy";
+import { RemoteLoginSuccess } from "./pages/RemoteLoginSuccess";
 import { ProfilePage as CurrentUserProfilePage } from "./components/ProfilePage";
 import { EditProfilePage } from "./components/EditProfilePage";
 import { BookmarksPage } from "./components/BookmarksPage";
@@ -24,6 +25,7 @@ export function AppRouter() {
         <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/404" element={<NotFound />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/remoteloginsuccess" element={<RemoteLoginSuccess />} />
         <Route path="/:nip19" element={<PostPage />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
