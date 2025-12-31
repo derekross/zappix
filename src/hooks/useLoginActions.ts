@@ -3,6 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { NLogin, useNostrLogin } from '@nostrify/react/login';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { nip19 } from 'nostr-tools';
+import { Capacitor } from '@capacitor/core';
 
 import { useAppContext } from '@/hooks/useAppContext';
 
@@ -12,6 +13,14 @@ import { useAppContext } from '@/hooks/useAppContext';
 function isMobileDevice(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+/** Check if callback URL should be included */
+function shouldIncludeCallback(): boolean {
+  // Don't include callback in native apps (localhost won't work)
+  if (Capacitor.isNativePlatform()) return false;
+  // Only include on mobile web (not desktop QR scanning)
+  return isMobileDevice();
 }
 
 /** Parameters for initiating a nostrconnect:// session */
@@ -35,9 +44,8 @@ export function generateNostrConnectURI(params: NostrConnectParams, appName?: st
     searchParams.set('name', appName);
   }
 
-  // Add callback URL only on mobile devices (not desktop QR code scanning)
-  // When scanning QR from desktop, the signer app is on the phone but the session is on desktop
-  if (typeof window !== 'undefined' && isMobileDevice()) {
+  // Add callback URL only on mobile web (not native apps or desktop QR scanning)
+  if (typeof window !== 'undefined' && shouldIncludeCallback()) {
     searchParams.set('callback', `${window.location.origin}/remoteloginsuccess`);
   }
 

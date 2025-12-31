@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useNostrLogin } from '@nostrify/react/login';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
-// Storage key used by @nostrify/react for logins
-const LOGINS_STORAGE_KEY = 'nostrify:logins';
+// Storage key must match the one in App.tsx NostrLoginProvider
+const LOGINS_STORAGE_KEY = 'nostr:login';
 
 export function RemoteLoginSuccess() {
   const navigate = useNavigate();
