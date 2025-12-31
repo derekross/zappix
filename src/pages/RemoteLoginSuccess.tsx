@@ -33,7 +33,11 @@ export function RemoteLoginSuccess() {
     if (isLoggedIn) {
       setStatus('success');
       const timer = setTimeout(() => {
-        navigate('/home', { replace: true });
+        // Try to close this tab (works if opened by signer app)
+        // This leaves the user on the original tab which should detect the login
+        window.close();
+        // If we're still here (close didn't work), do a full page redirect
+        window.location.href = '/home';
       }, 1500);
       return () => clearTimeout(timer);
     }
@@ -57,7 +61,10 @@ export function RemoteLoginSuccess() {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed) && parsed.length > 0) {
             setStatus('success');
-            setTimeout(() => navigate('/home', { replace: true }), 1500);
+            setTimeout(() => {
+              window.close();
+              window.location.href = '/home';
+            }, 1500);
           }
         } catch {
           // Ignore parse errors
@@ -67,7 +74,7 @@ export function RemoteLoginSuccess() {
 
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
-  }, [navigate]);
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
