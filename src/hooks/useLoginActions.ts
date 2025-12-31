@@ -8,6 +8,12 @@ import { useAppContext } from '@/hooks/useAppContext';
 
 // NOTE: This file should not be edited except for adding new login methods.
 
+/** Check if running on actual mobile device (not just small screen) */
+function isMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 /** Parameters for initiating a nostrconnect:// session */
 export interface NostrConnectParams {
   clientSecretKey: Uint8Array;
@@ -29,8 +35,9 @@ export function generateNostrConnectURI(params: NostrConnectParams, appName?: st
     searchParams.set('name', appName);
   }
 
-  // Add callback URL to redirect after signer authorization
-  if (typeof window !== 'undefined') {
+  // Add callback URL only on mobile devices (not desktop QR code scanning)
+  // When scanning QR from desktop, the signer app is on the phone but the session is on desktop
+  if (typeof window !== 'undefined' && isMobileDevice()) {
     searchParams.set('callback', `${window.location.origin}/remoteloginsuccess`);
   }
 
