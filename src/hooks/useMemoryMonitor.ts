@@ -30,12 +30,6 @@ export function useMemoryMonitor() {
       const memory = performance.memory;
       const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024);
       const totalMB = Math.round(memory.totalJSHeapSize / 1024 / 1024);
-      const limitMB = Math.round(memory.jsHeapSizeLimit / 1024 / 1024);
-
-      // Log memory usage in development
-      if (import.meta.env.DEV) {
-
-      }
 
       // Only trigger cleanup if memory usage is critically high
       // Increased thresholds: above 500MB or above 90% of total heap
@@ -51,7 +45,6 @@ export function useMemoryMonitor() {
 
         // Remove queries that haven't been used in the last 5 minutes
         const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-        let removedCount = 0;
 
         queries.forEach((query) => {
           const lastFetch = query.state.dataUpdatedAt;
@@ -61,11 +54,9 @@ export function useMemoryMonitor() {
           // Only remove if it's stale AND has no active observers
           if (isStale && hasObservers) {
             queryCache.remove(query);
-            removedCount++;
           }
         });
 
-        
 
         // Force garbage collection if available (Chrome DevTools)
         if ('gc' in window && typeof window.gc === 'function') {

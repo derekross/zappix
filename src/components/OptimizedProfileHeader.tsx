@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, User, Globe, Mail, CheckCircle, Loader2 } from "lucide-react";
+import { Settings, Globe, Mail, CheckCircle, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OptimizedAvatar } from "./OptimizedAvatar";
@@ -63,10 +63,6 @@ export function OptimizedProfileHeader({
   const displayName = useMemo(() => {
     return metadata?.name ?? genUserName(user.pubkey);
   }, [metadata?.name, user.pubkey]);
-
-  const profileImage = useMemo(() => {
-    return metadata?.picture;
-  }, [metadata?.picture]);
 
   const bannerImage = useMemo(() => {
     return metadata?.banner;

@@ -28,7 +28,7 @@ function VideoGridSkeleton() {
 
 function VideoGridItem({ event }: { event: NostrEvent }) {
   const navigate = useNavigate();
-  const [thumbnailError, setThumbnailError] = useState(false);
+  const [thumbnailError, _setThumbnailError] = useState(false);
 
   // Parse video URLs from imeta tags
   const imetaTags = event.tags.filter(([name]) => name === 'imeta');

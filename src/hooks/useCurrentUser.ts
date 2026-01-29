@@ -47,5 +47,6 @@ export function useCurrentUser() {
     user,
     users,
     ...author.data,
+    isLoading: author.isLoading,
   };
 }

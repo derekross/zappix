@@ -5,8 +5,6 @@ import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { nip19 } from 'nostr-tools';
 import { Capacitor } from '@capacitor/core';
 
-import { useAppContext } from '@/hooks/useAppContext';
-
 // NOTE: This file should not be edited except for adding new login methods.
 
 /** Check if running on actual mobile device (not just small screen) */
@@ -69,7 +67,6 @@ export function generateNostrConnectParams(relays: string[]): NostrConnectParams
 export function useLoginActions() {
   const { nostr } = useNostr();
   const { logins, addLogin, removeLogin } = useNostrLogin();
-  const { config } = useAppContext();
 
   return {
     // Login with a Nostr secret key

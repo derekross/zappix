@@ -22,15 +22,6 @@ export function useBookmarks() {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
 
       // Get user's bookmark set (kind 30003 - NIP-51 bookmark sets with d tag "nip-68-posts")
-      const bookmarkSetEvents = await nostr.query([
-        {
-          kinds: [30003],
-          authors: [user.pubkey],
-          "#d": ["nip-68-posts"],
-          limit: 1,
-        }
-      ]);
-
       const bookmarkEvents = await nostr.query(
         [
           {
@@ -90,7 +81,7 @@ export function useBookmarks() {
             (e) => !existingIds.has(e.id)
           );
           allEvents = [...allEvents, ...newEvents];
-        } catch (error) {
+        } catch {
           // Strategy 2 failed, continue with what we have
         }
       }
@@ -114,7 +105,7 @@ export function useBookmarks() {
             );
 
             allEvents = [...allEvents, ...individualEvents];
-          } catch (error) {
+          } catch {
             // Individual query failed, continue
           }
         }

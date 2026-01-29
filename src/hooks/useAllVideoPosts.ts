@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import type { NostrEvent, NostrFilter } from "@nostrify/nostrify";
+import type { NostrFilter } from "@nostrify/nostrify";
 import { useNostr } from '@nostrify/react';
 import { getDiscoveryPool } from "@/lib/poolManager";
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';

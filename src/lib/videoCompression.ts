@@ -89,11 +89,10 @@ export function getOptimalCompressionSettings(
 /**
  * Get available memory estimate for compression safety
  */
-function getAvailableMemory(): number {
-  // @ts-ignore - experimental API
-  if ('memory' in performance && performance.memory) {
-    // @ts-ignore
-    const memory = performance.memory;
+function _getAvailableMemory(): number {
+  const perf = performance as Performance & { memory?: { totalJSHeapSize: number; usedJSHeapSize: number } };
+  if (perf.memory) {
+    const memory = perf.memory;
     const totalMB = memory.totalJSHeapSize / (1024 * 1024);
     const usedMB = memory.usedJSHeapSize / (1024 * 1024);
     const available = Math.max(50, totalMB - usedMB); // At least 50MB available
@@ -102,7 +101,7 @@ function getAvailableMemory(): number {
   }
 
   // Fallback: more generous estimate to allow compression
-  const deviceMemory = (navigator as any).deviceMemory || 4; // GB
+  const deviceMemory = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4; // GB
   const available = Math.max(100, deviceMemory * 1024 * 0.2); // Use 20% of device memory, min 100MB
   
   return available;
@@ -125,7 +124,7 @@ export function isCompressionSupported(): boolean {
 /**
  * Simple fallback compression using direct MediaRecorder approach
  */
-async function createSimpleFallbackCompression(
+async function _createSimpleFallbackCompression(
   file: File,
   settings: CompressionOptions
 ): Promise<CompressionResult> {
@@ -161,22 +160,16 @@ async function createSimpleFallbackCompression(
           newHeight = maxHeight;
         }
 
-        // Use conservative settings for fallback
-        const fallbackSettings = {
-          videoBitsPerSecond: 1000000, // 1Mbps - conservative
-          audioBitsPerSecond: 96000,   // 96kbps
-        };
-
         // Create a simple compressed version using lower quality
         const mimeType = 'video/webm';
         if (!MediaRecorder.isTypeSupported(mimeType)) {
           throw new Error('WebM not supported for fallback compression');
         }
 
-        // For now, just create a minimal compressed file
+        // For now, just create a simple compressed file
         // This is a placeholder - in a real implementation you'd use a simpler approach
         const compressedBlob = new Blob([file], { type: 'video/webm' });
-        const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, '.webm'), {
+        new File([compressedBlob], file.name.replace(/\.[^/.]+$/, '.webm'), {
           type: 'video/webm',
           lastModified: Date.now(),
         });
@@ -201,7 +194,7 @@ async function createSimpleFallbackCompression(
       }
     };
 
-    video.onerror = (e) => {
+    video.onerror = () => {
       cleanup();
       reject(new Error('Fallback compression also failed - video format may not be supported'));
     };
@@ -276,7 +269,7 @@ export async function compressVideo(
   const originalMetadata = await getVideoMetadata(file);
 
   // Use aggressive compression settings optimized for large files
-  let finalSettings = { ...settings, ...options };
+  const finalSettings = { ...settings, ...options };
 
   // Improved compression settings balancing size and quality
   if (fileSizeMB > 100) {
@@ -309,9 +302,7 @@ export async function compressVideo(
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
     let objectUrl: string | null = null;
-    let cleanup: () => void;
-
-    cleanup = () => {
+    const cleanup = () => {
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
         objectUrl = null;
@@ -447,7 +438,7 @@ async function createLightweightCompression(
     try {
       // Use the video element's captureStream to get both video and audio
       if ('captureStream' in video) {
-        const originalVideoStream = (video as any).captureStream();
+        const originalVideoStream = (video as unknown as { captureStream: () => MediaStream }).captureStream();
         const audioTracks = originalVideoStream.getAudioTracks();
 
         if (audioTracks.length > 0) {
@@ -606,14 +597,14 @@ async function createLightweightCompression(
     let eventListenersAdded = false;
 
     // Store event handler references for proper cleanup
-    const eventHandlers = {
-      loadeddata: null as any,
-      canplay: null as any,
-      canplaythrough: null as any,
-      ended: null as any,
-      error: null as any,
-      stalled: null as any,
-      progress: null as any
+    const eventHandlers: Record<string, EventListener | null> = {
+      loadeddata: null,
+      canplay: null,
+      canplaythrough: null,
+      ended: null,
+      error: null,
+      stalled: null,
+      progress: null
     };
 
     const removeAllEventListeners = () => {

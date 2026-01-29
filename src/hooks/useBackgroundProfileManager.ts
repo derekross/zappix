@@ -31,26 +31,19 @@ export function useBackgroundProfileManager() {
           queryClient.cancelQueries({ queryKey: query.queryKey });
           cancelledCount++;
 
-          if (import.meta.env.DEV) {
-
-          }
-        }
-
-        // Retry failed queries that haven't been retried recently (5 minutes)
-        if (isError && timeSinceLastUpdate > 300000) {
-          queryClient.invalidateQueries({ queryKey: query.queryKey });
-          retriedCount++;
-
-          if (import.meta.env.DEV) {
-            
-          }
-        }
-      });
-
-      // Log summary only in development
-      if (import.meta.env.DEV && (cancelledCount > 0 || retriedCount > 0)) {
-
       }
+
+      // Retry failed queries that haven't been retried recently (5 minutes)
+      if (isError && timeSinceLastUpdate > 300000) {
+        queryClient.invalidateQueries({ queryKey: query.queryKey });
+        retriedCount++;
+      }
+    });
+
+    // Log summary only in development
+    if (import.meta.env.DEV && (cancelledCount > 0 || retriedCount > 0)) {
+      console.debug(`Profile query manager: cancelled ${cancelledCount}, retried ${retriedCount}`);
+    }
     };
 
     // Check every 30 seconds (less aggressive than the old system)

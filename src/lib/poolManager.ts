@@ -31,16 +31,16 @@ class PoolManager {
   // Optimized relays - fewer, faster relays for better performance
   private getFastRelays() {
     return [
-      'wss://relay.nostr.band', // Fast indexing relay
+      'wss://relay.ditto.pub',   // Fast indexing relay
       'wss://relay.primal.net',  // Fast caching relay
-      'wss://nos.lol',          // Fast relay
+      'wss://nos.lol',           // Fast relay
     ];
   }
 
   // Discovery relays for global feeds - slightly more coverage
   private getDiscoveryRelays() {
     return [
-      'wss://relay.nostr.band',
+      'wss://relay.ditto.pub',
       'wss://relay.primal.net',
       'wss://nos.lol',
       'wss://relay.damus.io',

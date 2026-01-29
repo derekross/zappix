@@ -1,4 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { getDiscoveryPool } from "@/lib/poolManager";
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 import { useOutboxModel } from './useOutboxModel';
@@ -18,7 +19,7 @@ export function useUserVideoPosts(pubkey: string) {
       // Use the same comprehensive approach as global/following feeds
       // First try outbox model, then fallback to discovery pool, then combine results
       const fallbackRelays = [
-        "wss://relay.nostr.band",
+        "wss://relay.ditto.pub",
         "wss://relay.damus.io",
         "wss://relay.primal.net",
         "wss://relay.olas.app",
@@ -61,8 +62,8 @@ export function useUserVideoPosts(pubkey: string) {
 
         const outboxEvents = await Promise.all(relayPromises);
         allEvents.push(...outboxEvents.flat());
-
-        } catch {
+      } catch {
+        // Outbox model failed, continue with discovery pool
       }
 
       // Strategy 2: Always try discovery pool as well (like global feed)
@@ -71,8 +72,8 @@ export function useUserVideoPosts(pubkey: string) {
         const discoveryPool = getDiscoveryPool();
         const discoveryEvents = await discoveryPool.query([filter], { signal: querySignal });
         allEvents.push(...discoveryEvents);
-
-        } catch {
+      } catch {
+        // Discovery pool failed, continue with what we have
       }
 
 

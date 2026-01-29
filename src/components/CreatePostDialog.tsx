@@ -157,7 +157,7 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
               });
               continue;
             }
-          } catch (metadataError) {
+          } catch {
             toast({
               title: "Video processing failed",
               description: `Could not process video "${file.name}". Please ensure it's a valid video file.`,

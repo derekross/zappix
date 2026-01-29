@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, HTMLAttributes } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getOptimizedImageUrl, ImagePresets } from '@/lib/imageOptimization';
@@ -12,19 +12,9 @@ interface OptimizedAvatarProps {
   onError?: () => void;
 }
 
-// Predefined placeholder SVG to avoid inline generation
-const PLACEHOLDER_SVG = `data:image/svg+xml;base64,${btoa(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none">
-    <circle cx="20" cy="20" r="20" fill="#f3f4f6"/>
-    <circle cx="20" cy="16" r="6" fill="#d1d5db"/>
-    <path d="M10 32 Q20 28 30 32" stroke="#d1d5db" stroke-width="3" stroke-linecap="round"/>
-  </svg>`
-)}`;
-
 export function OptimizedAvatar({ 
   pubkey, 
   className, 
-  fallback,
   priority = false,
   onLoad,
   onError

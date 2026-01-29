@@ -1,4 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { getDiscoveryPool } from "@/lib/poolManager";
 import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
 import { validateImageEvent } from '@/lib/validators';
@@ -61,7 +62,7 @@ export function useUserImagePosts(pubkey: string | undefined) {
           nextCursor: events.length < filter.limit ? undefined : filteredEvents[filteredEvents.length - 1]?.created_at,
         };
       } catch (error) {
-        
+        console.error('User image posts query error:', error);
         throw error;
       }
     },

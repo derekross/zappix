@@ -6,7 +6,6 @@ import { VideoPostSkeleton } from './VideoPostSkeleton';
 import { CommentModal } from './CommentModal';
 import { useAllVideoPosts, useFollowingAllVideoPosts } from '@/hooks/useAllVideoPosts';
 import { useFollowing } from '@/hooks/useFollowing';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Card, CardContent } from '@/components/ui/card';
 import { NostrEvent } from '@nostrify/nostrify';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,6 @@ export function VideoFeed({
   onHashtagClick,
   onLocationClick,
 }: VideoFeedProps) {
-  const { user } = useCurrentUser();
   const following = useFollowing();
   const followingPubkeys = useMemo(() => following.data || [], [following.data]);
   const isMobile = useIsMobile();
@@ -40,7 +38,7 @@ export function VideoFeed({
   // Choose the appropriate query based on feed type
   const query = feedType === 'following' ? followingAllQuery : globalAllQuery;
 
-  const { ref, inView } = useInView({
+  const { ref: _ref, inView } = useInView({
     threshold: 0,
     rootMargin: '200px', // Start loading earlier
   });

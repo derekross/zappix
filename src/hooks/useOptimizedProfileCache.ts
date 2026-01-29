@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useMemo } from 'react';
-import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
+import { useCallback, useRef, useMemo } from 'react';
+import type { NostrMetadata } from '@nostrify/nostrify';
 import { genUserName } from '@/lib/genUserName';
 
 interface OptimizedProfileCacheOptions {
   staleTime?: number;
-  cacheTime?: number;
+  gcTime?: number;
   prefetchThreshold?: number;
 }
 
@@ -70,7 +70,7 @@ const globalProfileCache = new ProfileLRUCache(200);
 export function useOptimizedProfileCache(options: OptimizedProfileCacheOptions = {}) {
   const {
     staleTime = 5 * 60 * 1000, // 5 minutes
-    cacheTime = 30 * 60 * 1000, // 30 minutes
+    gcTime = 30 * 60 * 1000, // 30 minutes
     prefetchThreshold = 3, // Prefetch when profile is accessed 3 times
   } = options;
 
@@ -126,7 +126,7 @@ export function useOptimizedProfileCache(options: OptimizedProfileCacheOptions =
         return profile;
       },
       staleTime,
-      cacheTime,
+      gcTime,
       enabled: !!pubkey,
       retry: (failureCount, error) => {
         if (error.name === 'AbortError') return false;
@@ -143,9 +143,9 @@ export function useOptimizedProfileCache(options: OptimizedProfileCacheOptions =
 
     const query = useInfiniteQuery({
       queryKey: ['optimized-profiles-batch', uniquePubkeys.slice(0, 10)], // Limit batch size
-      queryFn: async ({ pageParam = 0, signal }) => {
+      queryFn: async ({ pageParam, signal }) => {
         const batchSize = 20;
-        const startIndex = pageParam * batchSize;
+        const startIndex = (pageParam as number) * batchSize;
         const batch = uniquePubkeys.slice(startIndex, startIndex + batchSize);
 
         if (batch.length === 0) {
@@ -186,7 +186,7 @@ export function useOptimizedProfileCache(options: OptimizedProfileCacheOptions =
                 nip05: metadata?.nip05,
                 lud16: metadata?.lud16,
                 cachedAt: Date.now(),
-                lastUpdated: metadata?.created_at || Date.now(),
+                lastUpdated: Date.now(),
               };
 
               // Update LRU cache
@@ -211,10 +211,11 @@ export function useOptimizedProfileCache(options: OptimizedProfileCacheOptions =
           hasMore: startIndex + batchSize < uniquePubkeys.length,
         };
       },
-      getNextPageParam: (lastPage) => 
+      initialPageParam: 0,
+      getNextPageParam: (lastPage: { profiles: CachedProfile[]; hasMore: boolean }) => 
         lastPage.hasMore ? (lastPage.profiles.length / 20) + 1 : undefined,
       staleTime,
-      cacheTime,
+      gcTime,
       enabled: uniquePubkeys.length > 0,
     });
 
@@ -222,7 +223,7 @@ export function useOptimizedProfileCache(options: OptimizedProfileCacheOptions =
     const profiles = useMemo(() => {
       if (!query.data?.pages) return [];
       
-      const allProfiles = query.data.pages.flatMap(page => page.profiles);
+      const allProfiles = query.data.pages.flatMap((page: { profiles: CachedProfile[]; hasMore: boolean }) => page.profiles);
       const uniqueProfiles = allProfiles.filter(
         (profile, index, self) => 
           index === self.findIndex(p => p.pubkey === profile.pubkey)
@@ -268,13 +269,13 @@ export function useOptimizedProfileCache(options: OptimizedProfileCacheOptions =
             return profile;
           },
           staleTime: staleTime * 2, // Longer stale time for prefetched data
-          cacheTime: cacheTime * 2,
+          gcTime: gcTime * 2,
         });
         
         prefetchQueueRef.current.delete(pubkey);
       }, 1000);
     }
-  }, [queryClient, prefetchThreshold, staleTime, cacheTime]);
+  }, [queryClient, prefetchThreshold, staleTime, gcTime]);
 
   // Batch prefetch for lists of profiles
   const prefetchProfiles = useCallback((pubkeys: string[]) => {

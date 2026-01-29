@@ -14,7 +14,6 @@ interface LocationPickerProps {
 
 export const LocationPicker = memo(function LocationPicker({
   location,
-  geohash,
   onLocationChange,
   dialogOpen,
 }: LocationPickerProps) {

@@ -97,7 +97,7 @@ export function PublicUserProfilePage({ pubkey }: PublicUserProfilePageProps) {
     toggleFollow(
       { pubkey, isFollowing: followingState },
       {
-        onSuccess: (data) => {
+        onSuccess: () => {
           toast({
             title: followingState ? 'Unfollowed' : 'Following',
             description: followingState 

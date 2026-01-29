@@ -13,7 +13,7 @@ export interface Account {
 
 // Default discovery relays for profile metadata fallback
 const DISCOVERY_RELAYS = [
-  'wss://relay.nostr.band',
+  'wss://relay.ditto.pub',
   'wss://relay.primal.net',
   'wss://relay.olas.app',
   'wss://nos.lol',

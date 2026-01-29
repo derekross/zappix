@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useEffect } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -11,7 +11,7 @@ interface OptimizedContentLoaderOptions {
   initialPageParam?: number;
   enabled?: boolean;
   staleTime?: number;
-  cacheTime?: number;
+  gcTime?: number;
   refetchOnMount?: boolean;
   refetchOnWindowFocus?: boolean;
   refetchOnReconnect?: boolean;
@@ -43,7 +43,7 @@ export function useOptimizedContentLoader(options: OptimizedContentLoaderOptions
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: options.enabled,
     staleTime: options.staleTime ?? 30000, // 30 seconds default
-    cacheTime: options.cacheTime ?? 5 * 60 * 1000, // 5 minutes default
+    gcTime: options.gcTime ?? 5 * 60 * 1000, // 5 minutes default
     refetchOnMount: options.refetchOnMount ?? false,
     refetchOnWindowFocus: options.refetchOnWindowFocus ?? false,
     refetchOnReconnect: options.refetchOnReconnect ?? true,
@@ -60,7 +60,7 @@ export function useOptimizedContentLoader(options: OptimizedContentLoaderOptions
   const processedData = useMemo(() => {
     if (!query.data?.pages) return { events: [], totalCount: 0 };
 
-    const allEvents = query.data.pages.flatMap(page => page.events);
+    const allEvents = query.data.pages.flatMap((page: { events: NostrEvent[]; nextCursor?: number }) => page.events);
     
     // Deduplicate events by ID
     const uniqueEvents = allEvents.filter(
@@ -85,10 +85,10 @@ export function useOptimizedContentLoader(options: OptimizedContentLoaderOptions
       // Debounce prefetching to avoid excessive requests
       clearTimeout(prefetchTimeoutRef.current);
       prefetchTimeoutRef.current = setTimeout(() => {
-        query.prefetchNextPage();
+        query.fetchNextPage();
       }, 2000); // 2 second delay
     }
-  }, [query.hasNextPage, query.isFetchingNextPage, query.isFetching]);
+  }, [query.hasNextPage, query.isFetchingNextPage, query.isFetching, query.fetchNextPage]);
 
   // Optimized refresh
   const refresh = useCallback(() => {
@@ -125,7 +125,7 @@ export function useContentPreloader() {
         queryKey,
         queryFn,
         staleTime: 60000, // 1 minute
-        cacheTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
       });
     } catch (error) {
       // Silent fail for preloading

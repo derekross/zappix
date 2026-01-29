@@ -68,7 +68,6 @@ function ImageGridItem({ event }: { event: NostrEvent }) {
 
   // Determine if image should use object-contain (for very non-square images)
   const isVeryNonSquare = firstImage.aspectRatio < 0.7 || firstImage.aspectRatio > 1.4;
-  const objectFit = isVeryNonSquare ? 'object-contain' : 'object-cover';
 
   return (
     <div

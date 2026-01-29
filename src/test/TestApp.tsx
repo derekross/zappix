@@ -42,10 +42,17 @@ export function cleanupQueryClient() {
 
 const defaultConfig: AppConfig = {
   theme: 'light',
+  relayMetadata: {
+    relays: [
+      { url: 'wss://relay.ditto.pub', read: true, write: true },
+      { url: 'wss://relay.primal.net', read: true, write: true },
+    ],
+    updatedAt: Date.now(),
+  },
 };
 
 const defaultRelays = [
-  { url: 'wss://relay.nostr.band', name: 'Nostr.Band' },
+  { url: 'wss://relay.ditto.pub', name: 'Ditto' },
   { url: 'wss://relay.primal.net', name: 'Primal' },
   { url: 'wss://relay.olas.app', name: 'Olas' },
   { url: 'wss://nos.lol', name: 'nos.lol' },

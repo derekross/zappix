@@ -1,12 +1,8 @@
-import { Settings, User, Globe, Mail, CheckCircle } from "lucide-react";
+import { User } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { OptimizedAvatar } from "@/components/OptimizedAvatar";
+import { Card, CardContent } from "@/components/ui/card";
 import { OptimizedProfileHeader } from "@/components/OptimizedProfileHeader";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { genUserName } from "@/lib/genUserName";
 import { UserImageGrid } from "./UserImageGrid";
 import { UserVideoGrid } from "./UserVideoGrid";
 

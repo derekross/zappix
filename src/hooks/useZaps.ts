@@ -204,7 +204,7 @@ export function useZaps(
         profile: actualTarget.pubkey,
         event: event,
         amount: zapAmount,
-        relays: [defaultRelays[0]?.url || 'wss://relay.nostr.band'],
+        relays: [defaultRelays[0]?.url || 'wss://relay.ditto.pub'],
         comment
       });
 

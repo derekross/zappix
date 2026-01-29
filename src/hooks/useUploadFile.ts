@@ -37,7 +37,6 @@ async function uploadToBlossom(
   signer: NostrSigner,
   servers: string[],
   options?: UploadOptions,
-  originalFile?: File
 ): Promise<string[][]> {
   const timeout = options?.timeout || 300000; // 5 minutes default
 
@@ -235,7 +234,7 @@ export function useUploadFile() {
           ...options,
           onProgress: uploadProgress,
           timeout: dynamicTimeoutMs
-        }, file);
+        });
 
         // Add compression metadata to tags if applicable
         if (compressionInfo) {

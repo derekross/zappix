@@ -33,41 +33,36 @@ export function useImagePosts(hashtag?: string, location?: string) {
         filter.until = pageParam;
       }
 
-      try {
-        const events = await discoveryPool.query([filter], { signal: querySignal });
-        let validEvents = events.filter(validateImageEvent);
+      const events = await discoveryPool.query([filter], { signal: querySignal });
+      let validEvents = events.filter(validateImageEvent);
 
-        // Filter by location if specified
-        if (location) {
-          validEvents = validEvents.filter(event =>
-            event.tags.some(tag =>
-              tag[0] === "location" &&
-              tag[1] &&
-              tag[1].toLowerCase().includes(location.toLowerCase())
-            )
-          );
-        }
-
-        const sortedEvents = validEvents
-          .sort((a, b) => b.created_at - a.created_at)
-          .filter((event, index, self) => index === self.findIndex(e => e.id === event.id));
-
-        // Filter out muted users
-        const unmutedEvents = sortedEvents.filter(event => !mutedUsers.includes(event.pubkey));
-
-        // Filter out deleted events if deletion data is available
-        const filteredEvents = deletionData
-          ? filterDeletedEvents(unmutedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
-          : unmutedEvents;
-
-        return {
-          events: filteredEvents,
-          nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
-        };
-      } catch (error) {
-
-        throw error;
+      // Filter by location if specified
+      if (location) {
+        validEvents = validEvents.filter(event =>
+          event.tags.some(tag =>
+            tag[0] === "location" &&
+            tag[1] &&
+            tag[1].toLowerCase().includes(location.toLowerCase())
+          )
+        );
       }
+
+      const sortedEvents = validEvents
+        .sort((a, b) => b.created_at - a.created_at)
+        .filter((event, index, self) => index === self.findIndex(e => e.id === event.id));
+
+      // Filter out muted users
+      const unmutedEvents = sortedEvents.filter(event => !mutedUsers.includes(event.pubkey));
+
+      // Filter out deleted events if deletion data is available
+      const filteredEvents = deletionData
+        ? filterDeletedEvents(unmutedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+        : unmutedEvents;
+
+      return {
+        events: filteredEvents,
+        nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
+      };
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -131,6 +126,7 @@ export function useFollowingImagePosts(followingPubkeys: string[]) {
               : undefined,
         };
       } catch (error) {
+        console.error('Following image posts query error:', error);
         throw error;
       }
     },

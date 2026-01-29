@@ -5,7 +5,7 @@ import { LoginArea } from "@/components/auth/LoginArea";
 import { useNavigate } from "react-router-dom";
 
 interface MobileBottomNavProps {
-  user: { pubkey: string } | null;
+  user: { pubkey: string } | null | undefined;
   onCreatePost: () => void;
   onSettingsClick: () => void;
   onTabChange?: (tab: string) => void;

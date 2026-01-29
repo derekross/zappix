@@ -6,7 +6,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { useNavigate } from "react-router-dom";
 
 interface DesktopSidebarProps {
-  user: { pubkey: string } | null;
+  user: { pubkey: string } | null | undefined;
   onLogoClick: () => void;
   onCreatePost: () => void;
   onSettingsClick: () => void;
