@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm i && vite",
-    "dev:update-sw": "node scripts/update-sw-version.js",
-    "build": "npm i && node scripts/update-sw-version.js && vite build && cp dist/index.html dist/404.html",
+    "build": "npm i && vite build && cp dist/index.html dist/404.html",
     "test": "npm i && tsc -p tsconfig.app.json --noEmit && eslint && NODE_OPTIONS=\"--max-old-space-size=4096\" vitest run && vite build",
     "deploy": "npm run build && npx -y nostr-deploy-cli deploy --skip-setup",
     "cap:add:android": "npx cap add android",
@@ -108,6 +107,8 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^6.3.5",
-    "vitest": "^3.1.4"
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^3.1.4",
+    "workbox-precaching": "^7.4.0"
   }
 }

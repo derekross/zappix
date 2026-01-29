@@ -14,7 +14,7 @@ import { NostrLoginProvider } from "@nostrify/react/login";
 import { AppProvider } from "@/components/AppProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { NWCProvider } from "@/contexts/NWCContext";
-import { PWAUpdateNotification } from "@/components/PWAUpdateNotification";
+import { PWAUpdatePrompt } from "@/components/PWAUpdatePrompt";
 import { BackgroundProfileManager } from "@/components/BackgroundProfileManager";
 import { useMemoryMonitor } from "@/hooks/useMemoryMonitor";
 import { useCapacitorStatusBar } from "@/hooks/useCapacitorStatusBar";
@@ -100,7 +100,7 @@ export function App() {
                     <TooltipProvider>
                       <Toaster />
                       <Sonner />
-                      <PWAUpdateNotification />
+                      <PWAUpdatePrompt />
                       <BackgroundProfileManager />
                       <Suspense>
                         <AppRouter />
