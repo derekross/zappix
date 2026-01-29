@@ -232,8 +232,8 @@ export function MainLayout({ children }: MainLayoutProps) {
             <div className="container text-center text-sm text-muted-foreground">
               <p>
                 Vibed with{" "}
-                <a href="https://soapbox.pub/tools/mkstack/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  MKStack
+                <a href="https://shakesperae.diy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Shakespeare
                 </a>
               </p>
             </div>
@@ -339,8 +339,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           <div className="container text-center text-sm text-muted-foreground">
             <p>
               Vibed with{" "}
-              <a href="https://soapbox.pub/tools/mkstack/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                MKStack
+              <a href="https://shakesperae.diy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                Shakespeare
               </a>
             </p>
           </div>

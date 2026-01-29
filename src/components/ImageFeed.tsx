@@ -178,7 +178,7 @@ export function ImageFeed({
   return (
     <div
       ref={parentRef}
-      className="h-[calc(100vh-200px)] overflow-auto"
+      className="h-[calc(100vh-200px)] overflow-auto scrollbar-thin"
     >
       <div
         style={{
