@@ -111,7 +111,7 @@ export function UserImageGrid({ pubkey, className }: UserImageGridProps) {
     if (inView && posts.hasNextPage && !posts.isFetchingNextPage) {
       posts.fetchNextPage();
     }
-  }, [inView, posts]);
+  }, [inView, posts.hasNextPage, posts.isFetchingNextPage, posts.fetchNextPage]);
 
   // Flatten all pages into a single array of posts and deduplicate by event ID
   const allPosts = posts.data?.pages?.flatMap(page => page.events) || [];

@@ -15,6 +15,15 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+// Cap notification arrays to prevent unbounded localStorage growth
+const MAX_NOTIFICATION_IDS = 5000;
+function capArray(arr: string[]): string[] {
+  if (arr.length > MAX_NOTIFICATION_IDS) {
+    return arr.slice(arr.length - MAX_NOTIFICATION_IDS);
+  }
+  return arr;
+}
+
 interface NotificationProviderProps {
   children: ReactNode;
 }
@@ -93,21 +102,22 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     if (!readNotificationsSet.has(notificationId)) {
       isUpdatingRef.current = true;
       
-      const newReadNotifications = [...readNotifications, notificationId];
-      
-      // Update both state and localStorage atomically
-      setReadNotifications(newReadNotifications);
-      setReadNotificationsSet(new Set(newReadNotifications));
+      // Use functional update to avoid stale closure
+      setReadNotifications((prev: string[]) => {
+        const updated = [...prev, notificationId];
+        setReadNotificationsSet(new Set(updated));
+        return updated;
+      });
       
       // Reset the updating flag after a brief delay to allow localStorage to update
       setTimeout(() => {
         isUpdatingRef.current = false;
       }, 10);
     }
-  }, [readNotifications, readNotificationsSet, setReadNotifications]);
+  }, [readNotificationsSet, setReadNotifications]);
 
   const markAllAsRead = useCallback((notificationIds: string[]) => {
-    const newReadNotifications = [...new Set([...readNotifications, ...notificationIds])];
+    const newReadNotifications = capArray([...new Set([...readNotifications, ...notificationIds])]);
     
     // Only update if there are actually new notifications to mark as read
     if (newReadNotifications.length > readNotifications.length) {
@@ -128,21 +138,22 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     if (!clearedNotificationsSet.has(notificationId)) {
       isUpdatingRef.current = true;
       
-      const newClearedNotifications = [...clearedNotifications, notificationId];
-      
-      // Update both state and localStorage atomically
-      setClearedNotifications(newClearedNotifications);
-      setClearedNotificationsSet(new Set(newClearedNotifications));
+      // Use functional update to avoid stale closure
+      setClearedNotifications((prev: string[]) => {
+        const updated = [...prev, notificationId];
+        setClearedNotificationsSet(new Set(updated));
+        return updated;
+      });
       
       // Reset the updating flag after a brief delay
       setTimeout(() => {
         isUpdatingRef.current = false;
       }, 10);
     }
-  }, [clearedNotifications, clearedNotificationsSet, setClearedNotifications]);
+  }, [clearedNotificationsSet, setClearedNotifications]);
 
   const clearAllNotifications = useCallback((notificationIds: string[]) => {
-    const newClearedNotifications = [...new Set([...clearedNotifications, ...notificationIds])];
+    const newClearedNotifications = capArray([...new Set([...clearedNotifications, ...notificationIds])]);
     
     // Only update if there are actually new notifications to clear
     if (newClearedNotifications.length > clearedNotifications.length) {

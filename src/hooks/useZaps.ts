@@ -191,18 +191,11 @@ export function useZaps(
         return;
       }
 
-      // Create zap request - use appropriate event format based on kind
-      // For addressable events (30000-39999), pass the object to get 'a' tag
-      // For all other events, pass the ID string to get 'e' tag
-      const event = (actualTarget.kind >= 30000 && actualTarget.kind < 40000)
-        ? actualTarget
-        : actualTarget.id;
-
+      // Create zap request for the event
       const zapAmount = amount * 1000; // convert to millisats
 
       const zapRequest = nip57.makeZapRequest({
-        profile: actualTarget.pubkey,
-        event: event,
+        event: actualTarget,
         amount: zapAmount,
         relays: [defaultRelays[0]?.url || 'wss://relay.ditto.pub'],
         comment
@@ -215,7 +208,7 @@ export function useZaps(
       const signedZapRequest = await user.signer.signEvent(zapRequest);
 
       try {
-        const res = await fetch(`${zapEndpoint}?amount=${zapAmount}&nostr=${encodeURI(JSON.stringify(signedZapRequest))}`);
+        const res = await fetch(`${zapEndpoint}?amount=${zapAmount}&nostr=${encodeURIComponent(JSON.stringify(signedZapRequest))}`);
             const responseData = await res.json();
 
             if (!res.ok) {

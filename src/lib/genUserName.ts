@@ -18,7 +18,7 @@ export function genUserName(seed: string): string {
   for (let i = 0; i < seed.length; i++) {
     const char = seed.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    hash = hash | 0; // Convert to 32-bit integer
   }
   
   // Use absolute value to ensure positive index

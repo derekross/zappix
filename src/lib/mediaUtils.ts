@@ -147,12 +147,16 @@ export async function getVideoMetadata(file: File): Promise<VideoMetadata> {
  * Get image dimensions from a file
  */
 export async function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
       resolve({ width: img.width, height: img.height });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Failed to load image for dimensions"));
     };
     img.src = objectUrl;
   });

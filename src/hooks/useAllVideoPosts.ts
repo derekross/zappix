@@ -58,7 +58,7 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
 
       // Filter out deleted events if deletion data is available
       const filteredEvents = deletionData
-        ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+        ? filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap)
         : sortedEvents;
 
       return {
@@ -130,7 +130,7 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
 
       // Filter out deleted events if deletion data is available
       const filteredEvents = deletionData
-        ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+        ? filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap)
         : sortedEvents;
 
       return {
@@ -187,7 +187,7 @@ export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientati
 
           // Filter out deleted events if deletion data is available
           const filteredEvents = deletionData
-            ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+            ? filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap)
             : sortedEvents;
 
           return {

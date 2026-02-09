@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useToast } from '@/hooks/useToast';
 import { LN } from '@getalby/sdk';
@@ -142,18 +142,21 @@ export function useNWCInternal() {
     });
   };
 
-  // Get active connection
-  const getActiveConnection = useCallback((): NWCConnection | null => {
+  // Auto-select first connection if none is active
+  useEffect(() => {
     if (!activeConnection && connections.length > 0) {
       setActiveConnection(connections[0].connectionString);
-      return connections[0];
     }
-
-    if (!activeConnection) return null;
-
-    const found = connections.find(c => c.connectionString === activeConnection);
-    return found || null;
   }, [activeConnection, connections, setActiveConnection]);
+
+  // Get active connection (pure read, no side effects)
+  const getActiveConnection = useCallback((): NWCConnection | null => {
+    const connStr = activeConnection || (connections.length > 0 ? connections[0].connectionString : null);
+    if (!connStr) return null;
+
+    const found = connections.find(c => c.connectionString === connStr);
+    return found || null;
+  }, [activeConnection, connections]);
 
   // Send payment using the SDK
   const sendPayment = useCallback(async (

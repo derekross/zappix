@@ -7,8 +7,18 @@ interface RelayHints {
   readRelays: string[];
 }
 
-// Cache for relay lists to avoid repeated queries
+// Cache for relay lists to avoid repeated queries (with max size to prevent memory leaks)
+const MAX_RELAY_CACHE_SIZE = 500;
 const relayListCache = new Map<string, RelayHints>();
+
+function setRelayListCacheEntry(key: string, value: RelayHints) {
+  // Evict oldest entries if cache is full
+  if (relayListCache.size >= MAX_RELAY_CACHE_SIZE) {
+    const firstKey = relayListCache.keys().next().value;
+    if (firstKey) relayListCache.delete(firstKey);
+  }
+  relayListCache.set(key, value);
+}
 
 export function useOutboxModel() {
   const { nostr } = useNostr();
@@ -30,7 +40,7 @@ export function useOutboxModel() {
 
       if (relayEvents.length === 0) {
         const fallback = { writeRelays: [], readRelays: [] };
-        relayListCache.set(pubkey, fallback);
+        setRelayListCacheEntry(pubkey, fallback);
         return fallback;
       }
 
@@ -57,11 +67,11 @@ export function useOutboxModel() {
       }
 
       const hints = { writeRelays, readRelays };
-      relayListCache.set(pubkey, hints);
+      setRelayListCacheEntry(pubkey, hints);
       return hints;
     } catch {
       const fallback = { writeRelays: [], readRelays: [] };
-      relayListCache.set(pubkey, fallback);
+      setRelayListCacheEntry(pubkey, fallback);
       return fallback;
     }
   };
@@ -177,7 +187,7 @@ export const outboxUtils = {
 
   // Function to manually add relay hints to cache
   setRelayHints: (pubkey: string, hints: RelayHints) => {
-    relayListCache.set(pubkey, hints);
+    setRelayListCacheEntry(pubkey, hints);
   },
 
   // Function to get cached relay hints

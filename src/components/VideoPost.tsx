@@ -430,27 +430,35 @@ export const VideoPost = memo(function VideoPost({
       return;
     }
 
-    try {
-      if (hasLiked) {
-        // Unlike the post
-        removeReaction({
-          eventId: event.id,
-          reaction: '+',
-        });
-      } else {
-        // Like the post
-        reactToPost({
-          eventId: event.id,
-          authorPubkey: event.pubkey,
-          reaction: '+',
-          kind: event.kind.toString(),
-        });
-      }
-    } catch {
-      toast({
-        title: 'Error',
-        description: 'Failed to update reaction',
-        variant: 'destructive',
+    if (hasLiked) {
+      // Unlike the post
+      removeReaction({
+        eventId: event.id,
+        reaction: '+',
+      }, {
+        onError: () => {
+          toast({
+            title: 'Error',
+            description: 'Failed to remove reaction',
+            variant: 'destructive',
+          });
+        },
+      });
+    } else {
+      // Like the post
+      reactToPost({
+        eventId: event.id,
+        authorPubkey: event.pubkey,
+        reaction: '+',
+        kind: event.kind.toString(),
+      }, {
+        onError: () => {
+          toast({
+            title: 'Error',
+            description: 'Failed to add reaction',
+            variant: 'destructive',
+          });
+        },
       });
     }
   };

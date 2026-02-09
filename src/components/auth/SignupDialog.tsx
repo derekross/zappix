@@ -83,8 +83,17 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
     });
   };
 
+  // Clear sensitive nsec state when dialog closes
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setNsec('');
+      setStep('generate');
+    }
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className='sm:max-w-md p-0 overflow-hidden rounded-2xl'>
         <DialogHeader className='px-6 pt-6 pb-0 relative'>
           <DialogTitle className='text-xl font-semibold text-center'>

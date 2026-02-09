@@ -14,7 +14,7 @@
  * To use: Import and render this component in App.tsx when PWA is enabled.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useToast } from '@/hooks/useToast';
@@ -23,9 +23,19 @@ import { ToastAction } from '@/components/ui/toast';
 export function PWAUpdatePrompt() {
   const { toast } = useToast();
   const [showReload, setShowReload] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Skip service worker registration on native apps - they update via app store
   const isNativeApp = Capacitor.isNativePlatform();
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -41,7 +51,7 @@ export function PWAUpdatePrompt() {
         // Note: We don't call r.update() immediately on page load because
         // the browser already checks for SW updates when the page loads.
         // Calling it immediately would trigger false "update available" prompts.
-        setInterval(() => {
+        intervalRef.current = setInterval(() => {
           r.update();
         }, 60 * 60 * 1000); // 1 hour
       }

@@ -113,7 +113,7 @@ export function UserVideoGrid({ pubkey, className }: UserVideoGridProps) {
     if (inView && query.hasNextPage && !query.isFetchingNextPage) {
       query.fetchNextPage();
     }
-  }, [inView, query]);
+  }, [inView, query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
 
   // Flatten all pages and deduplicate
   const allVideos = query.data?.pages?.flatMap(page => page.events) || [];

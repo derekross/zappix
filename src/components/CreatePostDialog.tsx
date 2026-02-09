@@ -312,6 +312,8 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
             setGeohash("");
             setContentWarning("");
             setHasContentWarning(false);
+            // Revoke all object URLs before clearing media to prevent memory leaks
+            media.forEach((item) => URL.revokeObjectURL(item.preview));
             setMedia([]);
             onOpenChange(false);
 

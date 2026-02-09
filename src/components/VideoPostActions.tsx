@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { memo } from "react";
 import {
   Copy,
   Share,
@@ -16,7 +16,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useIsBookmarked, useToggleBookmark } from "@/hooks/useBookmarks";
 import { useIsFollowing, useToggleFollow } from "@/hooks/useFollowing";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
-
+import { useIsMuted, useToggleMute } from "@/hooks/useToggleMute";
 import { useToast } from "@/hooks/useToast";
 import {
   DropdownMenuItem,
@@ -31,7 +31,8 @@ interface VideoPostActionsProps {
 export const VideoPostActions = memo(function VideoPostActions({ event, onClose }: VideoPostActionsProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  const [isMuted, setIsMuted] = useState(false); // TODO: Implement mute functionality
+  const isMuted = useIsMuted(event.pubkey);
+  const toggleMute = useToggleMute();
 
   const isBookmarked = useIsBookmarked(event.id);
   const toggleBookmark = useToggleBookmark();
@@ -159,16 +160,26 @@ export const VideoPostActions = memo(function VideoPostActions({ event, onClose 
     }
   };
 
-  const handleToggleMute = () => {
-    // TODO: Implement mute functionality
-    setIsMuted(!isMuted);
-    toast({
-      title: isMuted ? "Unmuted" : "Muted",
-      description: isMuted
-        ? "You will see posts from this user again"
-        : "You will no longer see posts from this user",
-    });
-    onClose();
+  const handleToggleMute = async () => {
+    try {
+      await toggleMute.mutateAsync({
+        pubkey: event.pubkey,
+        isMuted,
+      });
+      toast({
+        title: isMuted ? "Unmuted" : "Muted",
+        description: isMuted
+          ? "You will see posts from this user again"
+          : "You will no longer see posts from this user",
+      });
+      onClose();
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to update mute status",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleReport = () => {

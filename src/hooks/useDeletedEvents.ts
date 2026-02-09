@@ -22,15 +22,16 @@ export function useDeletedEvents() {
         }], { signal });
 
         // Extract deleted event IDs from deletion requests
-        const deletedEventIds = new Set<string>();
-        const deletedEventCoordinates = new Set<string>(); // For addressable events (a tags)
+        // Map from event ID -> deletion author pubkey (for author validation per NIP-09)
+        const deletedEventMap = new Map<string, string>();
+        const deletedCoordinateMap = new Map<string, string>(); // coordinate -> deletion author pubkey
 
         deletionEvents.forEach((deletionEvent) => {
           // Process 'e' tags (regular event IDs)
           const eTags = deletionEvent.tags.filter(([name]) => name === 'e');
           eTags.forEach(([, eventId]) => {
             if (eventId) {
-              deletedEventIds.add(eventId);
+              deletedEventMap.set(eventId, deletionEvent.pubkey);
             }
           });
 
@@ -38,22 +39,22 @@ export function useDeletedEvents() {
           const aTags = deletionEvent.tags.filter(([name]) => name === 'a');
           aTags.forEach(([, coordinate]) => {
             if (coordinate) {
-              deletedEventCoordinates.add(coordinate);
+              deletedCoordinateMap.set(coordinate, deletionEvent.pubkey);
             }
           });
         });
 
 
         return {
-          deletedEventIds,
-          deletedEventCoordinates,
+          deletedEventMap,
+          deletedCoordinateMap,
           deletionEvents
         };
       } catch (error) {
         console.error('Failed to fetch deleted events:', error);
         return {
-          deletedEventIds: new Set<string>(),
-          deletedEventCoordinates: new Set<string>(),
+          deletedEventMap: new Map<string, string>(),
+          deletedCoordinateMap: new Map<string, string>(),
           deletionEvents: []
         };
       }
@@ -64,19 +65,22 @@ export function useDeletedEvents() {
 }
 
 /**
- * Utility function to check if an event has been deleted
+ * Utility function to check if an event has been deleted.
+ * Per NIP-09, a deletion is only valid if the deletion event author
+ * matches the author of the event being deleted.
  * @param event - The event to check
- * @param deletedEventIds - Set of deleted event IDs
- * @param deletedEventCoordinates - Set of deleted addressable event coordinates
- * @returns true if the event has been deleted
+ * @param deletedEventMap - Map of event ID -> deletion author pubkey
+ * @param deletedCoordinateMap - Map of coordinate -> deletion author pubkey
+ * @returns true if the event has been deleted by its author
  */
 export function isEventDeleted(
   event: NostrEvent,
-  deletedEventIds: Set<string>,
-  deletedEventCoordinates: Set<string>
+  deletedEventMap: Map<string, string>,
+  deletedCoordinateMap: Map<string, string>
 ): boolean {
-  // Check if event ID is in deleted events
-  if (deletedEventIds.has(event.id)) {
+  // Check if event ID is in deleted events AND the deletion author matches the event author
+  const deletionAuthor = deletedEventMap.get(event.id);
+  if (deletionAuthor && deletionAuthor === event.pubkey) {
     return true;
   }
 
@@ -84,7 +88,8 @@ export function isEventDeleted(
   if (event.kind >= 30000 && event.kind < 40000) {
     const dTag = event.tags.find(([name]) => name === 'd')?.[1] || '';
     const coordinate = `${event.kind}:${event.pubkey}:${dTag}`;
-    if (deletedEventCoordinates.has(coordinate)) {
+    const coordDeletionAuthor = deletedCoordinateMap.get(coordinate);
+    if (coordDeletionAuthor && coordDeletionAuthor === event.pubkey) {
       return true;
     }
   }
@@ -95,17 +100,17 @@ export function isEventDeleted(
 /**
  * Utility function to filter out deleted events from an array
  * @param events - Array of events to filter
- * @param deletedEventIds - Set of deleted event IDs
- * @param deletedEventCoordinates - Set of deleted addressable event coordinates
+ * @param deletedEventMap - Map of event ID -> deletion author pubkey
+ * @param deletedCoordinateMap - Map of coordinate -> deletion author pubkey
  * @returns Filtered array with deleted events removed
  */
 export function filterDeletedEvents(
   events: NostrEvent[],
-  deletedEventIds: Set<string>,
-  deletedEventCoordinates: Set<string>
+  deletedEventMap: Map<string, string>,
+  deletedCoordinateMap: Map<string, string>
 ): NostrEvent[] {
   return events.filter((event) => 
-    !isEventDeleted(event, deletedEventIds, deletedEventCoordinates)
+    !isEventDeleted(event, deletedEventMap, deletedCoordinateMap)
   );
 }
 
@@ -123,7 +128,7 @@ export function useFilteredEvents(events: NostrEvent[] | undefined) {
 
   return filterDeletedEvents(
     events,
-    deletionData.deletedEventIds,
-    deletionData.deletedEventCoordinates
+    deletionData.deletedEventMap,
+    deletionData.deletedCoordinateMap
   );
 }

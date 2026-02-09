@@ -358,7 +358,7 @@ export function PublicUserProfilePage({ pubkey }: PublicUserProfilePageProps) {
                 )}
 
                 {/* Website */}
-                {metadata?.website && (
+                {metadata?.website && (metadata.website.startsWith('https://') || metadata.website.startsWith('http://')) && (
                   <div className="space-y-2">
                     <h4 className="font-medium">Website</h4>
                     <a 

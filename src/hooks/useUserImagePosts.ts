@@ -34,10 +34,7 @@ export function useUserImagePosts(pubkey: string | undefined) {
 
         const events = await discoveryPool.query([filter], { signal: querySignal });
 
-        console.log('User image posts raw events received:', events.length);
-
         const validEvents = events.filter(validateImageEvent);
-        console.log('User image posts valid events:', validEvents.length);
 
         // Deduplicate by event ID to prevent duplicates from multiple relays
         const uniqueEvents = validEvents.reduce((acc, event) => {
@@ -47,13 +44,11 @@ export function useUserImagePosts(pubkey: string | undefined) {
           return acc;
         }, [] as NostrEvent[]);
 
-        console.log('User image posts unique events:', uniqueEvents.length);
-
         const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
 
         // Filter out deleted events if deletion data is available
         const filteredEvents = deletionData
-          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap)
           : sortedEvents;
 
         return {

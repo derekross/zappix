@@ -90,7 +90,7 @@ export function ImageFeed({
   // Check if we need to load more when virtual items change
   useEffect(() => {
     fetchMoreOnScroll();
-  }, [fetchMoreOnScroll, virtualizer.getVirtualItems()]);
+  }, [fetchMoreOnScroll]);
 
   const handleRefresh = () => {
     if (feedType === "following") {

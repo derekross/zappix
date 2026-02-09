@@ -355,7 +355,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
     zap,
   };
 
-  if (!user || user.pubkey === target.pubkey || !author?.metadata?.lud06 && !author?.metadata?.lud16) {
+  if (!user || user.pubkey === target.pubkey || (!author?.metadata?.lud06 && !author?.metadata?.lud16)) {
     return null;
   }
 

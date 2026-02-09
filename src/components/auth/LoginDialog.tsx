@@ -91,6 +91,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
       setNostrConnectUri('');
       setIsWaitingForConnect(false);
       setConnectError(null);
+      setNsec(''); // Clear sensitive nsec from state
+      setBunkerUri(''); // Clear bunker URI
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }

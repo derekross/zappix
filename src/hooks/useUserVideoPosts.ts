@@ -33,7 +33,7 @@ export function useUserVideoPosts(pubkey: string) {
         kinds: number[];
         authors: string[];
         limit: number;
-        since?: number; // Use since instead of until for better pagination
+        until?: number;
       } = {
         kinds: [22, 34236], // Video event kinds
         authors: [pubkey],
@@ -41,7 +41,7 @@ export function useUserVideoPosts(pubkey: string) {
       };
 
       if (pageParam) {
-        filter.since = pageParam;
+        filter.until = pageParam;
       }
 
       const allEvents: NostrEvent[] = [];
@@ -93,7 +93,7 @@ export function useUserVideoPosts(pubkey: string) {
       // Filter out deleted events if deletion data is available
       let filteredEvents = sortedEvents;
       if (deletionData) {
-        filteredEvents = filterDeletedEvents(sortedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates);
+        filteredEvents = filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap);
 
 
       }

@@ -48,7 +48,7 @@ export function VideoFeed({
     if (inView && query.hasNextPage && !query.isFetchingNextPage) {
       query.fetchNextPage();
     }
-  }, [inView, query]);
+  }, [inView, query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
 
   // Get all events from all pages and deduplicate
   const uniqueEvents = useMemo(() => {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
 
 interface VideoFeedContextType {
   currentlyPlayingId: string | null;
@@ -17,12 +17,12 @@ export function VideoFeedProvider({ children }: VideoFeedProviderProps) {
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(null);
   const [globalMuteState, setGlobalMuteState] = useState(true);
 
-  const value: VideoFeedContextType = {
+  const value = useMemo<VideoFeedContextType>(() => ({
     currentlyPlayingId,
     setCurrentlyPlayingId,
     globalMuteState,
     setGlobalMuteState,
-  };
+  }), [currentlyPlayingId, globalMuteState]);
 
   return (
     <VideoFeedContext.Provider value={value}>

@@ -44,17 +44,6 @@ function BookmarksContent() {
     useCreateInitialBookmarkList();
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
 
-  // Debug logging
-  console.log("BookmarksContent Debug:", {
-    userPubkey: user?.pubkey,
-    isLoading: bookmarks.isLoading,
-    error: bookmarks.error,
-    dataLength: bookmarks.data?.length,
-    data: bookmarks.data,
-    hasBookmarkList: !!bookmarkList.data,
-    bookmarkListLoading: bookmarkList.isLoading,
-  });
-
   const handleHashtagClick = (hashtag: string) => {
     setSelectedHashtag(hashtag);
     // Scroll to top when navigating to hashtag feed

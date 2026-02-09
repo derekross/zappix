@@ -10,7 +10,7 @@ export function useImagePosts(hashtag?: string, location?: string) {
   const { data: mutedUsers = [] } = useMutedUsers();
 
   return useInfiniteQuery({
-    queryKey: ["image-posts", hashtag, location, mutedUsers],
+    queryKey: ["image-posts", hashtag, location],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]); // Faster timeout
       const discoveryPool = getDiscoveryPool();
@@ -56,7 +56,7 @@ export function useImagePosts(hashtag?: string, location?: string) {
 
       // Filter out deleted events if deletion data is available
       const filteredEvents = deletionData
-        ? filterDeletedEvents(unmutedEvents, deletionData.deletedEventIds, deletionData.deletedEventCoordinates)
+        ? filterDeletedEvents(unmutedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap)
         : unmutedEvents;
 
       return {
@@ -144,7 +144,7 @@ export function useHashtagImagePosts(hashtags: string[], limit = 3) {
   const { data: mutedUsers = [] } = useMutedUsers();
 
   return useQuery({
-    queryKey: ["hashtag-image-posts", hashtags, limit, mutedUsers],
+    queryKey: ["hashtag-image-posts", hashtags, limit],
     queryFn: async (c) => {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
 

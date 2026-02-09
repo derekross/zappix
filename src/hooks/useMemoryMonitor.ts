@@ -49,10 +49,10 @@ export function useMemoryMonitor() {
         queries.forEach((query) => {
           const lastFetch = query.state.dataUpdatedAt;
           const isStale = lastFetch < fiveMinutesAgo;
-          const hasObservers = query.getObserversCount() === 0;
+          const hasNoObservers = query.getObserversCount() === 0;
 
           // Only remove if it's stale AND has no active observers
-          if (isStale && hasObservers) {
+          if (isStale && hasNoObservers) {
             queryCache.remove(query);
           }
         });
