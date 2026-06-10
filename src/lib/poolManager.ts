@@ -90,6 +90,12 @@ class PoolManager {
     return this.discoveryPool;
   }
 
+  // Open (or reuse) a connection to a specific relay, e.g. for outbox-model
+  // queries that target an author's write relays
+  getRelay(url: string): NRelay1 {
+    return this.openRelay(url);
+  }
+
   // Close all connections and reset pools
   closeAll(): void {
     // Close all relay connections
@@ -121,4 +127,8 @@ export function getDiscoveryPool() {
 
 export function getMainPool() {
   return poolManager.getMainPool();
+}
+
+export function getRelay(url: string) {
+  return poolManager.getRelay(url);
 }

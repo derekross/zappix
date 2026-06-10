@@ -41,14 +41,13 @@ export function useComments(eventId: string, _authorPubkey: string) {
 
       const validComments = events.filter(validateCommentEvent);
 
-      // Filter out replies from main comment list
-      // A comment is a reply if it has an 'e' tag that's not the root event
+      // Filter out replies from main comment list.
+      // Per NIP-22 the parent is the lowercase 'e' tag; a comment is a reply
+      // when that tag points at something other than the root event. (The
+      // third tag element is a relay hint, not a marker, so don't match on it.)
       const topLevelComments = validComments.filter(comment => {
-        const hasParentTag = comment.tags.some(([name, value, marker, pubkey]) =>
-          name === 'e' &&
-          value !== eventId && // Not pointing to root event
-          marker === '' && // Empty marker indicates reply
-          pubkey // Has pubkey
+        const hasParentTag = comment.tags.some(([name, value]) =>
+          name === 'e' && value && value !== eventId
         );
         return !hasParentTag; // Only include top-level comments
       });
@@ -58,8 +57,10 @@ export function useComments(eventId: string, _authorPubkey: string) {
 
       return {
         comments: sortedComments,
-        nextCursor: sortedComments.length > 0 ? sortedComments[sortedComments.length - 1].created_at : undefined,
-        hasMore: sortedComments.length === filter.limit, // Only has more if we got a full page
+        // Paginate from the RAW page so a page consisting entirely of replies
+        // doesn't end pagination while older top-level comments still exist
+        nextCursor: events.length > 0 ? Math.min(...events.map(e => e.created_at)) : undefined,
+        hasMore: events.length >= filter.limit,
       };
     },
     initialPageParam: undefined as number | undefined,

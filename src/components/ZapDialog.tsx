@@ -31,8 +31,8 @@ import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import type { NostrEvent } from '@nostrify/nostrify';
-import QRCode from 'qrcode';
 
 interface ZapDialogProps {
   target: NostrEvent;
@@ -242,7 +242,9 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const { toast } = useToast();
   const { webln, activeNWC, hasWebLN, detectWebLN } = useWallet();
   const { zap, isZapping, invoice, setInvoice } = useZaps(target, webln, activeNWC, () => setOpen(false));
-  const [amount, setAmount] = useState<number | string>(100);
+  const [defaultZapAmount] = useLocalStorage('default-zap-amount', '21');
+  const initialAmount = parseInt(defaultZapAmount, 10) > 0 ? parseInt(defaultZapAmount, 10) : 21;
+  const [amount, setAmount] = useState<number | string>(initialAmount);
   const [comment, setComment] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
@@ -273,6 +275,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       }
 
       try {
+        const { default: QRCode } = await import('qrcode');
         const url = await QRCode.toDataURL(invoice.toUpperCase(), {
           width: 512,
           margin: 2,
@@ -314,24 +317,17 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const openInWallet = () => {
     if (invoice) {
       const lightningUrl = `lightning:${invoice}`;
-      window.open(lightningUrl, '_blank');
+      window.open(lightningUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
+  // Reset state whenever the dialog opens or closes
   useEffect(() => {
-    if (open) {
-      setAmount(100);
-      setInvoice(null);
-      setCopied(false);
-      setQrCodeUrl('');
-    } else {
-      // Clean up state when dialog closes
-      setAmount(100);
-      setInvoice(null);
-      setCopied(false);
-      setQrCodeUrl('');
-    }
-  }, [open, setInvoice]);
+    setAmount(initialAmount);
+    setInvoice(null);
+    setCopied(false);
+    setQrCodeUrl('');
+  }, [open, setInvoice, initialAmount]);
 
   const handleZap = () => {
     const finalAmount = typeof amount === 'string' ? parseInt(amount, 10) : amount;

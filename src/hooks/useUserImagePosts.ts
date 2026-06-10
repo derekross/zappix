@@ -1,12 +1,10 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { getDiscoveryPool } from "@/lib/poolManager";
-import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
+import { filterDeletedEvents } from './useDeletedEvents';
 import { validateImageEvent } from '@/lib/validators';
 
 export function useUserImagePosts(pubkey: string | undefined) {
-  const { data: deletionData } = useDeletedEvents();
-
   return useInfiniteQuery({
     queryKey: ['user-image-posts', pubkey],
     queryFn: async ({ pageParam, signal }) => {
@@ -36,25 +34,21 @@ export function useUserImagePosts(pubkey: string | undefined) {
 
         const validEvents = events.filter(validateImageEvent);
 
-        // Deduplicate by event ID to prevent duplicates from multiple relays
-        const uniqueEvents = validEvents.reduce((acc, event) => {
-          if (!acc.find(e => e.id === event.id)) {
-            acc.push(event);
-          }
-          return acc;
-        }, [] as NostrEvent[]);
+        // Deduplicate by event ID (O(n)) to prevent duplicates from multiple relays
+        const byId = new Map<string, NostrEvent>();
+        for (const event of validEvents) {
+          if (!byId.has(event.id)) byId.set(event.id, event);
+        }
+        const sortedEvents = [...byId.values()].sort((a, b) => b.created_at - a.created_at);
 
-        const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
-
-        // Filter out deleted events if deletion data is available
-        const filteredEvents = deletionData
-          ? filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap)
-          : sortedEvents;
+        // Filter out events deleted by their author (NIP-09)
+        const filteredEvents = await filterDeletedEvents(sortedEvents, discoveryPool, querySignal);
 
         return {
           events: filteredEvents,
-          // Stop only when we get fewer raw events than the limit we requested
-          nextCursor: events.length < filter.limit ? undefined : filteredEvents[filteredEvents.length - 1]?.created_at,
+          // Stop only when we get fewer raw events than the limit we requested;
+          // the cursor comes from the raw page so filtering can't end pagination early
+          nextCursor: events.length < filter.limit ? undefined : Math.min(...events.map(e => e.created_at)),
         };
       } catch (error) {
         console.error('User image posts query error:', error);
@@ -65,6 +59,5 @@ export function useUserImagePosts(pubkey: string | undefined) {
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!pubkey,
     staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // 1 minute
   });
 }

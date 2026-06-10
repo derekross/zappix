@@ -42,10 +42,6 @@ export function useZaps(
   const { data: zapEvents, ...query } = useQuery<NostrEvent[], Error>({
     queryKey: ['zaps', actualTarget?.id],
     staleTime: 30000, // 30 seconds
-    refetchInterval: (query) => {
-      // Only refetch if the query is currently being observed (component is mounted)
-      return query.getObserversCount() > 0 ? 60000 : false;
-    },
     queryFn: async (c) => {
       if (!actualTarget) return [];
 
@@ -58,6 +54,7 @@ export function useZaps(
         const events = await nostr.query([{
           kinds: [9735],
           '#a': [`${actualTarget.kind}:${actualTarget.pubkey}:${identifier}`],
+          limit: 500,
         }], { signal });
         return events;
       } else {
@@ -65,6 +62,7 @@ export function useZaps(
         const events = await nostr.query([{
           kinds: [9735],
           '#e': [actualTarget.id],
+          limit: 500,
         }], { signal });
         return events;
       }
@@ -209,15 +207,36 @@ export function useZaps(
 
       try {
         const res = await fetch(`${zapEndpoint}?amount=${zapAmount}&nostr=${encodeURIComponent(JSON.stringify(signedZapRequest))}`);
-            const responseData = await res.json();
 
             if (!res.ok) {
-              throw new Error(`HTTP ${res.status}: ${responseData.reason || 'Unknown error'}`);
+              let reason = 'Unknown error';
+              try {
+                const errorData = await res.json();
+                if (typeof errorData?.reason === 'string') reason = errorData.reason;
+              } catch {
+                // Non-JSON error response (e.g. an HTML gateway error page)
+              }
+              throw new Error(`HTTP ${res.status}: ${reason}`);
             }
+
+            const responseData = await res.json();
 
             const newInvoice = responseData.pr;
             if (!newInvoice || typeof newInvoice !== 'string') {
               throw new Error('Lightning service did not return a valid invoice');
+            }
+
+            // Verify the invoice actually asks for the amount the user chose.
+            // A malicious LNURL endpoint could otherwise return an inflated
+            // invoice that NWC would pay without further confirmation.
+            let invoiceSats: number;
+            try {
+              invoiceSats = nip57.getSatoshisAmountFromBolt11(newInvoice);
+            } catch {
+              throw new Error('Could not decode the invoice returned by the lightning service');
+            }
+            if (invoiceSats !== amount) {
+              throw new Error(`Lightning service returned an invoice for ${invoiceSats} sats instead of the requested ${amount} sats`);
             }
 
             // Get the current active NWC connection dynamically

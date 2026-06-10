@@ -158,10 +158,10 @@ describe('ImagePost', () => {
       </TestApp>
     );
 
-    // Check that the image is rendered
+    // Check that the image is rendered (src is rewritten through the wsrv.nl proxy)
     const image = screen.getByAltText('Test image');
     expect(image).toBeInTheDocument();
-    expect(image).toHaveAttribute('src', 'https://example.com/image.jpg');
+    expect(image.getAttribute('src')).toContain(encodeURIComponent('https://example.com/image.jpg'));
 
     // Check that carousel controls are not present for single image
     expect(screen.queryByRole('button', { name: /previous slide/i })).not.toBeInTheDocument();

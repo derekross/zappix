@@ -5,6 +5,7 @@ import { NostrLoginProvider } from '@nostrify/react/login';
 import NostrProvider from '@/components/NostrProvider';
 import { AppProvider } from '@/components/AppProvider';
 import { NotificationProvider } from '@/contexts/NotificationContext';
+import { NWCProvider } from '@/contexts/NWCContext';
 import { AppConfig } from '@/contexts/AppContext';
 
 interface TestAppProps {
@@ -69,9 +70,11 @@ export function TestApp({ children }: TestAppProps) {
           <NostrLoginProvider storageKey='test-login'>
             <NostrProvider>
               <NotificationProvider>
-                <BrowserRouter>
-                  {children}
-                </BrowserRouter>
+                <NWCProvider>
+                  <BrowserRouter>
+                    {children}
+                  </BrowserRouter>
+                </NWCProvider>
               </NotificationProvider>
             </NostrProvider>
           </NostrLoginProvider>

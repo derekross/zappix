@@ -12,6 +12,24 @@ export interface WalletStatus {
   preferredMethod: 'nwc' | 'webln' | 'manual';
 }
 
+// WebLN detection is shared across the whole session: useWallet is mounted by
+// every ZapButton in the feed, so detecting per hook instance would re-run
+// requestProvider() for every post scrolled into view.
+let weblnDetection: Promise<WebLNProvider | null> | null = null;
+
+function detectWebLNProvider(force = false): Promise<WebLNProvider | null> {
+  if (!weblnDetection || force) {
+    weblnDetection = requestProvider().catch((error: unknown) => {
+      // Only log the error if it's not the common "no provider" error
+      if (error instanceof Error && !error.message.includes('no WebLN provider')) {
+        console.warn('WebLN detection error:', error);
+      }
+      return null;
+    });
+  }
+  return weblnDetection;
+}
+
 export function useWallet() {
   const [webln, setWebln] = useState<WebLNProvider | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -21,35 +39,33 @@ export function useWallet() {
   // Get the active connection directly - no memoization to avoid stale state
   const activeNWC = getActiveConnection();
 
-  // Detect WebLN
+  // Explicit re-detection (e.g. when the zap dialog opens) bypasses the cache
+  // so an extension enabled mid-session can still be picked up
   const detectWebLN = useCallback(async () => {
-    if (webln || isDetecting) return webln;
-
     setIsDetecting(true);
     try {
-      const provider = await requestProvider();
+      const provider = await detectWebLNProvider(true);
       setWebln(provider);
-      setHasAttemptedDetection(true);
       return provider;
-    } catch (error) {
-      // Only log the error if it's not the common "no provider" error
-      if (error instanceof Error && !error.message.includes('no WebLN provider')) {
-        console.warn('WebLN detection error:', error);
-      }
-      setWebln(null);
-      setHasAttemptedDetection(true);
-      return null;
     } finally {
       setIsDetecting(false);
+      setHasAttemptedDetection(true);
     }
-  }, [webln, isDetecting]);
+  }, []);
 
-  // Only auto-detect once on mount
+  // Initial detection uses the shared, session-wide result
   useEffect(() => {
-    if (!hasAttemptedDetection) {
-      detectWebLN();
-    }
-  }, [detectWebLN, hasAttemptedDetection]);
+    let cancelled = false;
+    detectWebLNProvider().then((provider) => {
+      if (!cancelled) {
+        setWebln(provider);
+        setHasAttemptedDetection(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Test WebLN connection
   const testWebLN = useCallback(async (): Promise<boolean> => {

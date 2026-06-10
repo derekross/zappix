@@ -2,7 +2,6 @@ import { useImagePosts, useFollowingImagePosts } from "@/hooks/useImagePosts";
 import { useFollowing } from "@/hooks/useFollowing";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuthors } from "@/hooks/useAuthors";
-import { useAutomaticProfilePrefetch } from "@/hooks/useProfilePrefetch";
 import { useMemo, useRef, useEffect, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ImagePost } from "./ImagePost";
@@ -33,19 +32,21 @@ export function ImageFeed({
   const following = useFollowing();
   const queryClient = useQueryClient();
 
-  const globalPosts = useImagePosts(hashtag, location);
-  const followingPosts = useFollowingImagePosts(following.data || []);
+  // Only run the query for the active tab
+  const globalPosts = useImagePosts(hashtag, location, { enabled: feedType === "global" });
+  const followingPosts = useFollowingImagePosts(following.data || [], { enabled: feedType === "following" });
 
   const posts = feedType === "following" ? followingPosts : globalPosts;
 
-  // Flatten all pages into a single array of posts and deduplicate
+  // Flatten all pages into a single array of posts and deduplicate by ID (O(n))
   const allPosts = useMemo(() => {
     const flattenedPosts = posts.data?.pages?.flatMap((page) => page.events) || [];
-    
-    // Deduplicate posts by ID to prevent duplicate keys
-    return flattenedPosts.filter(
-      (post, index, self) => index === self.findIndex((p) => p.id === post.id)
-    );
+    const seen = new Set<string>();
+    return flattenedPosts.filter((post) => {
+      if (seen.has(post.id)) return false;
+      seen.add(post.id);
+      return true;
+    });
   }, [posts.data]);
 
   // Extract unique author pubkeys for prefetching
@@ -56,9 +57,6 @@ export function ImageFeed({
 
   // Prefetch all author profiles in batch for better performance
   useAuthors(authorPubkeys);
-  
-  // Also use automatic prefetching for new posts as they come in
-  useAutomaticProfilePrefetch(allPosts);
 
   // Virtualization setup
   const parentRef = useRef<HTMLDivElement>(null);

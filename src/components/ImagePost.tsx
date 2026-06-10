@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import {
   Heart,
   MessageCircle,
@@ -76,7 +76,6 @@ export const ImagePost = memo(function ImagePost({
 
   // Parse event data
   const title = event.tags.find(([name]) => name === "title")?.[1] || "";
-  const imetaTags = event.tags.filter(([name]) => name === "imeta");
   const hashtags = event.tags
     .filter(([name]) => name === "t")
     .map(([, tag]) => tag);
@@ -86,8 +85,9 @@ export const ImagePost = memo(function ImagePost({
     ([name]) => name === "content-warning"
   )?.[1];
 
-  // Parse image URLs from imeta tags
-  const images = imetaTags
+  // Parse image URLs from imeta tags (memoized — recomputed only per event)
+  const images = useMemo(() => event.tags
+    .filter(([name]) => name === "imeta")
     .map((tag) => {
       const urlPart = tag.find((part) => part.startsWith("url "));
       const url = urlPart?.replace("url ", "");
@@ -100,7 +100,7 @@ export const ImagePost = memo(function ImagePost({
       let aspectRatio = 4/3; // Default fallback
       let width = 0;
       let height = 0;
-      
+
       if (dimensions) {
         const [w, h] = dimensions.split('x').map(Number);
         if (w && h && w > 0 && h > 0) {
@@ -112,7 +112,9 @@ export const ImagePost = memo(function ImagePost({
 
       return { url, alt, dimensions, aspectRatio, width, height };
     })
-    .filter((img) => img.url);
+    .filter((img) => img.url),
+    [event]
+  );
 
   const likeCount = reactions.data?.["+"]?.count || 0;
   const hasLiked = reactions.data?.["+"]?.hasReacted || false;
@@ -122,14 +124,13 @@ export const ImagePost = memo(function ImagePost({
   const uniqueCommentIds = new Set(allComments.map((c) => c.id));
   const commentCount = uniqueCommentIds.size;
 
-  // Create nevent for linking to the post
-  const nevent = nip19.neventEncode({
+  // NIP-19 identifiers for linking (memoized — bech32 encoding per render adds up in feeds)
+  const nevent = useMemo(() => nip19.neventEncode({
     id: event.id,
     author: event.pubkey,
-  });
+  }), [event.id, event.pubkey]);
 
-  // Create npub for linking to the user profile
-  const npub = nip19.npubEncode(event.pubkey);
+  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   // Helper function to get container styles based on aspect ratio
   const getImageContainerStyle = (aspectRatio: number) => {
@@ -159,10 +160,17 @@ export const ImagePost = memo(function ImagePost({
     if (Math.abs(aspectRatio - 16/9) < 0.1) return "aspect-video";
     if (Math.abs(aspectRatio - 3/4) < 0.1) return "aspect-[3/4]";
     if (Math.abs(aspectRatio - 2/3) < 0.1) return "aspect-[2/3]";
-    
-    // For other ratios, calculate a custom aspect ratio
-    const ratio = Math.round(aspectRatio * 100) / 100;
-    return `aspect-[${Math.round(ratio * 100)}/100]`;
+
+    // Other ratios are applied via inline style (see getAspectRatioStyle) —
+    // Tailwind can't generate runtime-built arbitrary classes
+    return "";
+  };
+
+  // Inline aspect-ratio for ratios that don't match a static Tailwind class
+  const getAspectRatioStyle = (aspectRatio: number): React.CSSProperties | undefined => {
+    if (aspectRatio > 2.5 || aspectRatio < 0.6) return undefined;
+    if (getAspectRatioClass(aspectRatio)) return undefined;
+    return { aspectRatio: String(Math.round(aspectRatio * 100) / 100) };
   };
 
   // Handle carousel slide changes
@@ -269,7 +277,7 @@ export const ImagePost = memo(function ImagePost({
 
           <DropdownMenu open={showActions} onOpenChange={setShowActions}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" aria-label="Post options">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -303,6 +311,7 @@ export const ImagePost = memo(function ImagePost({
                 getAspectRatioClass(images[0].aspectRatio),
                 getImageContainerStyle(images[0].aspectRatio)
               )}
+              style={getAspectRatioStyle(images[0].aspectRatio)}
               onClick={handleImageClick}
             >
               <OptimizedImage
@@ -361,6 +370,7 @@ export const ImagePost = memo(function ImagePost({
                         getAspectRatioClass(image.aspectRatio),
                         getImageContainerStyle(image.aspectRatio)
                       )}
+                      style={getAspectRatioStyle(image.aspectRatio)}
                       onClick={handleImageClick}
                     >
                       <OptimizedImage

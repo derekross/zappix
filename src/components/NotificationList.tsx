@@ -22,7 +22,7 @@ export function NotificationList({
   isLoading: propIsLoading, 
   error: propError 
 }: NotificationListProps = {}) {
-  const { data: hookNotifications = [], isLoading: hookIsLoading, error: hookError, isFetching, isStale } = useNotificationsWithReadStatus();
+  const { data: hookNotifications = [], isLoading: hookIsLoading, error: hookError, isFetching } = useNotificationsWithReadStatus();
   const { markAllAsRead, clearAllNotifications } = useNotificationContext();
   const { refreshNotificationsImmediately } = useRefreshNotifications();
   const { prefetchProfilesForNotifications } = useProfilePrefetch();
@@ -31,17 +31,6 @@ export function NotificationList({
   const notifications = propNotifications ?? hookNotifications;
   const isLoading = propIsLoading ?? hookIsLoading;
   const error = propError ?? hookError;
-
-  // Debug logging (only in development)
-  if (import.meta.env.DEV) {
-    console.log('NotificationList state:', {
-      notifications: notifications.length,
-      isLoading,
-      isFetching,
-      isStale,
-      error: error?.message
-    });
-  }
 
   // Prefetch profiles for notification authors
   useEffect(() => {

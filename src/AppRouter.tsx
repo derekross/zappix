@@ -1,14 +1,18 @@
+import { lazy } from "react";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { ScrollToTop } from "./components/ScrollToTop";
 
 import Index from "./pages/Index";
-import PostPage from "./pages/PostPage";
 import NotFound from "./pages/NotFound";
-import { PrivacyPolicy } from "./pages/PrivacyPolicy";
-import { RemoteLoginSuccess } from "./pages/RemoteLoginSuccess";
-import { ProfilePage as CurrentUserProfilePage } from "./components/ProfilePage";
-import { EditProfilePage } from "./components/EditProfilePage";
-import { BookmarksPage } from "./components/BookmarksPage";
+
+// Secondary routes are code-split; the Suspense boundary in App.tsx shows a
+// spinner while a chunk loads.
+const PostPage = lazy(() => import("./pages/PostPage"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy").then((m) => ({ default: m.PrivacyPolicy })));
+const RemoteLoginSuccess = lazy(() => import("./pages/RemoteLoginSuccess").then((m) => ({ default: m.RemoteLoginSuccess })));
+const CurrentUserProfilePage = lazy(() => import("./components/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const EditProfilePage = lazy(() => import("./components/EditProfilePage").then((m) => ({ default: m.EditProfilePage })));
+const BookmarksPage = lazy(() => import("./components/BookmarksPage").then((m) => ({ default: m.BookmarksPage })));
 
 export function AppRouter() {
   return (

@@ -1,134 +1,68 @@
-import { useQuery } from '@tanstack/react-query';
-import { useNostr } from '@nostrify/react';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
-/**
- * Hook to track deleted events according to NIP-09
- * Queries for kind 5 (deletion request) events and tracks which events have been deleted
- */
-export function useDeletedEvents() {
-  const { nostr } = useNostr();
-
-  return useQuery({
-    queryKey: ['deleted-events'],
-    queryFn: async (context) => {
-      const signal = AbortSignal.any([context.signal, AbortSignal.timeout(10000)]);
-      
-      try {
-        // Query for all deletion request events (kind 5)
-        const deletionEvents = await nostr.query([{ 
-          kinds: [5],
-          limit: 1000 // Adjust based on needs
-        }], { signal });
-
-        // Extract deleted event IDs from deletion requests
-        // Map from event ID -> deletion author pubkey (for author validation per NIP-09)
-        const deletedEventMap = new Map<string, string>();
-        const deletedCoordinateMap = new Map<string, string>(); // coordinate -> deletion author pubkey
-
-        deletionEvents.forEach((deletionEvent) => {
-          // Process 'e' tags (regular event IDs)
-          const eTags = deletionEvent.tags.filter(([name]) => name === 'e');
-          eTags.forEach(([, eventId]) => {
-            if (eventId) {
-              deletedEventMap.set(eventId, deletionEvent.pubkey);
-            }
-          });
-
-          // Process 'a' tags (addressable event coordinates)
-          const aTags = deletionEvent.tags.filter(([name]) => name === 'a');
-          aTags.forEach(([, coordinate]) => {
-            if (coordinate) {
-              deletedCoordinateMap.set(coordinate, deletionEvent.pubkey);
-            }
-          });
-        });
-
-
-        return {
-          deletedEventMap,
-          deletedCoordinateMap,
-          deletionEvents
-        };
-      } catch (error) {
-        console.error('Failed to fetch deleted events:', error);
-        return {
-          deletedEventMap: new Map<string, string>(),
-          deletedCoordinateMap: new Map<string, string>(),
-          deletionEvents: []
-        };
-      }
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
-  });
+interface DeletionQueryable {
+  query: (filters: NostrFilter[], opts: { signal: AbortSignal }) => Promise<NostrEvent[]>;
 }
 
 /**
- * Utility function to check if an event has been deleted.
- * Per NIP-09, a deletion is only valid if the deletion event author
- * matches the author of the event being deleted.
- * @param event - The event to check
- * @param deletedEventMap - Map of event ID -> deletion author pubkey
- * @param deletedCoordinateMap - Map of coordinate -> deletion author pubkey
- * @returns true if the event has been deleted by its author
+ * Remove events that have been deleted by their authors according to NIP-09.
+ *
+ * Queries deletion requests (kind 5) scoped to exactly the events passed in —
+ * their ids, coordinates, and authors — instead of sampling recent deletions
+ * network-wide. Per NIP-09 a deletion is only valid when its author matches
+ * the deleted event's author, so the `authors` filter is both correct and
+ * keeps the query small.
+ *
+ * Fails open: if the deletion query errors, the original events are returned
+ * rather than breaking the feed.
  */
-export function isEventDeleted(
-  event: NostrEvent,
-  deletedEventMap: Map<string, string>,
-  deletedCoordinateMap: Map<string, string>
-): boolean {
-  // Check if event ID is in deleted events AND the deletion author matches the event author
-  const deletionAuthor = deletedEventMap.get(event.id);
-  if (deletionAuthor && deletionAuthor === event.pubkey) {
-    return true;
+export async function filterDeletedEvents(
+  events: NostrEvent[],
+  pool: DeletionQueryable,
+  signal: AbortSignal,
+): Promise<NostrEvent[]> {
+  if (events.length === 0) return events;
+
+  const authors = [...new Set(events.map((e) => e.pubkey))];
+  const ids = events.map((e) => e.id);
+  const coordinates = events
+    .filter((e) => e.kind >= 30000 && e.kind < 40000)
+    .map((e) => `${e.kind}:${e.pubkey}:${e.tags.find(([name]) => name === 'd')?.[1] || ''}`);
+
+  const filters: NostrFilter[] = [{ kinds: [5], authors, '#e': ids }];
+  if (coordinates.length > 0) {
+    filters.push({ kinds: [5], authors, '#a': coordinates });
   }
 
-  // For addressable events (kinds 30000-39999), check coordinates
-  if (event.kind >= 30000 && event.kind < 40000) {
-    const dTag = event.tags.find(([name]) => name === 'd')?.[1] || '';
-    const coordinate = `${event.kind}:${event.pubkey}:${dTag}`;
-    const coordDeletionAuthor = deletedCoordinateMap.get(coordinate);
-    if (coordDeletionAuthor && coordDeletionAuthor === event.pubkey) {
-      return true;
+  let deletionEvents: NostrEvent[];
+  try {
+    deletionEvents = await pool.query(filters, { signal });
+  } catch (error) {
+    console.warn('Failed to fetch deletion events:', error);
+    return events;
+  }
+
+  if (deletionEvents.length === 0) return events;
+
+  // Key deletions by "<deleter>:<target>" so a third party's bogus deletion
+  // can never mask or override the author's own.
+  const deletedIds = new Set<string>();
+  const deletedCoordinates = new Set<string>();
+  for (const deletion of deletionEvents) {
+    for (const [name, value] of deletion.tags) {
+      if (!value) continue;
+      if (name === 'e') deletedIds.add(`${deletion.pubkey}:${value}`);
+      if (name === 'a') deletedCoordinates.add(`${deletion.pubkey}:${value}`);
     }
   }
 
-  return false;
-}
-
-/**
- * Utility function to filter out deleted events from an array
- * @param events - Array of events to filter
- * @param deletedEventMap - Map of event ID -> deletion author pubkey
- * @param deletedCoordinateMap - Map of coordinate -> deletion author pubkey
- * @returns Filtered array with deleted events removed
- */
-export function filterDeletedEvents(
-  events: NostrEvent[],
-  deletedEventMap: Map<string, string>,
-  deletedCoordinateMap: Map<string, string>
-): NostrEvent[] {
-  return events.filter((event) => 
-    !isEventDeleted(event, deletedEventMap, deletedCoordinateMap)
-  );
-}
-
-/**
- * Hook to get a filtered list of events with deleted events removed
- * @param events - Array of events to filter
- * @returns Filtered events with deleted events removed
- */
-export function useFilteredEvents(events: NostrEvent[] | undefined) {
-  const { data: deletionData } = useDeletedEvents();
-
-  if (!events || !deletionData) {
-    return events || [];
-  }
-
-  return filterDeletedEvents(
-    events,
-    deletionData.deletedEventMap,
-    deletionData.deletedCoordinateMap
-  );
+  return events.filter((event) => {
+    if (deletedIds.has(`${event.pubkey}:${event.id}`)) return false;
+    if (event.kind >= 30000 && event.kind < 40000) {
+      const dTag = event.tags.find(([name]) => name === 'd')?.[1] || '';
+      const coordinate = `${event.kind}:${event.pubkey}:${dTag}`;
+      if (deletedCoordinates.has(`${event.pubkey}:${coordinate}`)) return false;
+    }
+    return true;
+  });
 }

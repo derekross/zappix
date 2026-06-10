@@ -32,21 +32,21 @@ describe('MainLayout', () => {
     );
 
     // Start on home tab (default)
-    expect(screen.getByText('Global Feed')).toBeInTheDocument();
+    expect(screen.getByText('Global')).toBeInTheDocument();
 
     // Navigate to discover tab first
     const discoverButton = screen.getByText('Discover');
     fireEvent.click(discoverButton);
 
     // Should show discover page
-    expect(screen.getByText('Explore popular hashtags and communities')).toBeInTheDocument();
+    expect(screen.getByText('Explore trending hashtags and locations')).toBeInTheDocument();
 
     // Navigate back to home
     const homeButton = screen.getByText('Home');
     fireEvent.click(homeButton);
 
     // Should be back on home page
-    expect(screen.getByText('Global Feed')).toBeInTheDocument();
+    expect(screen.getByText('Global')).toBeInTheDocument();
   });
 
   it('shows correct back button text based on previous tab', () => {
@@ -72,7 +72,7 @@ describe('MainLayout', () => {
     fireEvent.click(discoverButton);
 
     // Should show discover page
-    expect(screen.getByText('Explore popular hashtags and communities')).toBeInTheDocument();
+    expect(screen.getByText('Explore trending hashtags and locations')).toBeInTheDocument();
 
     // The component should maintain state correctly
     expect(screen.getByText('Zappix')).toBeInTheDocument();

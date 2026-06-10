@@ -23,7 +23,9 @@ export function useReactions(eventId: string) {
   const { user } = useCurrentUser();
 
   return useQuery({
-    queryKey: ['reactions', eventId],
+    // Keyed per user since hasReacted is computed from the logged-in pubkey;
+    // otherwise switching accounts shows the previous account's like state
+    queryKey: ['reactions', eventId, user?.pubkey ?? 'anonymous'],
     queryFn: async (c) => {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(3000)]);
       

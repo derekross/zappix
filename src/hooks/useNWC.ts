@@ -1,13 +1,20 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useToast } from '@/hooks/useToast';
-import { LN } from '@getalby/sdk';
+import type { LN } from '@getalby/sdk';
 
 export interface NWCConnection {
   connectionString: string;
   alias?: string;
   isConnected: boolean;
   client?: LN;
+}
+
+// The Alby SDK is heavy, so load it on demand the first time a wallet
+// operation actually needs it instead of shipping it in the entry chunk.
+async function loadLN(): Promise<typeof LN> {
+  const { LN } = await import('@getalby/sdk');
+  return LN;
 }
 
 export interface NWCInfo {
@@ -61,14 +68,10 @@ export function useNWCInternal() {
 
     try {
       let timeoutId: NodeJS.Timeout | undefined;
-      const testPromise = new Promise((resolve, reject) => {
-        try {
-          const client = new LN(parsed.connectionString);
-          resolve(client);
-        } catch (error) {
-          reject(error);
-        }
-      });
+      const testPromise = (async () => {
+        const LN = await loadLN();
+        return new LN(parsed.connectionString);
+      })();
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error('Connection test timeout')), 10000);
       });
@@ -169,6 +172,7 @@ export function useNWCInternal() {
 
     let client: LN;
     try {
+      const LN = await loadLN();
       client = new LN(connection.connectionString);
     } catch (error) {
       console.error('Failed to create NWC client:', error);

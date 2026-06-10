@@ -24,15 +24,33 @@ Object.defineProperty(window, 'scrollTo', {
   value: vi.fn(),
 });
 
-// Mock IntersectionObserver
-global.IntersectionObserver = vi.fn().mockImplementation((_callback) => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-  root: null,
-  rootMargin: '',
-  thresholds: [],
-}));
+// Mock IntersectionObserver — report observed elements as intersecting,
+// since jsdom has no layout and lazy-loaded content should render in tests
+global.IntersectionObserver = vi.fn().mockImplementation((callback: IntersectionObserverCallback) => {
+  const instance: IntersectionObserver = {
+    observe: vi.fn((element: Element) => {
+      callback(
+        [{
+          isIntersecting: true,
+          intersectionRatio: 1,
+          target: element,
+          boundingClientRect: element.getBoundingClientRect(),
+          intersectionRect: element.getBoundingClientRect(),
+          rootBounds: null,
+          time: 0,
+        } as IntersectionObserverEntry],
+        instance,
+      );
+    }),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+    takeRecords: vi.fn(() => []),
+    root: null,
+    rootMargin: '',
+    thresholds: [],
+  };
+  return instance;
+});
 
 // Mock ResizeObserver
 global.ResizeObserver = vi.fn().mockImplementation((_callback) => ({

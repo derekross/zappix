@@ -173,8 +173,10 @@ export function useNotifications() {
 
         return sortedNotifications;
       } catch (error) {
+        // Rethrow so React Query retries and isError reflects reality;
+        // returning [] here would render a failure as "no notifications"
         console.error('Error fetching notifications:', error);
-        return [];
+        throw error;
       }
     },
     enabled: !!user?.pubkey,

@@ -1,32 +1,27 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { getDiscoveryPool } from "@/lib/poolManager";
-import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
+import { getDiscoveryPool, getRelay } from "@/lib/poolManager";
+import { filterDeletedEvents } from './useDeletedEvents';
 import { useOutboxModel } from './useOutboxModel';
-import { useNostr } from '@nostrify/react';
 import { validateVideoEvent } from '@/lib/validators';
 
+// Cap how many outbox relays we hit per page on top of the discovery pool
+const MAX_OUTBOX_RELAYS = 4;
+
 export function useUserVideoPosts(pubkey: string) {
-  const { data: deletionData } = useDeletedEvents();
   const { routeRequest } = useOutboxModel();
-  const { nostr } = useNostr();
 
   return useInfiniteQuery({
     queryKey: ['user-video-posts', pubkey],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(15000)]);
 
-      // Use the same comprehensive approach as global/following feeds
-      // First try outbox model, then fallback to discovery pool, then combine results
+      // Query the author's write relays (outbox model) plus the discovery pool
       const fallbackRelays = [
         "wss://relay.ditto.pub",
         "wss://relay.damus.io",
         "wss://relay.primal.net",
         "wss://relay.olas.app",
-        "wss://nos.lol",
-        "wss://relay.snort.social",
-        "wss://purplepag.es",
-        "wss://ditto.pub/relay",
       ];
 
       const filter: {
@@ -37,7 +32,7 @@ export function useUserVideoPosts(pubkey: string) {
       } = {
         kinds: [22, 34236], // Video event kinds
         authors: [pubkey],
-        limit: 25, // Increased limit to get more results
+        limit: 25,
       };
 
       if (pageParam) {
@@ -46,19 +41,20 @@ export function useUserVideoPosts(pubkey: string) {
 
       const allEvents: NostrEvent[] = [];
 
-      // Strategy 1: Try outbox model first
+      // Strategy 1: the author's write relays per the outbox model
       try {
         const relayMap = await routeRequest([filter], fallbackRelays);
 
-        const relayPromises = Array.from(relayMap.entries()).map(async ([relay, filters]) => {
-          try {
-            const events = await nostr.query(filters, { signal: querySignal });
-            return events;
-          } catch (error) {
-            console.warn(`Outbox relay ${relay} failed:`, error);
-            return [];
-          }
-        });
+        const relayPromises = Array.from(relayMap.entries())
+          .slice(0, MAX_OUTBOX_RELAYS)
+          .map(async ([relay, filters]) => {
+            try {
+              return await getRelay(relay).query(filters, { signal: querySignal });
+            } catch (error) {
+              console.warn(`Outbox relay ${relay} failed:`, error);
+              return [];
+            }
+          });
 
         const outboxEvents = await Promise.all(relayPromises);
         allEvents.push(...outboxEvents.flat());
@@ -68,49 +64,39 @@ export function useUserVideoPosts(pubkey: string) {
 
       // Strategy 2: Always try discovery pool as well (like global feed)
       // This ensures we get events that might not be on the user's write relays
+      const discoveryPool = getDiscoveryPool();
       try {
-        const discoveryPool = getDiscoveryPool();
         const discoveryEvents = await discoveryPool.query([filter], { signal: querySignal });
         allEvents.push(...discoveryEvents);
       } catch {
         // Discovery pool failed, continue with what we have
       }
 
-
-
       // Filter and validate video events
       const validEvents = allEvents.filter(validateVideoEvent);
 
-
-
-      // Deduplicate by ID first, then sort by created_at
-      const uniqueEvents = validEvents.filter(
-        (event, index, self) => index === self.findIndex(e => e.id === event.id)
-      );
-
-      const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
-
-      // Filter out deleted events if deletion data is available
-      let filteredEvents = sortedEvents;
-      if (deletionData) {
-        filteredEvents = filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap);
-
-
+      // Deduplicate by ID (O(n)), then sort by created_at
+      const byId = new Map<string, NostrEvent>();
+      for (const event of validEvents) {
+        if (!byId.has(event.id)) byId.set(event.id, event);
       }
+      const sortedEvents = [...byId.values()].sort((a, b) => b.created_at - a.created_at);
+
+      // Filter out events deleted by their author (NIP-09)
+      const filteredEvents = await filterDeletedEvents(sortedEvents, discoveryPool, querySignal);
 
       return {
         events: filteredEvents,
-        nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
+        // Cursor comes from the RAW result set so a fully-filtered page
+        // doesn't end pagination early
+        nextCursor: allEvents.length > 0
+          ? Math.min(...allEvents.map((e) => e.created_at))
+          : undefined,
       };
     },
     initialPageParam: undefined as number | undefined,
-    getNextPageParam: (lastPage) => {
-        // Find the oldest event timestamp and use it as since parameter
-        if (lastPage.events.length === 0) return undefined;
-        const oldestTimestamp = Math.min(...lastPage.events.map(e => e.created_at));
-        return oldestTimestamp - 1; // Subtract 1 to avoid overlap
-      },
-    staleTime: 30000, // 30 seconds for better development experience
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: 30000, // 30 seconds
     enabled: !!pubkey,
     retry: 2, // Add retry logic for better reliability
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),

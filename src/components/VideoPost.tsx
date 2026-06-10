@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, memo } from 'react';
+import { useRef, useState, useEffect, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -74,18 +74,19 @@ export const VideoPost = memo(function VideoPost({
 
   // Parse event data
   const title = event.tags.find(([name]) => name === 'title')?.[1] || '';
-  const imetaTags = event.tags.filter(([name]) => name === 'imeta');
   const hashtags = event.tags
     .filter(([name]) => name === 't')
     .map(([, tag]) => tag);
   const location = event.tags.find(([name]) => name === 'location')?.[1];
   const duration = event.tags.find(([name]) => name === 'duration')?.[1];
 
-  // Parse video URLs from vertical video events
-  let videos: Array<{ url?: string; mimeType?: string; thumbnail?: string }> = [];
-
-  // Check for simple URL tags as fallback
+  // Parse video URLs from vertical video events (memoized — this regex-heavy
+  // parsing otherwise re-runs on every render of every feed card)
+  const videos = useMemo(() => {
+  const imetaTags = event.tags.filter(([name]) => name === 'imeta');
+  // Simple URL tags as fallback
   const urlTags = event.tags.filter(([name]) => name === 'url');
+  let videos: Array<{ url?: string; mimeType?: string; thumbnail?: string }> = [];
 
 
 
@@ -281,6 +282,9 @@ export const VideoPost = memo(function VideoPost({
       })
       .filter((video) => video.url && (video.url.includes('video') || video.url.match(/\.(mp4|webm|mov|avi)$/i)));
   }
+
+  return videos;
+  }, [event]);
 
   const likeCount = reactions.data?.['+']?.count || 0;
   const hasLiked = reactions.data?.['+']?.hasReacted || false;
@@ -765,6 +769,7 @@ export const VideoPost = memo(function VideoPost({
                   variant="ghost"
                   size="icon"
                   className="text-white hover:bg-white/20 pointer-events-auto"
+                  aria-label="Post options"
                 >
                   <MoreHorizontal className="h-6 w-6" />
                 </Button>

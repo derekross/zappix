@@ -1,14 +1,36 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import type { NostrFilter } from "@nostrify/nostrify";
+import type { NostrEvent, NostrFilter } from "@nostrify/nostrify";
 import { useNostr } from '@nostrify/react';
 import { getDiscoveryPool } from "@/lib/poolManager";
-import { useDeletedEvents, filterDeletedEvents } from './useDeletedEvents';
+import { filterDeletedEvents } from './useDeletedEvents';
+import { useMutedUsers } from './useMutedUsers';
 import { validateVideoEvent } from '@/lib/validators';
 
+interface FeedOptions {
+  enabled?: boolean;
+}
 
+/** Deduplicate by event id (O(n)) and sort newest first. */
+function dedupeAndSort(events: NostrEvent[]): NostrEvent[] {
+  const byId = new Map<string, NostrEvent>();
+  for (const event of events) {
+    if (!byId.has(event.id)) byId.set(event.id, event);
+  }
+  return [...byId.values()].sort((a, b) => b.created_at - a.created_at);
+}
 
-export function useAllVideoPosts(hashtag?: string, location?: string, orientation?: 'vertical' | 'horizontal' | 'all') {
-  const { data: deletionData } = useDeletedEvents();
+/**
+ * Compute the pagination cursor from the RAW relay page, not the filtered
+ * one — otherwise a page where every event is muted/deleted/invalid would
+ * end pagination even though older events exist.
+ */
+function nextCursorFrom(rawEvents: NostrEvent[]): number | undefined {
+  if (rawEvents.length === 0) return undefined;
+  return Math.min(...rawEvents.map((e) => e.created_at));
+}
+
+export function useAllVideoPosts(hashtag?: string, location?: string, orientation?: 'vertical' | 'horizontal' | 'all', options: FeedOptions = {}) {
+  const { data: mutedUsers = [] } = useMutedUsers();
 
   return useInfiniteQuery({
     queryKey: ["all-video-posts", hashtag, location, orientation],
@@ -49,25 +71,22 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
         );
       }
 
-      // Deduplicate by ID first, then sort by created_at
-      const uniqueEvents = validEvents.filter(
-        (event, index, self) => index === self.findIndex(e => e.id === event.id)
-      );
+      const sortedEvents = dedupeAndSort(validEvents);
 
-      const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+      // Filter out muted users
+      const unmutedEvents = sortedEvents.filter(event => !mutedUsers.includes(event.pubkey));
 
-      // Filter out deleted events if deletion data is available
-      const filteredEvents = deletionData
-        ? filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap)
-        : sortedEvents;
+      // Filter out events deleted by their authors (NIP-09)
+      const filteredEvents = await filterDeletedEvents(unmutedEvents, discoveryPool, querySignal);
 
       return {
         events: filteredEvents,
-        nextCursor: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].created_at : undefined,
+        nextCursor: nextCursorFrom(events),
       };
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: options.enabled ?? true,
     staleTime: 60000, // 1 minute
     refetchInterval: false, // Disable automatic refetching to prevent constant refreshing
     retry: 1, // Single retry for faster response
@@ -77,9 +96,9 @@ export function useAllVideoPosts(hashtag?: string, location?: string, orientatio
   });
 }
 
-export function useFollowingAllVideoPosts(followingPubkeys: string[], orientation?: 'vertical' | 'horizontal' | 'all') {
+export function useFollowingAllVideoPosts(followingPubkeys: string[], orientation?: 'vertical' | 'horizontal' | 'all', options: FeedOptions = {}) {
   const { nostr } = useNostr();
-  const { data: deletionData } = useDeletedEvents();
+  const { data: mutedUsers = [] } = useMutedUsers();
 
   // Create a stable query key by sorting and stringifying the pubkeys array
   const stableFollowingKey = followingPubkeys.length > 0 ? followingPubkeys.slice().sort().join(',') : 'empty';
@@ -120,30 +139,22 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
       const allEvents = [...userRelayEvents, ...discoveryEvents];
 
       const validEvents = allEvents.filter(validateVideoEvent);
+      const sortedEvents = dedupeAndSort(validEvents);
 
-      // Deduplicate by ID first, then sort by created_at
-      const uniqueEvents = validEvents.filter(
-        (event, index, self) => index === self.findIndex((e) => e.id === event.id)
-      );
+      // Filter out muted users
+      const unmutedEvents = sortedEvents.filter(event => !mutedUsers.includes(event.pubkey));
 
-      const sortedEvents = uniqueEvents.sort((a, b) => b.created_at - a.created_at);
-
-      // Filter out deleted events if deletion data is available
-      const filteredEvents = deletionData
-        ? filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap)
-        : sortedEvents;
+      // Filter out events deleted by their authors (NIP-09)
+      const filteredEvents = await filterDeletedEvents(unmutedEvents, nostr, querySignal);
 
       return {
         events: filteredEvents,
-        nextCursor:
-          filteredEvents.length > 0
-            ? filteredEvents[filteredEvents.length - 1].created_at
-            : undefined,
+        nextCursor: nextCursorFrom(allEvents),
       };
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: followingPubkeys.length > 0,
+    enabled: (options.enabled ?? true) && followingPubkeys.length > 0,
     staleTime: 60000, // 1 minute
     refetchInterval: false,
     retry: 1,
@@ -154,7 +165,7 @@ export function useFollowingAllVideoPosts(followingPubkeys: string[], orientatio
 }
 
 export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientation?: 'vertical' | 'horizontal' | 'all') {
-  const { data: deletionData } = useDeletedEvents();
+  const { data: mutedUsers = [] } = useMutedUsers();
 
   return useQuery({
     queryKey: ["hashtag-all-video-posts", hashtags, limit, orientation],
@@ -179,16 +190,17 @@ export function useHashtagAllVideoPosts(hashtags: string[], limit = 3, orientati
             { signal }
           );
 
-          const validEvents = events.filter(validateVideoEvent);
+          const validEvents = events
+            .filter(validateVideoEvent)
+            // Filter out muted users
+            .filter(event => !mutedUsers.includes(event.pubkey));
 
           // All videos are vertical by design (NIP-71 short videos: kinds 22, 34236)
 
           const sortedEvents = validEvents.sort((a, b) => b.created_at - a.created_at);
 
-          // Filter out deleted events if deletion data is available
-          const filteredEvents = deletionData
-            ? filterDeletedEvents(sortedEvents, deletionData.deletedEventMap, deletionData.deletedCoordinateMap)
-            : sortedEvents;
+          // Filter out events deleted by their authors (NIP-09)
+          const filteredEvents = await filterDeletedEvents(sortedEvents, discoveryPool, signal);
 
           return {
             hashtag,

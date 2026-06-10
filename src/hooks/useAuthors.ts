@@ -7,7 +7,8 @@ export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
 
   return useQuery<Record<string, { event?: NostrEvent; metadata?: NostrMetadata }>>({
-    queryKey: ['authors', ...pubkeys.sort()],
+    // Copy before sorting — .sort() mutates, and the array is a caller's prop
+    queryKey: ['authors', [...pubkeys].sort().join(',')],
     queryFn: async ({ signal }) => {
       if (pubkeys.length === 0) {
         return {};
@@ -91,7 +92,9 @@ export function useAuthors(pubkeys: string[]) {
     retry: 1,
     retryDelay: 2000,
     staleTime: 30 * 60 * 1000,
-    gcTime: 2 * 60 * 60 * 1000,
+    // Each feed page produces a new key/snapshot; keep gcTime moderate so
+    // superseded snapshots don't pile up (profiles persist in localStorage)
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,

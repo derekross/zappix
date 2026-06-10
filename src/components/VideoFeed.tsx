@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { useInView } from 'react-intersection-observer';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { VideoPost } from './VideoPost';
 import { VideoPostSkeleton } from './VideoPostSkeleton';
@@ -31,33 +30,22 @@ export function VideoFeed({
   const followingPubkeys = useMemo(() => following.data || [], [following.data]);
   const isMobile = useIsMobile();
 
-  // Use the video queries for vertical videos only
-  const globalAllQuery = useAllVideoPosts(hashtag, location, 'vertical');
-  const followingAllQuery = useFollowingAllVideoPosts(followingPubkeys, 'vertical');
+  // Use the video queries for vertical videos only; only the active tab's query runs
+  const globalAllQuery = useAllVideoPosts(hashtag, location, 'vertical', { enabled: feedType === 'global' });
+  const followingAllQuery = useFollowingAllVideoPosts(followingPubkeys, 'vertical', { enabled: feedType === 'following' });
 
   // Choose the appropriate query based on feed type
   const query = feedType === 'following' ? followingAllQuery : globalAllQuery;
 
-  const { ref: _ref, inView } = useInView({
-    threshold: 0,
-    rootMargin: '200px', // Start loading earlier
-  });
-
-  // Load more when scrolling near bottom
-  useEffect(() => {
-    if (inView && query.hasNextPage && !query.isFetchingNextPage) {
-      query.fetchNextPage();
-    }
-  }, [inView, query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
-
-  // Get all events from all pages and deduplicate
+  // Get all events from all pages and deduplicate by ID (O(n))
   const uniqueEvents = useMemo(() => {
     const allEvents = query.data?.pages?.flatMap((page) => page.events) || [];
-
-    // Deduplicate events by ID to prevent duplicate keys
-    return allEvents.filter(
-      (event, index, self) => index === self.findIndex((e) => e.id === event.id)
-    );
+    const seen = new Set<string>();
+    return allEvents.filter((event) => {
+      if (seen.has(event.id)) return false;
+      seen.add(event.id);
+      return true;
+    });
   }, [query.data?.pages]);
 
   // TikTok-style state
@@ -69,14 +57,21 @@ export function VideoFeed({
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
 
-  // Calculate container height based on layout
-  const containerHeight = useMemo(() => {
-    if (isMobile) {
-      return window.innerHeight - 56 - 80;
-    } else {
-      return window.innerHeight - 120;
-    }
+  // Calculate container height based on layout, tracking window resizes
+  // (rotation/resize would otherwise leave a stale height and drift the
+  // scroll-position → active-index math)
+  const computeContainerHeight = useCallback(() => {
+    return isMobile ? window.innerHeight - 56 - 80 : window.innerHeight - 120;
   }, [isMobile]);
+
+  const [containerHeight, setContainerHeight] = useState(computeContainerHeight);
+
+  useEffect(() => {
+    const handleResize = () => setContainerHeight(computeContainerHeight());
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [computeContainerHeight]);
 
   // Virtualization for video list
   const virtualizer = useVirtualizer({
@@ -289,6 +284,7 @@ export function VideoFeed({
               }
             }}
             disabled={activeIndex === 0}
+            aria-label="Previous video"
           >
             <ChevronUp className="h-6 w-6" />
           </Button>
@@ -304,6 +300,7 @@ export function VideoFeed({
               }
             }}
             disabled={activeIndex === uniqueEvents.length - 1}
+            aria-label="Next video"
           >
             <ChevronDown className="h-6 w-6" />
           </Button>

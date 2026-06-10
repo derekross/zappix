@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Zap, Wallet, Info } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -20,22 +20,20 @@ export function ZapConfiguration() {
   const nwc = useNWC();
   const isMobile = useIsMobile();
 
-  const [nwcString, setNwcString] = useLocalStorage('nwc-string', '');
   const [defaultZapAmount, setDefaultZapAmount] = useLocalStorage('default-zap-amount', '21');
-  const [tempNwcString, setTempNwcString] = useState(nwcString);
+  const [tempNwcString, setTempNwcString] = useState('');
   const [tempZapAmount, setTempZapAmount] = useState(defaultZapAmount);
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  const handleSaveZapSettings = () => {
-    // Validate NWC string format if provided
-    if (tempNwcString && !tempNwcString.startsWith('nostrwalletconnect://') && !tempNwcString.startsWith('nostr+walletconnect://')) {
-      toast({
-        title: 'Invalid NWC String',
-        description: 'Nostr Wallet Connect string must start with "nostrwalletconnect://" or "nostr+walletconnect://"',
-        variant: 'destructive',
-      });
-      return;
-    }
+  // Remove the legacy plaintext copy of the wallet secret. It was written by an
+  // older version of this page but never read by the payment path.
+  useEffect(() => {
+    localStorage.removeItem('nwc-string');
+  }, []);
 
+  const activeConnection = nwc.getActiveConnection();
+
+  const handleSaveZapSettings = async () => {
     // Validate zap amount
     const amount = parseInt(tempZapAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -47,22 +45,40 @@ export function ZapConfiguration() {
       return;
     }
 
-    // Save to localStorage
-    setNwcString(tempNwcString);
-    setDefaultZapAmount(tempZapAmount);
+    if (tempNwcString) {
+      setIsConnecting(true);
+      try {
+        // addConnection validates the URI and shows its own toasts
+        const connected = await nwc.addConnection(tempNwcString.trim());
+        if (connected) {
+          setTempNwcString('');
+        }
+      } finally {
+        setIsConnecting(false);
+      }
+    }
 
-    toast({
-      title: 'Settings saved',
-      description: 'Your zap settings have been updated',
-    });
+    if (tempZapAmount !== defaultZapAmount) {
+      setDefaultZapAmount(tempZapAmount);
+      toast({
+        title: 'Settings saved',
+        description: 'Your zap settings have been updated',
+      });
+    }
+  };
+
+  const handleDisconnect = () => {
+    if (activeConnection) {
+      nwc.removeConnection(activeConnection.connectionString);
+    }
   };
 
   const handleReset = () => {
-    setTempNwcString(nwcString);
+    setTempNwcString('');
     setTempZapAmount(defaultZapAmount);
   };
 
-  const hasChanges = tempNwcString !== nwcString || tempZapAmount !== defaultZapAmount;
+  const hasChanges = tempNwcString !== '' || tempZapAmount !== defaultZapAmount;
 
   if (!user) {
     return (
@@ -93,11 +109,16 @@ export function ZapConfiguration() {
         </CardHeader>
         <CardContent className={cn("space-y-4", isMobile && "px-2")}>
           {/* Wallet Status */}
-          {nwc.activeConnection && (
+          {activeConnection && (
             <Alert>
               <Wallet className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Wallet Connected:</strong> Nostr Wallet Connect (NWC)
+              <AlertDescription className="flex items-center justify-between gap-2">
+                <span>
+                  <strong>Wallet Connected:</strong> {activeConnection.alias || 'Nostr Wallet Connect (NWC)'}
+                </span>
+                <Button variant="outline" size="sm" onClick={handleDisconnect}>
+                  Disconnect
+                </Button>
               </AlertDescription>
             </Alert>
           )}
@@ -110,6 +131,7 @@ export function ZapConfiguration() {
               value={tempNwcString}
               onChange={(e) => setTempNwcString(e.target.value)}
               type="password"
+              autoComplete="off"
             />
             <p className="text-sm text-muted-foreground">
               Connect your lightning wallet to enable seamless zapping. NWC takes priority over WebLN.
@@ -120,7 +142,8 @@ export function ZapConfiguration() {
             <Info className="h-4 w-4" />
             <AlertDescription>
               Get your NWC string from compatible wallets like Alby, coinos.io, or Cashu.me.
-              This enables automatic zap payments without manual approval.
+              This enables automatic zap payments without manual approval, so prefer a
+              connection with a spending limit.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -171,12 +194,12 @@ export function ZapConfiguration() {
       <div className="flex space-x-2">
         <Button
           onClick={handleSaveZapSettings}
-          disabled={!hasChanges}
+          disabled={!hasChanges || isConnecting}
           className="flex-1"
         >
-          Save Zap Settings
+          {isConnecting ? 'Connecting...' : 'Save Zap Settings'}
         </Button>
-        {hasChanges && (
+        {hasChanges && !isConnecting && (
           <Button
             variant="outline"
             onClick={handleReset}
