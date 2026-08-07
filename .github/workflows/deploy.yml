@@ -24,13 +24,25 @@ jobs:
         run: npm run build
 
       - name: Copy files to production server
-        uses: appleboy/scp-action@v0.1.4
+        uses: burnett01/rsync-deployments@v9
         with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          port: ${{ secrets.PROD_PORT }}
-          source: "dist/*"
-          target: ${{ secrets.PROD_PATH }}
-          strip_components: 1
+          # rsync --delete, not scp: scp only copies INTO the target and never
+          # removes what is no longer in dist/. Vite content-hashes every
+          # bundle, so each build emits new filenames and the previous
+          # generation stayed on the server forever.
+          #
+          # No -p, plus --omit-dir-times: the webroot is root:deployers and the
+          # deploy user writes inside it without owning it, so preserving
+          # directory permissions or times returns EPERM and exits 23 — a
+          # successful transfer reported as a failed build.
+          #
+          # .well-known is excluded: it can hold hand-placed NIP-05
+          # (nostr.json) and ACME files that are not part of any build.
+          switches: -rlt --omit-dir-times --delete --exclude='.well-known/'
+          path: dist/
+          remote_path: ${{ secrets.PROD_PATH }}
+          remote_host: ${{ secrets.PROD_HOST }}
+          remote_port: ${{ secrets.PROD_PORT }}
+          remote_user: ${{ secrets.PROD_USER }}
+          remote_key: ${{ secrets.PROD_SSH_KEY }}
 
